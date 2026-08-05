@@ -22,6 +22,7 @@ interface AppState {
   createTask: (data: Partial<Task>) => Promise<Task>;
   updateTask: (id: string, data: Partial<Task>) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
+  deleteDrawing: (id: string) => Promise<void>;
   createMilestone: (data: Partial<Milestone>) => Promise<Milestone>;
   updateMilestone: (id: string, data: Partial<Milestone>) => Promise<Milestone>;
   deleteMilestone: (id: string) => Promise<void>;
@@ -32,6 +33,7 @@ interface AppState {
   patchDrawingColumnPositions: (drawingId: string, code: string, x: number, y: number) => void;
   resetDrawingColumnPositions: (drawingId: string) => Promise<void>;
   patchDrawingColumnLabel: (drawingId: string, code: string, label: string) => Promise<void>;
+  patchDrawingElementTypeLabel: (drawingId: string, elementType: string, label: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -69,6 +71,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const resetDrawingColumnPositions = useCallback(async (drawingId: string) => {
     setDrawings((prev) => prev.map((d) => (d.id === drawingId ? { ...d, columnPositions: {} } : d)));
     await DrawingsAPI.update(drawingId, { resetColumnPositions: true } as any);
+  }, []);
+
+  /** Set a custom type label (e.g. "column" → "Anchor Bolt", "beam" → "Rafter"). Persists to backend. */
+  const patchDrawingElementTypeLabel = useCallback(async (drawingId: string, elementType: string, label: string) => {
+    setDrawings((prev) =>
+      prev.map((d) => {
+        if (d.id !== drawingId) return d;
+        const newLabels = { ...(d.elementTypeLabels ?? {}), [elementType]: label };
+        if (!label) delete newLabels[elementType];
+        return { ...d, elementTypeLabels: newLabels };
+      })
+    );
+    await DrawingsAPI.update(drawingId, { elementTypeLabels: { [elementType]: label } } as any);
   }, []);
 
   /** Set a custom display label for a column (e.g. "A1" → "P1"). Persists to backend. */
@@ -135,6 +150,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshActivity();
   }, [refreshActivity]);
 
+  /** Delete a drawing and all its tasks from local state and backend. */
+  const deleteDrawing = useCallback(async (id: string) => {
+    await DrawingsAPI.remove(id);
+    setDrawings((prev) => prev.filter((d) => d.id !== id));
+    setTasks((prev) => prev.filter((t) => t.drawingId !== id));
+    setCurrentDrawingId((prev) => (prev === id ? null : prev));
+  }, []);
+
   const createMilestone = useCallback(async (data: Partial<Milestone>) => {
     const milestone = await MilestonesAPI.create(data);
     setMilestones((prev) => [...prev, milestone]);
@@ -184,6 +207,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     createTask,
     updateTask,
     deleteTask,
+    deleteDrawing,
     createMilestone,
     updateMilestone,
     deleteMilestone,
@@ -194,6 +218,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     patchDrawingColumnPositions,
     resetDrawingColumnPositions,
     patchDrawingColumnLabel,
+    patchDrawingElementTypeLabel,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -30,7 +30,9 @@ function serialize(row: any) {
   try { columnPositions = row.columnPositions ? JSON.parse(row.columnPositions) : {}; } catch { columnPositions = {}; }
   let columnLabels = {};
   try { columnLabels = row.columnLabels ? JSON.parse(row.columnLabels) : {}; } catch { columnLabels = {}; }
-  return { ...row, columnPositions, columnLabels };
+  let elementTypeLabels = {};
+  try { elementTypeLabels = row.elementTypeLabels ? JSON.parse(row.elementTypeLabels) : {}; } catch { elementTypeLabels = {}; }
+  return { ...row, columnPositions, columnLabels, elementTypeLabels };
 }
 
 function createTasksForGrid(drawingId: string, cols: number, rows: number, createdAt: string) {
@@ -99,14 +101,13 @@ router.post('/upload', upload.single('file'), (req, res) => {
   res.status(201).json(serialize(row));
 });
 
-// Update grid config (also supports milestoneId, columnPositions, columnLabels, lat, lng)
+// Update grid config (also supports milestoneId, columnPositions, columnLabels, elementTypeLabels, lat, lng)
 router.patch('/:id', (req, res) => {
-  // Ensure columnLabels column exists (idempotent migration)
-  try {
-    db.exec('ALTER TABLE drawings ADD COLUMN columnLabels TEXT NOT NULL DEFAULT \'{}\'');
-  } catch { /* column already exists */ }
+  // Idempotent column migrations
+  try { db.exec("ALTER TABLE drawings ADD COLUMN columnLabels TEXT NOT NULL DEFAULT '{}'"); } catch { /* exists */ }
+  try { db.exec("ALTER TABLE drawings ADD COLUMN elementTypeLabels TEXT NOT NULL DEFAULT '{}'"); } catch { /* exists */ }
 
-  const { gridCols, gridRows, name, milestoneId, columnPositions, resetColumnPositions, columnLabels, resetColumnLabels, lat, lng } = req.body;
+  const { gridCols, gridRows, name, milestoneId, columnPositions, resetColumnPositions, columnLabels, resetColumnLabels, elementTypeLabels, resetElementTypeLabels, lat, lng } = req.body;
   const existing: any = db.prepare('SELECT * FROM drawings WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   const newMilestoneId = 'milestoneId' in req.body ? (milestoneId || null) : existing.milestoneId;
@@ -131,13 +132,23 @@ router.patch('/:id', (req, res) => {
     newColumnLabels = JSON.stringify({ ...current, ...columnLabels });
   }
 
-  db.prepare('UPDATE drawings SET gridCols = ?, gridRows = ?, name = ?, milestoneId = ?, columnPositions = ?, columnLabels = ?, lat = ?, lng = ? WHERE id = ?').run(
+  let newElementTypeLabels = existing.elementTypeLabels || '{}';
+  if (resetElementTypeLabels) {
+    newElementTypeLabels = '{}';
+  } else if (elementTypeLabels && typeof elementTypeLabels === 'object') {
+    let current: Record<string, string> = {};
+    try { current = existing.elementTypeLabels ? JSON.parse(existing.elementTypeLabels) : {}; } catch { current = {}; }
+    newElementTypeLabels = JSON.stringify({ ...current, ...elementTypeLabels });
+  }
+
+  db.prepare('UPDATE drawings SET gridCols = ?, gridRows = ?, name = ?, milestoneId = ?, columnPositions = ?, columnLabels = ?, elementTypeLabels = ?, lat = ?, lng = ? WHERE id = ?').run(
     gridCols ?? existing.gridCols,
     gridRows ?? existing.gridRows,
     name ?? existing.name,
     newMilestoneId,
     newColumnPositions,
     newColumnLabels,
+    newElementTypeLabels,
     newLat,
     newLng,
     req.params.id

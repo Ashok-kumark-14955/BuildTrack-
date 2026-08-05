@@ -23,6 +23,8 @@ export interface Drawing {
   columnPositions: Record<string, ColumnPosition>;
   /** Custom display labels keyed by default gridCode (e.g. "A1" → "P1") */
   columnLabels: Record<string, string>;
+  /** Custom type labels for structural elements (e.g. "column" → "Anchor Bolt", "beam" → "Rafter") */
+  elementTypeLabels: Record<string, string>;
   lat: number | null;
   lng: number | null;
   createdAt: string;
@@ -142,12 +144,12 @@ export interface ActivityItem {
 }
 
 export const STATUS_COLORS: Record<string, string> = {
-  'No Task': '#9ca3af',
-  'Assigned': '#3b82f6',
-  'In Progress': '#eab308',
-  'Completed': '#22c55e',
-  'Blocked': '#ef4444',
-  'Delayed': '#f97316',
+  'No Task':    '#475569', // dark slate
+  'Assigned':   '#1d4ed8', // dark blue
+  'In Progress':'#a16207', // dark amber/yellow
+  'Completed':  '#15803d', // dark green
+  'Blocked':    '#b91c1c', // dark red
+  'Delayed':    '#c2410c', // dark orange
 };
 
 export const STATUS_OPTIONS: TaskStatus[] = ['Assigned', 'In Progress', 'Completed', 'Blocked', 'Delayed'];

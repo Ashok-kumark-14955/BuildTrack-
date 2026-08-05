@@ -28,16 +28,7 @@ function gridLabel(col: number, row: number) {
   return `${String.fromCharCode(65 + col)}${row + 1}`;
 }
 
-// ─── Lighten a hex color for a subtle radial-gradient highlight ───────────────
-function lighten(hex: string, amount = 0.35) {
-  const m = hex.replace('#', '');
-  if (m.length !== 6) return hex;
-  const num = parseInt(m, 16);
-  const r = Math.min(255, Math.round(((num >> 16) & 0xff) + (255 - ((num >> 16) & 0xff)) * amount));
-  const g = Math.min(255, Math.round(((num >> 8) & 0xff) + (255 - ((num >> 8) & 0xff)) * amount));
-  const b = Math.min(255, Math.round((num & 0xff) + (255 - (num & 0xff)) * amount));
-  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-}
+
 
 /**
  * The drawing engine recognizes structural elements generically by
@@ -167,21 +158,13 @@ const ColumnHotspot = memo(function ColumnHotspot({
       )}
       <Circle
         radius={r}
-        fillRadialGradientStartPoint={{ x: -r * 0.35, y: -r * 0.35 }}
-        fillRadialGradientStartRadius={0}
-        fillRadialGradientEndPoint={{ x: 0, y: 0 }}
-        fillRadialGradientEndRadius={r * 1.15}
-        fillRadialGradientColorStops={
-          isEmpty
-            ? [0, 'rgba(241,245,249,0.55)', 1, 'rgba(219,226,234,0.45)']
-            : [0, lighten(color) + 'bb', 1, color + '99']
-        }
-        opacity={isHovered || isSelected ? 1 : 0.72}
-        stroke={isHovered || isSelected ? '#1e293b' : 'rgba(15,23,42,0.35)'}
-        strokeWidth={isHovered || isSelected ? 1.5 : 0.75}
+        fill={isEmpty ? '#334155' : color}
+        opacity={isHovered || isSelected ? 1 : 0.9}
+        stroke={isHovered || isSelected ? '#ffffff' : 'rgba(255,255,255,0.55)'}
+        strokeWidth={isHovered || isSelected ? 2 : 1.25}
         shadowColor="black"
-        shadowBlur={isHovered ? 8 : 3}
-        shadowOpacity={isHovered ? 0.25 : 0.12}
+        shadowBlur={isHovered ? 10 : 4}
+        shadowOpacity={isHovered ? 0.45 : 0.25}
         shadowOffsetY={1}
       />
       {/* Grid label floats above the circle */}
@@ -234,7 +217,7 @@ const BeamHotspot = memo(function BeamHotspot({
   id, x1, y1, x2, y2, thickness, status, isHovered, isSelected, onSelect, onHover,
 }: BeamProps) {
   const isEmpty = status === 'No Task';
-  const color = isEmpty ? '#22d3ee' : (STATUS_COLORS[status] ?? STATUS_COLORS['No Task']);
+  const color = isEmpty ? '#334155' : (STATUS_COLORS[status] ?? STATUS_COLORS['No Task']);
   const strokeWidth = isHovered || isSelected ? thickness * 1.6 : thickness;
 
   return (
@@ -253,18 +236,18 @@ const BeamHotspot = memo(function BeamHotspot({
       }}
     >
       {isSelected && (
-        <Line points={[x1, y1, x2, y2]} stroke="#2563eb" strokeWidth={strokeWidth + 6} opacity={0.3} lineCap="round" listening={false} />
+        <Line points={[x1, y1, x2, y2]} stroke="#1d4ed8" strokeWidth={strokeWidth + 6} opacity={0.45} lineCap="round" listening={false} />
       )}
       <Line
         points={[x1, y1, x2, y2]}
         stroke={color}
         strokeWidth={strokeWidth}
-        opacity={isHovered || isSelected ? 0.85 : isEmpty ? 0.38 : 0.52}
+        opacity={isHovered || isSelected ? 1 : isEmpty ? 0.65 : 0.9}
         lineCap="round"
         hitStrokeWidth={Math.max(18, strokeWidth * 4)}
         shadowColor="black"
-        shadowBlur={isHovered ? 5 : 0}
-        shadowOpacity={0.15}
+        shadowBlur={isHovered ? 6 : 0}
+        shadowOpacity={0.25}
       />
     </Group>
   );

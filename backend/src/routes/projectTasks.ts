@@ -13,7 +13,19 @@ const SORT_COLUMNS: Record<string, string> = {
 
 function serialize(row: any) {
   if (!row) return row;
-  return { ...row, tags: row.tags ? JSON.parse(row.tags) : [] };
+  let tags: string[] = [];
+  try {
+    const raw = row.tags;
+    if (Array.isArray(raw)) {
+      tags = raw;
+    } else if (typeof raw === 'string' && raw.trim().startsWith('[')) {
+      tags = JSON.parse(raw);
+    } else if (typeof raw === 'string' && raw.trim()) {
+      // Legacy comma-separated values (e.g. "Procurement,Steel")
+      tags = raw.split(',').map((t: string) => t.trim()).filter(Boolean);
+    }
+  } catch { tags = []; }
+  return { ...row, tags };
 }
 
 // List project tasks (filter + search + sort)

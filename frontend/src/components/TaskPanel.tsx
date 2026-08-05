@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Trash2, Save, Plus, MessageSquare, Send, LayoutGrid, Minus, Flag, Camera, Image as ImageIcon, MapPin, Navigation, Crosshair } from 'lucide-react';
+import { X, Trash2, Save, Plus, MessageSquare, Send, LayoutGrid, Minus, Flag, Camera, Image as ImageIcon, MapPin, Navigation, Crosshair, Pencil, Check } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { TasksAPI, DrawingsAPI, GeocodeAPI, fileUrl } from '../api';
 import {
@@ -56,10 +56,19 @@ export default function TaskPanel() {
     createTask, updateTask, deleteTask,
     milestones, drawings, refreshDrawings,
     currentDrawing: ctxCurrentDrawing,
+    patchDrawingColumnLabel,
+    patchDrawingElementTypeLabel,
   } = useApp();
 
   // Resolve custom label: for columns look up columnLabels on the current drawing
   const columnLabels = ctxCurrentDrawing?.columnLabels ?? {};
+  const elementTypeLabels = ctxCurrentDrawing?.elementTypeLabels ?? {};
+
+  // ── Column ID rename state ──
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [savingRename, setSavingRename] = useState(false);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   // Match tasks to the selected canvas element.
   // selectedElementId is "Column_A1" or "Beam_A1_B1".
@@ -152,11 +161,57 @@ export default function TaskPanel() {
     TasksAPI.comments(activeTaskId).then(setComments).catch(() => {});
   }, [activeTaskId]);
 
+  // Close rename mode when element changes
+  useEffect(() => {
+    setRenaming(false);
+  }, [selectedElementId]);
+
+  // Focus rename input when it appears
+  useEffect(() => {
+    if (renaming) setTimeout(() => renameInputRef.current?.focus(), 50);
+  }, [renaming]);
+
   if (!selectedElementId) return null;
 
   const { type: elementType, label: elementLabel, rawCode } = describeElement(selectedElementId, columnLabels);
   const isBeam = elementType === 'beam';
   const stageSuggestions = isBeam ? BEAM_STAGE_SUGGESTIONS : CONSTRUCTION_STAGE_SUGGESTIONS;
+
+  // For columns: code is the single grid code (e.g. "A1")
+  // For beams: we parse both endpoints so each can be renamed
+  const beamCodes = isBeam
+    ? selectedElementId.replace('Beam_', '').split('_') // ["A1", "B1"]
+    : [];
+
+  const startRename = () => {
+    setRenameValue(elementLabel);
+    setRenaming(true);
+  };
+
+  const commitRename = async () => {
+    if (!currentDrawingId) return;
+    const trimmed = renameValue.trim();
+    setSavingRename(true);
+    try {
+      if (!isBeam) {
+        // Column rename
+        const code = selectedElementId.replace('Column_', '');
+        await patchDrawingColumnLabel(currentDrawingId, code, trimmed);
+      } else {
+        // For a beam header rename we don't rename individual endpoints here.
+        // The user renames each column separately via the column panel.
+        // So this branch shouldn't be reached, but handle gracefully.
+      }
+      toast.success('Renamed successfully');
+      setRenaming(false);
+    } catch {
+      toast.error('Failed to rename');
+    } finally {
+      setSavingRename(false);
+    }
+  };
+
+  const cancelRename = () => setRenaming(false);
 
   const openTask = (task: Task) => {
     setActiveTaskId(task.id);
@@ -244,7 +299,7 @@ export default function TaskPanel() {
     <div className="w-full h-full flex flex-col shadow-elevated" style={{ background: 'linear-gradient(180deg, #180810 0%, #1c0a12 50%, #150710 100%)', borderLeft: '1px solid rgba(159,18,57,0.3)' }}>
       {/* Header */}
       <div
-        className="flex items-center justify-between px-5 py-4 border-b"
+        className="px-5 py-4 border-b"
         style={{
           background: isBeam
             ? 'linear-gradient(135deg, rgba(84,35,8,0.95) 0%, rgba(22,10,6,0.98) 100%)'
@@ -252,46 +307,112 @@ export default function TaskPanel() {
           borderBottomColor: isBeam ? 'rgba(245,158,11,0.35)' : 'rgba(244,63,94,0.35)',
         }}
       >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-lg border flex items-center justify-center"
-            style={{
-              background: isBeam
-                ? 'linear-gradient(135deg, rgba(245,158,11,0.35), rgba(120,53,15,0.4))'
-                : 'linear-gradient(135deg, rgba(244,63,94,0.35), rgba(76,5,25,0.4))',
-              borderColor: isBeam ? 'rgba(245,158,11,0.5)' : 'rgba(244,63,94,0.5)',
-              boxShadow: isBeam
-                ? '0 0 12px rgba(245,158,11,0.35)'
-                : '0 0 12px rgba(244,63,94,0.35)',
-            }}
-          >
-            {isBeam ? <Minus size={16} className="text-amber-300" /> : <LayoutGrid size={16} className="text-rose-300" />}
-          </div>
-          <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             <div
-              className="text-[10.5px] uppercase tracking-wider font-semibold"
-              style={{ color: isBeam ? 'rgba(253,230,138,0.85)' : 'rgba(251,207,232,0.85)' }}
-            >
-              {isBeam ? 'Beam' : 'Column'}
-            </div>
-            <div
-              className="text-lg font-bold font-display leading-tight bg-clip-text text-transparent"
+              className="w-9 h-9 rounded-lg border flex items-center justify-center shrink-0"
               style={{
-                backgroundImage: isBeam
-                  ? 'linear-gradient(90deg, #fff, #fcd34d)'
-                  : 'linear-gradient(90deg, #fff, #fb7185)',
+                background: isBeam
+                  ? 'linear-gradient(135deg, rgba(245,158,11,0.35), rgba(120,53,15,0.4))'
+                  : 'linear-gradient(135deg, rgba(244,63,94,0.35), rgba(76,5,25,0.4))',
+                borderColor: isBeam ? 'rgba(245,158,11,0.5)' : 'rgba(244,63,94,0.5)',
+                boxShadow: isBeam ? '0 0 12px rgba(245,158,11,0.35)' : '0 0 12px rgba(244,63,94,0.35)',
               }}
             >
-              {elementLabel}
+              {isBeam ? <Minus size={16} className="text-amber-300" /> : <LayoutGrid size={16} className="text-rose-300" />}
             </div>
-            {elementLabel !== rawCode && (
-              <div className="text-[10px] text-slate-500 font-medium leading-none mt-0.5">{rawCode}</div>
-            )}
+            <div className="flex-1 min-w-0">
+              {/* Element type label — editable (e.g. "Column" → "Anchor Bolt") */}
+              <ElementTypeLabelEditor
+                elementKey={elementType}
+                defaultLabel={isBeam ? 'Beam' : 'Column'}
+                currentLabel={elementTypeLabels[elementType] ?? (isBeam ? 'Beam' : 'Column')}
+                color={isBeam ? 'rgba(253,230,138,0.85)' : 'rgba(251,207,232,0.85)'}
+                drawingId={currentDrawingId!}
+                onSave={patchDrawingElementTypeLabel}
+              />
+
+              {/* Inline rename for columns */}
+              {!isBeam && renaming ? (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename();
+                      if (e.key === 'Escape') cancelRename();
+                    }}
+                    className="flex-1 min-w-0 bg-black/40 border border-rose-700/60 rounded-lg px-2 py-1 text-white text-sm font-bold outline-none focus:border-rose-500"
+                    placeholder={rawCode}
+                  />
+                  <button
+                    onClick={commitRename}
+                    disabled={savingRename}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/40 disabled:opacity-60 transition-colors"
+                    title="Save"
+                  >
+                    <Check size={13} className="text-emerald-400" />
+                  </button>
+                  <button
+                    onClick={cancelRename}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                    title="Cancel"
+                  >
+                    <X size={13} className="text-slate-400" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div
+                    className="text-lg font-bold font-display leading-tight bg-clip-text text-transparent truncate"
+                    style={{
+                      backgroundImage: isBeam
+                        ? 'linear-gradient(90deg, #fff, #fcd34d)'
+                        : 'linear-gradient(90deg, #fff, #fb7185)',
+                    }}
+                  >
+                    {elementLabel}
+                  </div>
+                  {!isBeam && (
+                    <button
+                      onClick={startRename}
+                      title="Rename column"
+                      className="w-6 h-6 flex items-center justify-center rounded-md bg-white/0 hover:bg-white/10 border border-transparent hover:border-white/15 transition-colors shrink-0"
+                    >
+                      <Pencil size={11} className="text-slate-500 hover:text-slate-300" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {elementLabel !== rawCode && !renaming && (
+                <div className="text-[10px] text-slate-500 font-medium leading-none mt-0.5">{rawCode}</div>
+              )}
+            </div>
           </div>
+          <button onClick={() => setSelectedElementId(null)} className="icon-btn w-8 h-8 shrink-0">
+            <X size={17} />
+          </button>
         </div>
-        <button onClick={() => setSelectedElementId(null)} className="icon-btn w-8 h-8">
-          <X size={17} />
-        </button>
+
+        {/* Beam endpoint rename rows */}
+        {isBeam && beamCodes.length === 2 && (
+          <div className="mt-3 space-y-1.5">
+            {beamCodes.map((code) => {
+              const currentLabel = columnLabels[code] ?? code;
+              return (
+                <BeamEndpointRenamer
+                  key={code}
+                  code={code}
+                  label={currentLabel}
+                  drawingId={currentDrawingId!}
+                  onRename={patchDrawingColumnLabel}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Task list */}
@@ -615,5 +736,173 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">{label}</span>
       {children}
     </label>
+  );
+}
+
+/** Editable type label badge — e.g. "Column" → "Anchor Bolt", "Beam" → "Rafter" */
+function ElementTypeLabelEditor({
+  elementKey,
+  defaultLabel,
+  currentLabel,
+  color,
+  drawingId,
+  onSave,
+}: {
+  elementKey: string;
+  defaultLabel: string;
+  currentLabel: string;
+  color: string;
+  drawingId: string;
+  onSave: (drawingId: string, elementType: string, label: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(currentLabel);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { if (!editing) setValue(currentLabel); }, [currentLabel, editing]);
+  useEffect(() => { if (editing) setTimeout(() => inputRef.current?.select(), 40); }, [editing]);
+
+  const commit = async () => {
+    const trimmed = value.trim();
+    setSaving(true);
+    try {
+      await onSave(drawingId, elementKey, trimmed || defaultLabel);
+      toast.success(`Renamed to "${trimmed || defaultLabel}"`);
+      setEditing(false);
+    } catch {
+      toast.error('Failed to rename');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1 mt-0.5 mb-1">
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit();
+            if (e.key === 'Escape') { setEditing(false); setValue(currentLabel); }
+          }}
+          className="flex-1 min-w-0 bg-black/40 rounded px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider outline-none"
+          style={{ border: `1px solid ${color.replace('0.85', '0.6')}`, color }}
+          placeholder={defaultLabel}
+        />
+        <button
+          onClick={commit}
+          disabled={saving}
+          className="w-5 h-5 flex items-center justify-center rounded bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/30 disabled:opacity-60"
+          title="Save"
+        >
+          <Check size={10} className="text-emerald-400" />
+        </button>
+        <button
+          onClick={() => { setEditing(false); setValue(currentLabel); }}
+          className="w-5 h-5 flex items-center justify-center rounded bg-white/5 hover:bg-white/10 border border-white/10"
+          title="Cancel"
+        >
+          <X size={10} className="text-slate-400" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { setValue(currentLabel); setEditing(true); }}
+      className="group flex items-center gap-1 leading-none mb-0.5 hover:opacity-80 transition-opacity"
+      title={`Rename ${defaultLabel} type (e.g. "${defaultLabel}" → "Anchor Bolt")`}
+    >
+      <span className="text-[10.5px] uppercase tracking-wider font-semibold" style={{ color }}>
+        {currentLabel}
+      </span>
+      <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition-opacity" style={{ color }} />
+    </button>
+  );
+}
+
+/** Inline renamer for a single beam endpoint column */
+function BeamEndpointRenamer({
+  code,
+  label,
+  drawingId,
+  onRename,
+}: {
+  code: string;
+  label: string;
+  drawingId: string;
+  onRename: (drawingId: string, code: string, label: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(label);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync label when parent updates
+  useEffect(() => { if (!editing) setValue(label); }, [label, editing]);
+  useEffect(() => { if (editing) setTimeout(() => inputRef.current?.focus(), 40); }, [editing]);
+
+  const commit = async () => {
+    setSaving(true);
+    try {
+      await onRename(drawingId, code, value.trim());
+      toast.success(`Column ${code} renamed`);
+      setEditing(false);
+    } catch {
+      toast.error('Failed to rename');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 rounded-lg px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(245,158,11,0.2)' }}>
+      <span className="text-[9.5px] font-bold text-amber-500/70 uppercase tracking-wider w-6 shrink-0">{code}</span>
+      {editing ? (
+        <>
+          <input
+            ref={inputRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit();
+              if (e.key === 'Escape') { setEditing(false); setValue(label); }
+            }}
+            className="flex-1 min-w-0 bg-black/40 border border-amber-600/50 rounded px-1.5 py-0.5 text-white text-[12px] font-semibold outline-none focus:border-amber-400"
+            placeholder={code}
+          />
+          <button
+            onClick={commit}
+            disabled={saving}
+            className="w-6 h-6 flex items-center justify-center rounded bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/30 disabled:opacity-60"
+            title="Save"
+          >
+            <Check size={11} className="text-emerald-400" />
+          </button>
+          <button
+            onClick={() => { setEditing(false); setValue(label); }}
+            className="w-6 h-6 flex items-center justify-center rounded bg-white/5 hover:bg-white/10 border border-white/10"
+            title="Cancel"
+          >
+            <X size={11} className="text-slate-400" />
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="flex-1 text-[12px] font-semibold text-white truncate">{label}</span>
+          <button
+            onClick={() => { setValue(label); setEditing(true); }}
+            title={`Rename column ${code}`}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 border border-transparent hover:border-white/10 transition-colors"
+          >
+            <Pencil size={10} className="text-amber-500/60 hover:text-amber-400" />
+          </button>
+        </>
+      )}
+    </div>
   );
 }

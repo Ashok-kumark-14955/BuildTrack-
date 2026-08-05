@@ -24,6 +24,35 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const now = new Date().toISOString();
 
+// ─── Column position calibration helper ────────────────────────────────────
+// Each drawing's SVG lays its grid out at a known originX/originY with fixed
+// spacingX/spacingY inside a 1700x950 viewBox. DrawingCanvas falls back to
+// naive edge-to-edge (0..1) spacing when no columnPositions are stored, which
+// does NOT match these SVGs (grid is inset, not edge-to-edge). Precompute the
+// exact normalized fractions here so markers land perfectly on the grid without
+// requiring manual calibration.
+const SVG_WIDTH = 1700;
+const SVG_HEIGHT = 950;
+function computeColumnPositions(
+  cols: string[],
+  rows: number[],
+  originX: number,
+  originY: number,
+  spacingX: number,
+  spacingY: number
+): Record<string, { x: number; y: number }> {
+  const positions: Record<string, { x: number; y: number }> = {};
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < cols.length; c++) {
+      const code = `${cols[c]}${rows[r]}`;
+      const x = (originX + c * spacingX) / SVG_WIDTH;
+      const y = (originY + r * spacingY) / SVG_HEIGHT;
+      positions[code] = { x, y };
+    }
+  }
+  return positions;
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function writeSvg(content: string): string {
   const fileName = `${uuid()}.svg`;
@@ -593,12 +622,14 @@ const insertProjectTask = db.prepare(
 // ─── Drawing 1: Basement Foundation Plan ─────────────────────────────────────
 const foundDrawingId = uuid();
 db.prepare(
-  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, createdAt)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).run(foundDrawingId, projectId, milestoneIds.m2,
   'STR-FND-001 Basement Foundation Plan',
   writeSvg(foundationPlanSvg()),
-  'image', 6, 5, projectNow);
+  'image', 6, 5,
+  JSON.stringify(computeColumnPositions(['A','B','C','D','E','F'], [1,2,3,4,5], 200, 180, 220, 140)),
+  projectNow);
 
 interface TaskDef {
   col: string; row: number; name: string; desc: string;
@@ -636,12 +667,14 @@ insertActivity.run(uuid(), null, foundDrawingId, 'STR-FND-001 Basement Foundatio
 // ─── Drawing 2: Steel Column Erection Plan ────────────────────────────────────
 const colDrawingId = uuid();
 db.prepare(
-  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, createdAt)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).run(colDrawingId, projectId, milestoneIds.m3,
   'STR-COL-002 Steel Column Erection Plan',
   writeSvg(columnErectionSvg()),
-  'image', 6, 5, projectNow);
+  'image', 6, 5,
+  JSON.stringify(computeColumnPositions(['A','B','C','D','E','F'], [1,2,3,4,5], 200, 190, 220, 140)),
+  projectNow);
 
 const columnTasks: TaskDef[] = [
   { col:'A', row:1, name:'COL-A1 Column Fabrication Inspection', desc:'Mill cert verification, visual + dimensional check on UC305x305x97 column for A1; approve for dispatch.', category:'Quality', priority:'Critical', engineer:'Arjun Mehta', start:'2026-07-01', due:'2026-07-05', status:'Completed', progress:100, elementType:'column', elementId:'COL-A1', milestoneId: milestoneIds.m3 },
@@ -672,12 +705,14 @@ insertActivity.run(uuid(), null, colDrawingId, 'STR-COL-002 Steel Column Erectio
 // ─── Drawing 3: Steel Beam Erection Plan ──────────────────────────────────────
 const beamDrawingId = uuid();
 db.prepare(
-  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, createdAt)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).run(beamDrawingId, projectId, milestoneIds.m4,
   'STR-BEA-003 Steel Beam Erection Plan',
   writeSvg(beamErectionSvg()),
-  'image', 6, 5, projectNow);
+  'image', 6, 5,
+  JSON.stringify(computeColumnPositions(['A','B','C','D','E','F'], [1,2,3,4,5], 200, 190, 220, 140)),
+  projectNow);
 
 const beamTasks: TaskDef[] = [
   { col:'A', row:1, name:'BEA-A1 Primary Beam PB1 Erection – A1-B1', desc:'Crane lift UB457x191x67 primary beam between A1 and B1 columns at +4.500 level; bolt end connections.', category:'Structural', priority:'Critical', engineer:'Vikram Singh', start:'2026-08-16', due:'2026-08-20', status:'Assigned', progress:0, elementType:'beam', elementId:'PB-A1-B1', milestoneId: milestoneIds.m4 },
@@ -705,12 +740,14 @@ insertActivity.run(uuid(), null, beamDrawingId, 'STR-BEA-003 Steel Beam Erection
 // ─── Drawing 4: Steel Rafter Erection Plan ─────────────────────────────────────
 const rafterDrawingId = uuid();
 db.prepare(
-  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, createdAt)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).run(rafterDrawingId, projectId, milestoneIds.m5,
   'STR-RAF-004 Steel Rafter Erection Plan',
   writeSvg(rafterErectionSvg()),
-  'image', 6, 5, projectNow);
+  'image', 6, 5,
+  JSON.stringify(computeColumnPositions(['A','B','C','D','E','F'], [1,2,3,4,5], 200, 200, 220, 130)),
+  projectNow);
 
 const rafterTasks: TaskDef[] = [
   { col:'A', row:1, name:'RAF-A1 Ridge Beam Erection', desc:'Crane lift RB1 UB254x146x37 ridge beam from A1 to F1; install on column apex gusset plates.', category:'Structural', priority:'Critical', engineer:'Nilesh Kumar', start:'2026-11-01', due:'2026-11-05', status:'Assigned', progress:0, elementType:'ridge_beam', elementId:'RB1', milestoneId: milestoneIds.m5 },

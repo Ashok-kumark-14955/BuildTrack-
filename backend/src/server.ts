@@ -8,10 +8,22 @@ import milestonesRouter from './routes/milestones';
 import projectTasksRouter from './routes/projectTasks';
 import activityRouter from './routes/activity';
 import geocodeRouter from './routes/geocode';
-import './db';
+import db from './db';
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
+
+// Auto-seed sample project data on first boot so the app is explorable with zero setup
+const projectCount = (db.prepare('SELECT COUNT(*) as count FROM projects').get() as { count: number }).count;
+if (projectCount === 0) {
+  require('./seed');
+}
+
+// Auto-seed the Apex Steel sample project (4 steel drawings) if it hasn't been added yet
+const steelProjectCount = (db.prepare("SELECT COUNT(*) as count FROM projects WHERE code = 'ASIC-P1'").get() as { count: number }).count;
+if (steelProjectCount === 0) {
+  require('./seed_steel');
+}
 
 app.use(cors());
 app.use(express.json());
