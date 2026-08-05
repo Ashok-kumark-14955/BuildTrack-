@@ -25,6 +25,12 @@ if (steelProjectCount === 0) {
   require('./seed_steel');
 }
 
+// Self-healing calibration fixup: some hosting environments (e.g. AppSail) may
+// reset/restart with a stale copy of the DB that predates the columnPositions
+// fix. Re-apply known-good grid marker positions for the steel sample drawings
+// on every boot so the fix survives restarts/redeploys regardless of DB state.
+require('./fixCalibration');
+
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

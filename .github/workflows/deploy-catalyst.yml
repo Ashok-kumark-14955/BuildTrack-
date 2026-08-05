@@ -1,0 +1,44 @@
+name: Deploy to Catalyst
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Catalyst CLI
+        run: npm install -g zcatalyst-cli
+
+      - name: Build backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy backend to AppSail
+        working-directory: backend
+        run: >
+          catalyst deploy appsail -ni
+          --token "${{ secrets.CATALYST_TOKEN }}"
+          --org "${{ vars.CATALYST_ORG_ID }}"
+          --project "${{ vars.CATALYST_PROJECT_ID }}"
+          --name construction-backend
+          --build-path .
+          --stack node22
+          --command "npm start"
+
+      - name: Deploy frontend to Slate
+        run: >
+          catalyst deploy slate construction-drawing-frontend -ni
+          --token "${{ secrets.CATALYST_TOKEN }}"
+          --org "${{ vars.CATALYST_ORG_ID }}"
+          --project "${{ vars.CATALYST_PROJECT_ID }}"
+          -m "Deploy ${{ github.sha }}"

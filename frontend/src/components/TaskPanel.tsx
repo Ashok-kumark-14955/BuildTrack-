@@ -323,14 +323,21 @@ export default function TaskPanel() {
             </div>
             <div className="flex-1 min-w-0">
               {/* Element type label — editable (e.g. "Column" → "Anchor Bolt") */}
-              <ElementTypeLabelEditor
-                elementKey={elementType}
-                defaultLabel={isBeam ? 'Beam' : 'Column'}
-                currentLabel={elementTypeLabels[elementType] ?? (isBeam ? 'Beam' : 'Column')}
-                color={isBeam ? 'rgba(253,230,138,0.85)' : 'rgba(251,207,232,0.85)'}
-                drawingId={currentDrawingId!}
-                onSave={patchDrawingElementTypeLabel}
-              />
+              {currentDrawingId && (
+                <ElementTypeLabelEditor
+                  elementKey={elementType}
+                  defaultLabel={isBeam ? 'Beam' : 'Column'}
+                  currentLabel={elementTypeLabels[elementType] ?? (isBeam ? 'Beam' : 'Column')}
+                  color={isBeam ? 'rgba(253,230,138,0.85)' : 'rgba(251,207,232,0.85)'}
+                  drawingId={currentDrawingId}
+                  onSave={patchDrawingElementTypeLabel}
+                />
+              )}
+              {!currentDrawingId && (
+                <span className="text-[10.5px] uppercase tracking-wider font-semibold" style={{ color: isBeam ? 'rgba(253,230,138,0.85)' : 'rgba(251,207,232,0.85)' }}>
+                  {isBeam ? 'Beam' : 'Column'}
+                </span>
+              )}
 
               {/* Inline rename for columns */}
               {!isBeam && renaming ? (
@@ -764,14 +771,17 @@ function ElementTypeLabelEditor({
   useEffect(() => { if (editing) setTimeout(() => inputRef.current?.select(), 40); }, [editing]);
 
   const commit = async () => {
+    if (!drawingId) { toast.error('No drawing selected'); return; }
     const trimmed = value.trim();
+    if (!trimmed) { toast.error('Label cannot be empty'); return; }
     setSaving(true);
     try {
-      await onSave(drawingId, elementKey, trimmed || defaultLabel);
-      toast.success(`Renamed to "${trimmed || defaultLabel}"`);
+      await onSave(drawingId, elementKey, trimmed);
+      toast.success(`Renamed to "${trimmed}"`);
       setEditing(false);
-    } catch {
-      toast.error('Failed to rename');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to rename';
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
