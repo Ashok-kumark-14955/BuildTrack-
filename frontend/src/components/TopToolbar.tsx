@@ -4,7 +4,6 @@ import {
   Grid3x3,
   Maximize2,
   Minimize2,
-  Search,
   Bell,
   ChevronDown,
   FileImage,
@@ -12,7 +11,6 @@ import {
   SlidersHorizontal,
   Loader2,
   Crosshair,
-  Layers,
   Plus,
   Minus,
   Check,
@@ -26,6 +24,8 @@ import toast from 'react-hot-toast';
 interface Props {
   showGrid: boolean;
   setShowGrid: (v: boolean) => void;
+  showBeams: boolean;
+  setShowBeams: (v: boolean) => void;
   fullscreen: boolean;
   setFullscreen: (v: boolean) => void;
   calibrating: boolean;
@@ -38,6 +38,8 @@ interface Props {
 export default function TopToolbar({
   showGrid,
   setShowGrid,
+  showBeams,
+  setShowBeams,
   fullscreen,
   setFullscreen,
   calibrating,
@@ -49,7 +51,6 @@ export default function TopToolbar({
   const { currentDrawing, refreshDrawings, refreshTasks, setCurrentDrawingId, drawings, projects } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [search, setSearch] = useState('');
   const [showGridSettings, setShowGridSettings] = useState(false);
   const [draftCols, setDraftCols] = useState(gridCols);
   const [draftRows, setDraftRows] = useState(gridRows);
@@ -64,11 +65,9 @@ export default function TopToolbar({
   const applyGridSize = () => {
     const c = Math.min(30, Math.max(2, draftCols));
     const r = Math.min(30, Math.max(2, draftRows));
-    setDraftCols(c);
-    setDraftRows(r);
+    setDraftCols(c); setDraftRows(r);
     onGridSizeChange(c, r);
-    setDirty(false);
-    setShowGridSettings(false);
+    setDirty(false); setShowGridSettings(false);
   };
 
   const adjustCols = (delta: number) => { setDraftCols((v) => Math.min(30, Math.max(2, v + delta))); setDirty(true); };
@@ -76,33 +75,23 @@ export default function TopToolbar({
 
   const handleUpload = async (file: File) => {
     setUploading(true);
-    let cols: number;
-    let rows: number;
+    let cols = 10, rows = 8;
     try {
       const detected = await detectGridFromImage(file);
-      if (detected) {
-        cols = detected.cols;
-        rows = detected.rows;
-        toast.success(`Detected grid: ${cols} columns × ${rows} rows`);
-      } else {
-        const colsInput = window.prompt('Could not auto-detect grid. How many grid columns (letters)?', '10');
-        if (colsInput === null) { setUploading(false); return; }
-        const rowsInput = window.prompt('How many grid rows (numbers)?', '8');
-        if (rowsInput === null) { setUploading(false); return; }
-        cols = Math.min(30, Math.max(1, Number(colsInput) || 10));
-        rows = Math.min(30, Math.max(1, Number(rowsInput) || 8));
+      if (detected) { cols = detected.cols; rows = detected.rows; toast.success(`Detected grid: ${cols} × ${rows}`); }
+      else {
+        const ci = window.prompt('Columns (letters)?', '10'); if (ci === null) { setUploading(false); return; }
+        const ri = window.prompt('Rows (numbers)?', '8'); if (ri === null) { setUploading(false); return; }
+        cols = Math.min(30, Math.max(1, Number(ci) || 10));
+        rows = Math.min(30, Math.max(1, Number(ri) || 8));
       }
-    } catch {
-      cols = 10;
-      rows = 8;
-    }
+    } catch { /* use defaults */ }
 
     let uploadFile = file;
     if (file.type.startsWith('image/')) {
-      const outlineToast = toast.loading('Converting to outline drawing…');
-      try { uploadFile = await convertToOutline(file); } catch { /* fallback */ } finally { toast.dismiss(outlineToast); }
+      const t = toast.loading('Converting to outline…');
+      try { uploadFile = await convertToOutline(file); } catch { /* fallback */ } finally { toast.dismiss(t); }
     }
-
     try {
       const form = new FormData();
       form.append('file', uploadFile);
@@ -113,452 +102,250 @@ export default function TopToolbar({
       const drawing = await DrawingsAPI.upload(form);
       await Promise.all([refreshDrawings(), refreshTasks()]);
       setCurrentDrawingId(drawing.id);
-      toast.success(`Drawing uploaded — ${cols * rows} grid tasks created`);
+      toast.success(`Uploaded — ${cols * rows} grid tasks created`);
     } catch (err: any) {
       toast.error(err?.response?.data?.error || 'Upload failed');
-    } finally {
-      setUploading(false);
-    }
+    } finally { setUploading(false); }
   };
+
+  // Palette: maroon bg + dark-pink buttons
+  // bg-dark:    #1a0008
+  // bg-mid:     #2a000f
+  // btn-dpink:  #be185d → #9f1239
+  // accent:     #db2777
+  // text:       #fce7f3
+  // subtext:    #fda4af
+
+  const Divider = () => (
+    <div className="w-px h-6 shrink-0 mx-0.5" style={{ background: 'linear-gradient(180deg, transparent, rgba(190,24,93,0.4), transparent)' }} />
+  );
 
   return (
     <div
-      className="h-[64px] flex items-center gap-2.5 px-4 shrink-0 relative z-10"
+      className="h-[60px] flex items-center px-4 shrink-0 relative z-10 overflow-hidden"
       style={{
-        background: 'linear-gradient(135deg, #080208 0%, #0f030a 40%, #150510 70%, #0a0108 100%)',
-        borderBottom: '1px solid rgba(159,18,57,0.35)',
-        boxShadow: '0 1px 12px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(190,24,93,0.08)',
+        background: 'linear-gradient(135deg, #1a0008 0%, #220010 45%, #2a000f 70%, #1a0008 100%)',
+        borderBottom: '1px solid rgba(128,0,32,0.55)',
+        boxShadow: '0 2px 16px rgba(0,0,0,0.8)',
+        gap: '6px',
       }}
     >
-      {/* Left accent line */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r"
-        style={{ background: 'linear-gradient(180deg, #be185d 0%, #9f1239 60%, #7f1d3c 100%)' }}
-      />
+      {/* Left accent stripe — dark-pink on maroon */}
+      <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{
+        background: 'linear-gradient(180deg, #7c0a2a 0%, #5a0620 50%, #3d0216 100%)',
+        boxShadow: '0 0 10px rgba(80,4,24,0.7)',
+      }} />
 
-      {/* Module name + icon */}
+      {/* ── Brand ── */}
       <div className="flex items-center gap-2 ml-2 shrink-0">
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, rgba(159,18,57,0.3) 0%, rgba(109,7,31,0.5) 100%)',
-            border: '1px solid rgba(190,24,93,0.4)',
-            boxShadow: '0 2px 8px rgba(159,18,57,0.35)',
-          }}
-        >
-          <FileImage size={15} style={{ color: '#f9a8d4' }} />
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{
+          background: 'rgba(190,24,93,0.2)',
+          border: '1px solid rgba(219,39,119,0.4)',
+          boxShadow: '0 0 10px rgba(159,18,57,0.2)',
+        }}>
+          <FileImage size={14} style={{ color: '#ffffff' }} />
         </div>
-        <span
-          className="hidden sm:block text-sm font-bold tracking-wide"
-          style={{ color: '#f1f5f9' }}
-        >
-          Drawing
-        </span>
+        <span className="hidden sm:block text-[13px] font-bold tracking-wide" style={{ color: '#ffffff' }}>Drawing</span>
       </div>
 
-      {/* Divider */}
-      <div className="w-px h-8 shrink-0" style={{ background: 'linear-gradient(180deg, transparent, rgba(159,18,57,0.4), transparent)' }} />
+      <Divider />
 
       {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,.pdf"
-        className="hidden"
-        onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])}
-      />
+      <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden"
+        onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])} />
 
-      {/* ── Upload Button ── */}
+      {/* ── Upload (pink button) ── */}
       <button
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading}
-        className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl transition-all duration-200 shrink-0"
-        style={
-          uploading
-            ? {
-                background: 'rgba(159,18,57,0.15)',
-                color: '#f9a8d4',
-                cursor: 'not-allowed',
-                border: '1px solid rgba(159,18,57,0.3)',
-              }
-            : {
-                background: 'linear-gradient(135deg, #be185d 0%, #9f1239 100%)',
-                color: 'white',
-                border: '1px solid rgba(236,72,153,0.25)',
-                boxShadow: '0 2px 12px rgba(159,18,57,0.45), inset 0 1px 0 rgba(255,255,255,0.08)',
-              }
-        }
-        onMouseEnter={(e) => {
-          if (!uploading) {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #9f1239 0%, #881337 100%)';
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(159,18,57,0.55), inset 0 1px 0 rgba(255,255,255,0.08)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!uploading) {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #be185d 0%, #9f1239 100%)';
-            e.currentTarget.style.boxShadow = '0 2px 12px rgba(159,18,57,0.45), inset 0 1px 0 rgba(255,255,255,0.08)';
-          }
-        }}
+        className="flex items-center gap-1.5 text-[13px] font-bold px-3.5 py-[7px] rounded-lg shrink-0 transition-all duration-200"
+        style={uploading
+          ? { background: 'rgba(80,4,24,0.3)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(120,8,40,0.3)', cursor: 'not-allowed' }
+          : {
+              background: 'linear-gradient(135deg, #7c0a2a 0%, #5a0620 55%, #3d0216 100%)',
+              color: '#fff',
+              border: '1px solid rgba(120,8,40,0.5)',
+              boxShadow: '0 2px 14px rgba(60,2,18,0.7), inset 0 1px 0 rgba(255,255,255,0.08)',
+            }}
+        onMouseEnter={(e) => { if (!uploading) { e.currentTarget.style.filter = 'brightness(1.2)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(80,4,24,0.8), inset 0 1px 0 rgba(255,255,255,0.08)'; } }}
+        onMouseLeave={(e) => { if (!uploading) { e.currentTarget.style.filter = 'brightness(1)'; e.currentTarget.style.boxShadow = '0 2px 14px rgba(60,2,18,0.7), inset 0 1px 0 rgba(255,255,255,0.08)'; } }}
       >
-        {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-        <span>{uploading ? 'Uploading…' : 'Upload'}</span>
+        {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+        <span className="hidden sm:inline">{uploading ? 'Uploading…' : 'Upload'}</span>
       </button>
 
       {/* ── Drawing Selector ── */}
       {drawings.length > 0 && (
-        <div className="relative flex items-center min-w-0 max-w-[240px]">
-          <FileImage size={14} className="absolute left-2.5 pointer-events-none shrink-0 z-10" style={{ color: '#f472b6' }} />
+        <div className="relative flex items-center shrink-0" style={{ minWidth: 180, maxWidth: 360, flex: '1 1 auto' }}>
+          <FileImage size={13} className="absolute left-2.5 pointer-events-none shrink-0 z-10" style={{ color: 'rgba(255,255,255,0.6)' }} />
           <select
-            className="w-full pl-8 pr-8 py-2 text-sm appearance-none cursor-pointer outline-none truncate font-semibold transition-all rounded-xl"
+            className="w-full pl-8 pr-7 py-[7px] text-[13px] appearance-none cursor-pointer outline-none truncate font-semibold rounded-lg transition-all"
             style={{
-              background: 'rgba(10,2,7,0.9)',
-              border: '1.5px solid rgba(159,18,57,0.35)',
-              color: '#f1f5f9',
-              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)',
+              background: 'rgba(30,0,12,0.95)',
+              border: '1.5px solid rgba(128,0,32,0.55)',
+              color: '#ffffff',
+              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)',
             }}
             value={currentDrawing?.id || ''}
             onChange={(e) => setCurrentDrawingId(e.target.value)}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(190,24,93,0.65)';
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(159,18,57,0.18), inset 0 1px 3px rgba(0,0,0,0.3)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(159,18,57,0.35)';
-              e.currentTarget.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.3)';
-            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(219,39,119,0.7)'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(190,24,93,0.18), inset 0 1px 3px rgba(0,0,0,0.5)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(128,0,32,0.55)'; e.currentTarget.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.5)'; }}
           >
             {drawings.map((d) => (
-              <option key={d.id} value={d.id} style={{ background: '#1a0309', color: '#f1f5f9' }}>{d.name}</option>
+              <option key={d.id} value={d.id} style={{ background: '#1a0008', color: '#ffffff' }}>{d.name}</option>
             ))}
           </select>
-          <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: '#f472b6' }} />
+          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'rgba(255,255,255,0.6)' }} />
         </div>
       )}
 
-      {/* ── Divider ── */}
-      <div className="w-px h-7 shrink-0" style={{ background: 'linear-gradient(180deg, transparent, rgba(159,18,57,0.4), transparent)' }} />
+      <Divider />
 
-      {/* ── Grid Toggle Group ── */}
-      <div
-        className="flex items-center gap-1 rounded-xl p-1 shrink-0"
-        style={{
-          background: 'rgba(20,4,8,0.7)',
-          border: '1px solid rgba(159,18,57,0.25)',
-          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)',
-        }}
-      >
+      {/* ── Grid Toggle Group (pink active state) ── */}
+      <div className="flex items-center gap-0.5 rounded-lg p-1 shrink-0" style={{
+        background: 'rgba(26,0,10,0.9)',
+        border: '1px solid rgba(128,0,32,0.45)',
+      }}>
         <button
           onClick={() => setShowGrid(!showGrid)}
           title={showGrid ? 'Hide column markers' : 'Show column markers'}
-          className="flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-lg font-semibold transition-all duration-200"
-          style={
-            showGrid
-              ? {
-                  background: 'linear-gradient(135deg, #be185d 0%, #9f1239 100%)',
-                  color: 'white',
-                  boxShadow: '0 1px 6px rgba(159,18,57,0.45)',
-                  border: '1px solid rgba(236,72,153,0.2)',
-                }
-              : {
-                  color: 'rgba(203,213,225,0.6)',
-                  border: '1px solid transparent',
-                  background: 'transparent',
-                }
-          }
+          className="flex items-center gap-1.5 text-[13px] px-2.5 py-1.5 rounded-md font-semibold transition-all duration-150"
+          style={showGrid
+            ? { background: 'linear-gradient(135deg, #7c0a2a 0%, #5a0620 55%, #3d0216 100%)', color: '#fff', boxShadow: '0 1px 8px rgba(60,2,18,0.7)' }
+            : { color: 'rgba(253,202,212,0.55)', background: 'transparent' }}
         >
-          <Grid3x3 size={14} />
+          <Grid3x3 size={13} />
           <span>Columns</span>
         </button>
-
+        <button
+          onClick={() => setShowBeams(!showBeams)}
+          title={showBeams ? 'Hide beam markup' : 'Show beam markup'}
+          className="flex items-center gap-1.5 text-[13px] px-2.5 py-1.5 rounded-md font-semibold transition-all duration-150"
+          style={showBeams
+            ? { background: 'linear-gradient(135deg, #7c0a2a 0%, #5a0620 55%, #3d0216 100%)', color: '#fff', boxShadow: '0 1px 8px rgba(60,2,18,0.7)' }
+            : { color: 'rgba(253,202,212,0.55)', background: 'transparent' }}
+        >
+          <Minus size={13} />
+          <span>Beams</span>
+        </button>
         <button
           onClick={() => setShowGridSettings(!showGridSettings)}
           title="Grid settings"
-          className="flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-200"
-          style={
-            showGridSettings
-              ? {
-                  background: 'linear-gradient(135deg, #be185d 0%, #9f1239 100%)',
-                  color: 'white',
-                  boxShadow: '0 1px 6px rgba(159,18,57,0.45)',
-                  border: '1px solid rgba(236,72,153,0.2)',
-                }
-              : { color: 'rgba(203,213,225,0.5)', border: '1px solid transparent', background: 'transparent' }
-          }
+          className="w-7 h-7 flex items-center justify-center rounded-md transition-all duration-150"
+          style={showGridSettings
+            ? { background: 'linear-gradient(135deg, #7c0a2a 0%, #3d0216 100%)', color: '#fff' }
+            : { color: 'rgba(253,202,212,0.45)', background: 'transparent' }}
         >
-          <SlidersHorizontal size={13} />
+          <SlidersHorizontal size={12} />
         </button>
       </div>
 
       {/* ── Grid Size Popover ── */}
       {showGridSettings && (
-        <div
-          className="flex items-center gap-2 rounded-2xl px-3.5 py-2 shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, #0f0209 0%, #180412 100%)',
-            border: '1.5px solid rgba(159,18,57,0.4)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(159,18,57,0.08)',
-          }}
-        >
-          <span className="text-[11px] font-bold tracking-wider uppercase" style={{ color: '#f9a8d4' }}>Cols</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => adjustCols(-1)}
-              className="w-6 h-6 flex items-center justify-center rounded-lg transition-all"
-              style={{ border: '1px solid rgba(159,18,57,0.4)', color: '#f472b6', background: 'rgba(159,18,57,0.15)' }}
-            >
-              <Minus size={10} />
-            </button>
-            <input
-              type="number"
-              min={2}
-              max={30}
-              value={draftCols}
+        <div className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 shrink-0" style={{
+          background: 'linear-gradient(135deg, #200010 0%, #2c0018 100%)',
+          border: '1.5px solid rgba(236,72,153,0.45)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.7)',
+        }}>
+          <span className="text-[10.5px] font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.7)' }}>Cols</span>
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => adjustCols(-1)} className="w-6 h-6 flex items-center justify-center rounded-md" style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', background: 'rgba(255,255,255,0.08)' }}><Minus size={9} /></button>
+            <input type="number" min={2} max={30} value={draftCols}
               onChange={(e) => { setDraftCols(Number(e.target.value)); setDirty(true); }}
               onKeyDown={(e) => e.key === 'Enter' && applyGridSize()}
-              className="w-10 text-center text-sm font-bold outline-none py-0.5 rounded-lg"
-              style={{ background: 'rgba(30,6,12,0.9)', border: '1px solid rgba(159,18,57,0.45)', color: '#f9a8d4' }}
-            />
-            <button
-              onClick={() => adjustCols(1)}
-              className="w-6 h-6 flex items-center justify-center rounded-lg transition-all"
-              style={{ border: '1px solid rgba(159,18,57,0.4)', color: '#f472b6', background: 'rgba(159,18,57,0.15)' }}
-            >
-              <Plus size={10} />
-            </button>
+              className="w-9 text-center text-[13px] font-bold outline-none rounded-md py-0.5"
+              style={{ background: 'rgba(20,0,8,0.98)', border: '1px solid rgba(128,0,32,0.5)', color: '#ffffff' }} />
+            <button onClick={() => adjustCols(1)} className="w-6 h-6 flex items-center justify-center rounded-md" style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', background: 'rgba(255,255,255,0.08)' }}><Plus size={9} /></button>
           </div>
-
-          <span className="text-sm font-light" style={{ color: 'rgba(244,114,182,0.4)' }}>×</span>
-
-          <span className="text-[11px] font-bold tracking-wider uppercase" style={{ color: '#f9a8d4' }}>Rows</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => adjustRows(-1)}
-              className="w-6 h-6 flex items-center justify-center rounded-lg transition-all"
-              style={{ border: '1px solid rgba(159,18,57,0.4)', color: '#f472b6', background: 'rgba(159,18,57,0.15)' }}
-            >
-              <Minus size={10} />
-            </button>
-            <input
-              type="number"
-              min={2}
-              max={30}
-              value={draftRows}
+          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>×</span>
+          <span className="text-[10.5px] font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.7)' }}>Rows</span>
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => adjustRows(-1)} className="w-6 h-6 flex items-center justify-center rounded-md" style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', background: 'rgba(255,255,255,0.08)' }}><Minus size={9} /></button>
+            <input type="number" min={2} max={30} value={draftRows}
               onChange={(e) => { setDraftRows(Number(e.target.value)); setDirty(true); }}
               onKeyDown={(e) => e.key === 'Enter' && applyGridSize()}
-              className="w-10 text-center text-sm font-bold outline-none py-0.5 rounded-lg"
-              style={{ background: 'rgba(30,6,12,0.9)', border: '1px solid rgba(159,18,57,0.45)', color: '#f9a8d4' }}
-            />
-            <button
-              onClick={() => adjustRows(1)}
-              className="w-6 h-6 flex items-center justify-center rounded-lg transition-all"
-              style={{ border: '1px solid rgba(159,18,57,0.4)', color: '#f472b6', background: 'rgba(159,18,57,0.15)' }}
-            >
-              <Plus size={10} />
-            </button>
+              className="w-9 text-center text-[13px] font-bold outline-none rounded-md py-0.5"
+              style={{ background: 'rgba(20,0,8,0.98)', border: '1px solid rgba(128,0,32,0.5)', color: '#ffffff' }} />
+            <button onClick={() => adjustRows(1)} className="w-6 h-6 flex items-center justify-center rounded-md" style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', background: 'rgba(255,255,255,0.08)' }}><Plus size={9} /></button>
           </div>
-
-          <button
-            onClick={applyGridSize}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-            style={
-              dirty
-                ? {
-                    background: 'linear-gradient(135deg, #be185d, #9f1239)',
-                    color: 'white',
-                    boxShadow: '0 2px 8px rgba(159,18,57,0.45)',
-                    border: '1px solid transparent',
-                  }
-                : {
-                    background: 'rgba(159,18,57,0.12)',
-                    color: '#f9a8d4',
-                    border: '1px solid rgba(159,18,57,0.3)',
-                  }
-            }
-          >
-            <Check size={11} />
-            Apply
+          <button onClick={applyGridSize}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ml-1"
+            style={dirty
+              ? { background: 'linear-gradient(135deg, #7c0a2a, #3d0216)', color: '#fff', boxShadow: '0 2px 10px rgba(60,2,18,0.7)' }
+              : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.15)' }}>
+            <Check size={10} /> Apply
           </button>
-
-          <button
-            onClick={() => setShowGridSettings(false)}
-            className="w-6 h-6 flex items-center justify-center rounded-lg transition-colors"
-            style={{ color: 'rgba(244,114,182,0.5)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(159,18,57,0.2)'; e.currentTarget.style.color = '#f472b6'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(244,114,182,0.5)'; }}
-          >
-            <X size={12} />
+          <button onClick={() => setShowGridSettings(false)}
+            className="w-6 h-6 flex items-center justify-center rounded-md transition-colors ml-0.5"
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#ffffff'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}>
+            <X size={11} />
           </button>
         </div>
       )}
 
-      {/* ── Divider ── */}
-      <div className="w-px h-7 shrink-0" style={{ background: 'linear-gradient(180deg, transparent, rgba(159,18,57,0.4), transparent)' }} />
+      <Divider />
 
-      {/* ── Calibrate Button ── */}
+      {/* ── Calibrate (pink on hover / amber when active) ── */}
       <button
         onClick={() => setCalibrating(!calibrating)}
-        title={calibrating ? 'Done calibrating' : 'Drag columns to their exact position on this drawing'}
-        className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl font-semibold transition-all duration-200 shrink-0"
-        style={
-          calibrating
-            ? {
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                color: 'white',
-                boxShadow: '0 2px 10px rgba(245,158,11,0.45)',
-                border: '1px solid rgba(245,158,11,0.3)',
-              }
-            : {
-                background: 'rgba(20,4,8,0.7)',
-                color: 'rgba(203,213,225,0.65)',
-                border: '1px solid rgba(159,18,57,0.25)',
-              }
-        }
-        onMouseEnter={(e) => {
-          if (!calibrating) {
-            e.currentTarget.style.borderColor = 'rgba(190,24,93,0.5)';
-            e.currentTarget.style.color = '#f9a8d4';
-            e.currentTarget.style.background = 'rgba(159,18,57,0.2)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!calibrating) {
-            e.currentTarget.style.borderColor = 'rgba(159,18,57,0.25)';
-            e.currentTarget.style.color = 'rgba(203,213,225,0.65)';
-            e.currentTarget.style.background = 'rgba(20,4,8,0.7)';
-          }
-        }}
+        title={calibrating ? 'Done calibrating' : 'Drag columns to their exact position'}
+        className="flex items-center gap-1.5 text-[13px] px-3 py-[7px] rounded-lg font-semibold transition-all duration-150 shrink-0"
+        style={calibrating
+          ? { background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 60%, #d97706 100%)', color: '#1a0500', boxShadow: '0 2px 12px rgba(245,158,11,0.5)', border: '1px solid rgba(251,191,36,0.3)' }
+          : { background: 'rgba(26,0,10,0.9)', color: '#ffffff', border: '1px solid rgba(128,0,32,0.45)' }}
+        onMouseEnter={(e) => { if (!calibrating) { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; e.currentTarget.style.color = '#ffffff'; } }}
+        onMouseLeave={(e) => { if (!calibrating) { e.currentTarget.style.background = 'rgba(26,0,10,0.9)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.45)'; e.currentTarget.style.color = '#ffffff'; } }}
       >
-        <Crosshair size={14} />
+        <Crosshair size={13} />
         <span>{calibrating ? 'Done' : 'Calibrate'}</span>
       </button>
 
-      {/* ── Divider ── */}
-      <div className="w-px h-7 shrink-0" style={{ background: 'linear-gradient(180deg, transparent, rgba(159,18,57,0.4), transparent)' }} />
-
-      {/* ── Fullscreen Toggle ── */}
+      {/* ── Fullscreen ── */}
       <button
         onClick={() => setFullscreen(!fullscreen)}
         title={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        className="flex items-center justify-center w-8 h-8 rounded-xl transition-all shrink-0"
-        style={{ color: 'rgba(203,213,225,0.5)', border: '1px solid transparent', background: 'transparent' }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(159,18,57,0.2)';
-          e.currentTarget.style.color = '#f9a8d4';
-          e.currentTarget.style.borderColor = 'rgba(159,18,57,0.35)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = 'rgba(203,213,225,0.5)';
-          e.currentTarget.style.borderColor = 'transparent';
-        }}
+        className="w-8 h-8 flex items-center justify-center rounded-lg transition-all shrink-0"
+        style={{ color: '#ffffff', border: '1px solid rgba(128,0,32,0.4)', background: 'rgba(26,0,10,0.85)' }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(26,0,10,0.85)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.4)'; }}
       >
-        {fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+        {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
       </button>
 
-      {/* ── Search Bar ── */}
-      <div
-        className="flex-1 flex items-center gap-2 max-w-sm rounded-xl px-3 py-2 transition-all"
-        style={{
-          background: 'rgba(10,2,7,0.8)',
-          border: '1.5px solid rgba(159,18,57,0.28)',
-          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.35)',
-        }}
-        onFocusCapture={(e) => {
-          (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(190,24,93,0.6)';
-          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 0 3px rgba(159,18,57,0.15), inset 0 1px 3px rgba(0,0,0,0.35)';
-        }}
-        onBlurCapture={(e) => {
-          (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(159,18,57,0.28)';
-          (e.currentTarget as HTMLDivElement).style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.35)';
-        }}
-      >
-        <Search size={14} style={{ color: '#f472b6' }} className="shrink-0" />
-        <input
-          className="flex-1 min-w-0 bg-transparent outline-none text-sm font-medium"
-          style={{ color: '#f1f5f9', caretColor: '#ec4899' }}
-          placeholder="Search grid, task, engineer…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {search && (
-          <button onClick={() => setSearch('')} style={{ color: '#f472b6' }}>
-            <X size={13} />
-          </button>
-        )}
-      </div>
-
       {/* ── Right Actions ── */}
-      <div className="ml-auto flex items-center gap-2 shrink-0">
-
-        {/* Drawing count badge */}
-        {drawings.length > 0 && (
-          <div
-            className="hidden sm:flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold tracking-wide"
-            style={{
-              background: 'rgba(20,4,8,0.8)',
-              border: '1px solid rgba(159,18,57,0.3)',
-              color: '#f9a8d4',
-            }}
-          >
-            <Layers size={12} style={{ color: '#f472b6' }} />
-            {drawings.length} drawing{drawings.length !== 1 ? 's' : ''}
-          </div>
-        )}
-
-        {/* Notifications */}
+      <div className="ml-auto flex items-center gap-1.5 shrink-0">
+        {/* Bell */}
         <button
-          className="relative flex items-center justify-center w-8 h-8 rounded-xl transition-all"
+          className="relative w-8 h-8 flex items-center justify-center rounded-lg transition-all"
           title="Notifications"
-          style={{ color: 'rgba(203,213,225,0.5)', background: 'rgba(20,4,8,0.5)', border: '1px solid rgba(159,18,57,0.2)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(159,18,57,0.2)';
-            e.currentTarget.style.color = '#f9a8d4';
-            e.currentTarget.style.borderColor = 'rgba(159,18,57,0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(20,4,8,0.5)';
-            e.currentTarget.style.color = 'rgba(203,213,225,0.5)';
-            e.currentTarget.style.borderColor = 'rgba(159,18,57,0.2)';
-          }}
+          style={{ color: '#ffffff', background: 'rgba(26,0,10,0.85)', border: '1px solid rgba(128,0,32,0.4)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(26,0,10,0.85)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.4)'; }}
         >
-          <Bell size={15} />
-          <span
-            className="absolute top-1 right-1 w-2 h-2 rounded-full"
-            style={{ background: 'linear-gradient(135deg, #ec4899, #be185d)', boxShadow: '0 0 4px rgba(236,72,153,0.6)' }}
-          />
+          <Bell size={14} />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: '#7c0a2a', boxShadow: '0 0 6px rgba(80,4,24,0.9)' }} />
         </button>
 
-        {/* Divider */}
-        <div className="w-px h-7 shrink-0" style={{ background: 'linear-gradient(180deg, transparent, rgba(159,18,57,0.4), transparent)' }} />
+        <Divider />
 
-        {/* User Avatar */}
+        {/* User pill */}
         <div
-          className="flex items-center gap-2 pl-1 cursor-pointer rounded-xl px-2 py-1 transition-all"
-          style={{ border: '1px solid transparent' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(159,18,57,0.12)';
-            e.currentTarget.style.borderColor = 'rgba(159,18,57,0.25)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.borderColor = 'transparent';
-          }}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all"
+          style={{ border: '1px solid rgba(128,0,32,0.35)', background: 'rgba(26,0,10,0.7)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(236,72,153,0.12)'; e.currentTarget.style.borderColor = 'rgba(236,72,153,0.4)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(26,0,10,0.7)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.35)'; }}
         >
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-black shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, #be185d 0%, #9f1239 100%)',
-              boxShadow: '0 0 0 2px rgba(159,18,57,0.5), 0 2px 8px rgba(159,18,57,0.4)',
-            }}
-          >
-            AK
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0" style={{
+            background: 'linear-gradient(135deg, #7c0a2a 0%, #5a0620 55%, #3d0216 100%)',
+            boxShadow: '0 0 0 2px rgba(80,4,24,0.5), 0 2px 8px rgba(60,2,18,0.5)',
+          }}>AK</div>
+          <div className="hidden md:block text-left leading-none">
+            <div className="text-[12px] font-bold" style={{ color: '#ffffff' }}>Ashok K.</div>
+            <div className="text-[10px] font-semibold mt-0.5" style={{ color: 'rgba(255,255,255,0.65)' }}>Site Engineer</div>
           </div>
-          <div className="hidden md:block text-left">
-            <div className="text-xs font-bold leading-tight" style={{ color: '#f1f5f9' }}>Ashok K.</div>
-            <div className="text-[10px] leading-tight font-semibold" style={{ color: '#f472b6' }}>Site Engineer</div>
-          </div>
-          <ChevronDown size={12} style={{ color: '#f472b6' }} />
+          <ChevronDown size={11} style={{ color: 'rgba(255,255,255,0.6)' }} />
         </div>
       </div>
     </div>

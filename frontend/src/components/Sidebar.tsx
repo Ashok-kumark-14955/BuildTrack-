@@ -14,7 +14,7 @@ import {
   Trash2,
   CheckCircle2,
   Clock,
-  AlertTriangle,
+  ShieldAlert,
   ChevronRight,
   Milestone,
   Activity,
@@ -27,58 +27,82 @@ import toast from 'react-hot-toast';
 
 const navItems = [
   { to: '/', label: 'Drawing', icon: FileImage, accent: '#60a5fa', accentBg: 'rgba(96,165,250,0.14)', accentBorder: 'rgba(96,165,250,0.35)' },
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, accent: '#fb923c', accentBg: 'rgba(251,146,60,0.14)', accentBorder: 'rgba(251,146,60,0.35)' },
   { to: '/tasks', label: 'Task List', icon: ListChecks, accent: '#4ade80', accentBg: 'rgba(74,222,128,0.14)', accentBorder: 'rgba(74,222,128,0.35)' },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, accent: '#fb923c', accentBg: 'rgba(251,146,60,0.14)', accentBorder: 'rgba(251,146,60,0.35)' },
 ];
 
-/** Small labeled donut ring for a single stat (Done / Active / Issues) */
-function StatRing({ label, value, pct, color }: { label: string; value: number; pct: number; color: string }) {
-  const size = 44;
-  const r = (size - 6) / 2;
+// Enhanced progress ring — maroon arc, white center text
+function ProgressRing({ pct, size = 52 }: { pct: number; size?: number }) {
+  const sw = 5;
+  const r = (size - sw * 2) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
+  const angle = (pct / 100) * 2 * Math.PI - Math.PI / 2;
+  const dotX = size / 2 + r * Math.cos(angle);
+  const dotY = size / 2 + r * Math.sin(angle);
+  // Arc colours — maroon palette; green when 100%
+  const arcStart = pct >= 100 ? '#4ade80' : '#8b0a2e';
+  const arcEnd   = pct >= 100 ? '#22c55e' : '#d6486e';
+  const glowCol  = pct >= 100 ? '#4ade80' : '#8b0a2e';
+  const gradId = 'pr-grad';
+  const glowId = 'pr-glow';
+
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={4} />
-          <circle
-            cx={size / 2} cy={size / 2} r={r} fill="none"
-            stroke={color} strokeWidth={4}
-            strokeDasharray={`${dash} ${circ}`}
-            strokeLinecap="round"
-            style={{ transition: 'stroke-dasharray 0.7s ease', filter: `drop-shadow(0 0 4px ${color}99)` }}
-          />
-        </svg>
-        {/* Value in the center */}
-        <span
-          className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold tabular-nums"
-          style={{ color }}
-        >
-          {value}
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      {/* Outer ambient maroon glow */}
+      <div className="absolute inset-0 rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${glowCol}30 30%, transparent 75%)`, filter: 'blur(7px)' }} />
+
+      <svg width={size} height={size} className="-rotate-90 absolute inset-0" style={{ overflow: 'visible' }}>
+        <defs>
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={arcStart} />
+            <stop offset="100%" stopColor={arcEnd} />
+          </linearGradient>
+          <filter id={glowId} x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="2.5" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+
+        {/* Dark track */}
+        <circle cx={size/2} cy={size/2} r={r} fill="none"
+          stroke="rgba(255,255,255,0.07)" strokeWidth={sw} />
+
+        {/* Halo arc */}
+        {pct > 0 && (
+          <circle cx={size/2} cy={size/2} r={r} fill="none"
+            stroke={arcEnd} strokeWidth={sw + 5}
+            strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+            opacity={0.2} style={{ transition: 'stroke-dasharray 0.9s ease' }} />
+        )}
+
+        {/* Main gradient arc */}
+        {pct > 0 && (
+          <circle cx={size/2} cy={size/2} r={r} fill="none"
+            stroke={`url(#${gradId})`} strokeWidth={sw}
+            strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+            style={{ transition: 'stroke-dasharray 0.9s ease', filter: `drop-shadow(0 0 5px ${glowCol}cc)` }} />
+        )}
+
+        {/* Tip dot */}
+        {pct > 3 && pct < 100 && (
+          <circle cx={dotX} cy={dotY} r={sw * 0.75} fill={arcEnd}
+            style={{ filter: `drop-shadow(0 0 6px ${arcEnd})` }} />
+        )}
+      </svg>
+
+      {/* Center label — always white */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[11px] font-black tabular-nums leading-none text-white"
+          style={{ textShadow: '0 0 8px rgba(255,255,255,0.35)' }}>
+          {pct}%
+        </span>
+        <span className="text-[6.5px] font-bold uppercase tracking-wider leading-none mt-0.5 text-white opacity-70">
+          done
         </span>
       </div>
-      <span className="text-[8px] font-bold uppercase tracking-wide" style={{ color: `${color}80` }}>{label}</span>
     </div>
-  );
-}
-
-// Tiny SVG donut ring — radius 10, circumference ≈ 62.8
-function ProgressRing({ pct, size = 34, color = '#d6486e' }: { pct: number; size?: number; color?: string }) {
-  const r = (size - 4) / 2;
-  const circ = 2 * Math.PI * r;
-  const dash = (pct / 100) * circ;
-  return (
-    <svg width={size} height={size} className="shrink-0 -rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={3.5} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={color} strokeWidth={3.5}
-        strokeDasharray={`${dash} ${circ}`}
-        strokeLinecap="round"
-        style={{ transition: 'stroke-dasharray 0.7s ease' }}
-      />
-    </svg>
   );
 }
 
@@ -190,7 +214,7 @@ export default function Sidebar() {
           >
             {/* Project identity */}
             <div className="flex items-start gap-2.5">
-              <ProgressRing pct={stats.pct} size={36} color="#d6486e" />
+              <ProgressRing pct={stats.pct} size={52} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1">
                   <button
@@ -214,7 +238,7 @@ export default function Sidebar() {
                   </span>
                   {stats.attention > 0 && (
                     <span className="flex items-center gap-0.5 text-[9px] font-bold text-red-400">
-                      <AlertTriangle size={9} /> {stats.attention}
+                      <ShieldAlert size={9} /> {stats.attention}
                     </span>
                   )}
                   <span className="text-[9px] font-extrabold text-white/70 tabular-nums ml-auto">{stats.pct}%</span>
@@ -242,20 +266,6 @@ export default function Sidebar() {
                   }}
                 />
               </div>
-            </div>
-
-            {/* Stat rings */}
-            <div className="flex justify-around">
-              {[
-                { label: 'Done', value: stats.completed, total: stats.total, color: '#4ade80' },
-                { label: 'Active', value: stats.inProgress, total: stats.total, color: '#fbbf24' },
-                { label: 'Issues', value: stats.attention, total: stats.total, color: '#f87171' },
-              ].map(({ label, value, total, color }) => {
-                const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                return (
-                  <StatRing key={label} label={label} value={value} pct={pct} color={color} />
-                );
-              })}
             </div>
 
             {/* Milestones & All Projects row */}

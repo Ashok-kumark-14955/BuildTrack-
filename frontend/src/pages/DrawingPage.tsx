@@ -9,6 +9,7 @@ import Legend from '../components/Legend';
 export default function DrawingPage() {
   const { currentDrawing, selectedElementId, refreshDrawings } = useApp();
   const [showGrid, setShowGrid] = useState(true);
+  const [showBeams, setShowBeams] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const [calibrating, setCalibrating] = useState(false);
 
@@ -24,6 +25,8 @@ export default function DrawingPage() {
         <TopToolbar
           showGrid={showGrid}
           setShowGrid={setShowGrid}
+          showBeams={showBeams}
+          setShowBeams={setShowBeams}
           fullscreen={fullscreen}
           setFullscreen={setFullscreen}
           calibrating={calibrating}
@@ -35,7 +38,7 @@ export default function DrawingPage() {
       )}
       <div className="flex-1 flex overflow-hidden relative">
         <div className="flex-1 min-w-0 relative">
-          <DrawingCanvas showGrid={showGrid} fullscreen={fullscreen} calibrating={calibrating} />
+          <DrawingCanvas showGrid={showGrid} showBeams={showBeams} fullscreen={fullscreen} calibrating={calibrating} />
           {!fullscreen && <Legend />}
           {fullscreen && (
             <button

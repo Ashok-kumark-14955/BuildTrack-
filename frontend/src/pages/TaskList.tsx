@@ -33,7 +33,7 @@ const MS_STYLE: Record<string, { bg: string; text: string; dot: string; bar: str
 export default function TaskList() {
   const {
     tasks, drawings, projects,
-    setHoveredElementId, requestFocusElement, setSelectedElementId, setCurrentDrawingId,
+    requestFocusElement, setSelectedElementId, setCurrentDrawingId,
     milestones, createMilestone, updateMilestone, deleteMilestone,
     refreshDrawings, createTask, refreshTasks,
   } = useApp();
@@ -452,8 +452,6 @@ export default function TaskList() {
                                   {dTasks.map((t) => (
                                     <tr
                                       key={t.id}
-                                      onMouseEnter={() => setHoveredElementId(t.elementId)}
-                                      onMouseLeave={() => setHoveredElementId(null)}
                                       onClick={() => goToGrid(t)}
                                       className="hover:bg-rose-950/20 cursor-pointer transition-colors rounded"
                                     >
@@ -561,151 +559,231 @@ export default function TaskList() {
 
       {/* ── Add Task Modal ── */}
       {showAddTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-[480px] max-w-[95vw] p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Plus size={16} className="text-emerald-500" />
-                <span className="font-bold text-slate-800 text-lg">Add Task to Milestone</span>
-              </div>
-              <button onClick={() => setShowAddTask(false)} className="icon-btn w-8 h-8"><X size={16} /></button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
+          {/* Card */}
+          <div
+            className="relative w-[520px] max-w-[96vw] max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl flex flex-col"
+            style={{
+              background: 'linear-gradient(160deg, #130509 0%, #220b14 40%, #1a0a10 100%)',
+              border: '1px solid rgba(216,72,110,0.3)',
+              boxShadow: '0 0 0 1px rgba(216,72,110,0.1), 0 32px 64px rgba(0,0,0,0.7), 0 0 80px rgba(190,24,93,0.12)',
+            }}
+          >
+            {/* Top gradient accent bar */}
+            <div className="h-1 w-full rounded-t-3xl flex-shrink-0"
+              style={{ background: 'linear-gradient(90deg, #8b0a2e, #d6486e, #fb923c)' }} />
 
-            {/* Milestone context */}
-            {addTaskMsId && (
-              <div className="flex items-center gap-2 text-sm text-slate-600 bg-violet-50 rounded-xl px-3 py-2">
-                <Flag size={13} className="text-violet-500 shrink-0" />
-                <span>Milestone: <strong>{milestones.find((m) => m.id === addTaskMsId)?.name}</strong></span>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {/* Drawing */}
-              <label className="block">
-                <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Drawing *</span>
-                <select
-                  className="input w-full"
-                  value={taskForm.drawingId}
-                  onChange={(e) => setTaskForm({ ...taskForm, drawingId: e.target.value })}
+            <div className="p-6 space-y-5">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #d6486e, #8b0a2e)', boxShadow: '0 0 16px rgba(214,72,110,0.4)' }}>
+                    <Plus size={16} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-extrabold text-white text-[16px] leading-tight">Add Task to Milestone</h2>
+                    <p className="text-[10px] font-semibold text-pink-300/50 mt-0.5 uppercase tracking-widest">New task entry</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAddTask(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10"
+                  style={{ border: '1px solid rgba(255,255,255,0.1)' }}
                 >
-                  <option value="">— Select drawing —</option>
-                  {drawings
-                    .filter((d) => addTaskMsId ? d.milestoneId === addTaskMsId : true)
-                    .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)
-                  }
-                </select>
-              </label>
-
-              {/* Task name */}
-              <label className="block">
-                <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Task Name *</span>
-                <input
-                  className="input w-full"
-                  placeholder="e.g. Reinforcement Inspection"
-                  value={taskForm.name}
-                  onChange={(e) => setTaskForm({ ...taskForm, name: e.target.value })}
-                />
-              </label>
-
-              {/* Description */}
-              <label className="block">
-                <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</span>
-                <textarea
-                  className="input w-full min-h-14 resize-none"
-                  placeholder="Optional details…"
-                  value={taskForm.description}
-                  onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
-                />
-              </label>
-
-              <div className="grid grid-cols-2 gap-3">
-                {/* Status */}
-                <label className="block">
-                  <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Status</span>
-                  <select className="input w-full" value={taskForm.status} onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value as Task['status'] })}>
-                    {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </label>
-
-                {/* Priority */}
-                <label className="block">
-                  <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Priority</span>
-                  <select className="input w-full" value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value as Task['priority'] })}>
-                    {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </label>
-
-                {/* Category */}
-                <label className="block">
-                  <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Category</span>
-                  <select className="input w-full" value={taskForm.category} onChange={(e) => setTaskForm({ ...taskForm, category: e.target.value })}>
-                    {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </label>
-
-                {/* Assigned To */}
-                <label className="block">
-                  <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Assigned To</span>
-                  <input className="input w-full" placeholder="Engineer name" value={taskForm.assignedTo} onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })} />
-                </label>
-
-                {/* Due Date */}
-                <label className="block">
-                  <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Due Date</span>
-                  <input type="date" className="input w-full" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
-                </label>
-
-                {/* Progress */}
-                <label className="block">
-                  <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Progress ({taskForm.progress}%)</span>
-                  <input
-                    type="range" min={0} max={100} step={5}
-                    className="w-full accent-emerald-500"
-                    value={taskForm.progress}
-                    onChange={(e) => setTaskForm({ ...taskForm, progress: Number(e.target.value) })}
-                  />
-                </label>
+                  <X size={15} className="text-pink-200/70" />
+                </button>
               </div>
-            </div>
 
-            <div className="flex gap-2 pt-1">
-              <button
-                disabled={savingTask}
-                onClick={async () => {
-                  if (!taskForm.name.trim()) { toast.error('Task name required'); return; }
-                  if (!taskForm.drawingId) { toast.error('Please select a drawing'); return; }
-                  setSavingTask(true);
-                  try {
-                    await createTask({
-                      drawingId: taskForm.drawingId,
-                      milestoneId: addTaskMsId,
-                      name: taskForm.name,
-                      description: taskForm.description,
-                      status: taskForm.status,
-                      priority: taskForm.priority,
-                      category: taskForm.category,
-                      assignedTo: taskForm.assignedTo,
-                      dueDate: taskForm.dueDate,
-                      progress: taskForm.progress,
-                      gridCode: 'TBD',
-                      elementType: 'column',
-                      elementId: `manual-${Date.now()}`,
-                    });
-                    await refreshTasks();
-                    toast.success('Task added');
-                    setShowAddTask(false);
-                    setTaskForm(defaultTaskForm());
-                  } catch {
-                    toast.error('Failed to add task');
-                  } finally {
-                    setSavingTask(false);
-                  }
-                }}
-                className="btn btn-primary flex-1 py-2.5 disabled:opacity-60"
-              >
-                <Plus size={15} /> {savingTask ? 'Saving…' : 'Add Task'}
-              </button>
-              <button onClick={() => setShowAddTask(false)} className="btn btn-ghost px-4">Cancel</button>
+              {/* Milestone context pill */}
+              {addTaskMsId && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                  style={{ background: 'rgba(139,10,46,0.2)', border: '1px solid rgba(216,72,110,0.25)' }}>
+                  <Flag size={12} className="text-rose-400 shrink-0" />
+                  <span className="text-[11.5px] text-pink-200/80 font-medium">
+                    Milestone: <span className="font-bold text-white">{milestones.find((m) => m.id === addTaskMsId)?.name}</span>
+                  </span>
+                </div>
+              )}
+
+              {/* Divider */}
+              <div className="h-px" style={{ background: 'rgba(216,72,110,0.15)' }} />
+
+              {/* Form fields */}
+              <div className="space-y-4">
+                {/* Drawing */}
+                <div>
+                  <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Drawing *</label>
+                  <select
+                    className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white outline-none transition-all"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
+                    value={taskForm.drawingId}
+                    onChange={(e) => setTaskForm({ ...taskForm, drawingId: e.target.value })}
+                  >
+                    <option value="">— Select drawing —</option>
+                    {drawings
+                      .filter((d) => addTaskMsId ? d.milestoneId === addTaskMsId : true)
+                      .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)
+                    }
+                  </select>
+                </div>
+
+                {/* Task name */}
+                <div>
+                  <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Task Name *</label>
+                  <input
+                    className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white placeholder:text-white/25 outline-none transition-all"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    placeholder="e.g. Reinforcement Inspection"
+                    value={taskForm.name}
+                    onChange={(e) => setTaskForm({ ...taskForm, name: e.target.value })}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Description</label>
+                  <textarea
+                    className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white placeholder:text-white/25 outline-none resize-none min-h-[72px] transition-all"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    placeholder="Optional details…"
+                    value={taskForm.description}
+                    onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                  />
+                </div>
+
+                {/* Grid: Status + Priority */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Status</label>
+                    <select
+                      className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white outline-none transition-all"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
+                      value={taskForm.status}
+                      onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value as Task['status'] })}
+                    >
+                      {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Priority</label>
+                    <select
+                      className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white outline-none transition-all"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
+                      value={taskForm.priority}
+                      onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value as Task['priority'] })}
+                    >
+                      {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Category</label>
+                    <select
+                      className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white outline-none transition-all"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
+                      value={taskForm.category}
+                      onChange={(e) => setTaskForm({ ...taskForm, category: e.target.value })}
+                    >
+                      {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Assigned To</label>
+                    <input
+                      className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white placeholder:text-white/25 outline-none transition-all"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      placeholder="Engineer name"
+                      value={taskForm.assignedTo}
+                      onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Due Date</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white outline-none transition-all"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
+                      value={taskForm.dueDate}
+                      onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">
+                      Progress
+                      <span className="ml-1 text-white font-black">{taskForm.progress}%</span>
+                    </label>
+                    <div className="relative pt-1">
+                      <input
+                        type="range" min={0} max={100} step={5}
+                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                        style={{ accentColor: '#d6486e' }}
+                        value={taskForm.progress}
+                        onChange={(e) => setTaskForm({ ...taskForm, progress: Number(e.target.value) })}
+                      />
+                      {/* Custom track fill */}
+                      <div className="h-1.5 rounded-full -mt-1.5 pointer-events-none absolute top-1 left-0 right-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                        <div className="h-full rounded-full transition-all" style={{ width: `${taskForm.progress}%`, background: 'linear-gradient(90deg, #8b0a2e, #d6486e)' }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="h-px" style={{ background: 'rgba(216,72,110,0.15)' }} />
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  disabled={savingTask}
+                  onClick={async () => {
+                    if (!taskForm.name.trim()) { toast.error('Task name required'); return; }
+                    if (!taskForm.drawingId) { toast.error('Please select a drawing'); return; }
+                    setSavingTask(true);
+                    try {
+                      await createTask({
+                        drawingId: taskForm.drawingId,
+                        milestoneId: addTaskMsId,
+                        name: taskForm.name,
+                        description: taskForm.description,
+                        status: taskForm.status,
+                        priority: taskForm.priority,
+                        category: taskForm.category,
+                        assignedTo: taskForm.assignedTo,
+                        dueDate: taskForm.dueDate,
+                        progress: taskForm.progress,
+                        gridCode: 'TBD',
+                        elementType: 'column',
+                        elementId: `manual-${Date.now()}`,
+                      });
+                      await refreshTasks();
+                      toast.success('Task added');
+                      setShowAddTask(false);
+                      setTaskForm(defaultTaskForm());
+                    } catch {
+                      toast.error('Failed to add task');
+                    } finally {
+                      setSavingTask(false);
+                    }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
+                  style={{
+                    background: 'linear-gradient(135deg, #d6486e, #8b0a2e)',
+                    boxShadow: '0 4px 16px rgba(214,72,110,0.35)',
+                  }}
+                  onMouseEnter={(e) => !savingTask && (e.currentTarget.style.boxShadow = '0 4px 24px rgba(214,72,110,0.55)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(214,72,110,0.35)')}
+                >
+                  <Plus size={15} /> {savingTask ? 'Saving…' : 'Add Task'}
+                </button>
+                <button
+                  onClick={() => setShowAddTask(false)}
+                  className="px-5 py-3 rounded-xl font-semibold text-sm text-white/70 transition-all hover:bg-white/10 hover:text-white"
+                  style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

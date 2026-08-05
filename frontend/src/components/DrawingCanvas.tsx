@@ -255,24 +255,27 @@ const BeamHotspot = memo(function BeamHotspot({
 
 interface Props {
   showGrid: boolean;
+  showBeams: boolean;
   fullscreen: boolean;
   calibrating: boolean;
 }
 
-export default function DrawingCanvas({ showGrid, fullscreen, calibrating }: Props) {
+export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibrating }: Props) {
   const {
     currentDrawing,
     tasksForCurrentDrawing,
     setSelectedElementId,
     selectedElementId,
-    hoveredElementId,
-    setHoveredElementId,
     focusElementRequest,
     requestFocusElement,
     patchDrawingColumnPositions,
     resetDrawingColumnPositions,
     patchDrawingColumnLabel,
   } = useApp();
+
+  // hoveredElementId is local — it changes on every mouse-move and should NOT
+  // live in the global context (that would cause every context consumer to re-render).
+  const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -662,7 +665,7 @@ export default function DrawingCanvas({ showGrid, fullscreen, calibrating }: Pro
             />
           )}
 
-          {showGrid && image && !calibrating && beamElements.map((b) => (
+          {showGrid && showBeams && image && !calibrating && beamElements.map((b) => (
             <BeamHotspot
               key={b.id}
               id={b.id}
@@ -788,9 +791,9 @@ export default function DrawingCanvas({ showGrid, fullscreen, calibrating }: Pro
               ref={renameInputRef}
               className="w-full px-3 py-2 rounded-xl text-sm font-semibold outline-none transition-all"
               style={{
-                border: '1.5px solid rgba(236,72,153,0.3)',
-                background: '#fdf2f8',
-                color: '#be185d',
+                border: '1.5px solid rgba(128,0,32,0.5)',
+                background: 'rgba(20,0,8,0.97)',
+                color: '#ffffff',
                 caretColor: '#ec4899',
               }}
               value={renameValue}

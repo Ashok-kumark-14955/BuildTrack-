@@ -296,15 +296,16 @@ export default function TaskPanel() {
   const activeMilestone = milestones.find((m) => m.id === form.milestoneId);
 
   return (
-    <div className="w-full h-full flex flex-col shadow-elevated" style={{ background: 'linear-gradient(180deg, #180810 0%, #1c0a12 50%, #150710 100%)', borderLeft: '1px solid rgba(159,18,57,0.3)' }}>
+      <div className="w-full h-full flex flex-col shadow-elevated overflow-hidden" style={{ background: 'linear-gradient(180deg, #0e0408 0%, #110508 50%, #0a0306 100%)', borderLeft: '1px solid rgba(159,18,57,0.5)', borderRadius: '18px 0 0 18px' }}>
       {/* Header */}
       <div
         className="px-5 py-4 border-b"
         style={{
           background: isBeam
-            ? 'linear-gradient(135deg, rgba(84,35,8,0.95) 0%, rgba(22,10,6,0.98) 100%)'
-            : 'linear-gradient(135deg, rgba(92,10,32,0.95) 0%, rgba(22,6,12,0.98) 100%)',
+            ? 'linear-gradient(135deg, rgba(70,25,2,1) 0%, rgba(30,8,0,1) 100%)'
+            : 'linear-gradient(135deg, rgba(80,4,24,1) 0%, rgba(30,1,10,1) 100%)',
           borderBottomColor: isBeam ? 'rgba(245,158,11,0.35)' : 'rgba(244,63,94,0.35)',
+          borderRadius: '18px 0 0 0',
         }}
       >
         <div className="flex items-center justify-between gap-3">
@@ -431,8 +432,8 @@ export default function TaskPanel() {
               <button
                 key={t.id}
                 onClick={() => openTask(t)}
-                className="w-full text-left p-3.5 rounded-2xl border hover:shadow-card-hover transition-all"
-                style={{ background: 'linear-gradient(135deg, rgba(30,4,10,0.9) 0%, rgba(20,4,8,0.8) 100%)', border: '1.5px solid rgba(159,18,57,0.3)' }}
+                className="w-full text-left p-3.5 rounded-lg border hover:shadow-card-hover transition-all"
+                style={{ background: 'linear-gradient(135deg, rgba(80,4,24,0.98) 0%, rgba(4,0,2,1) 100%)', border: '1.5px solid rgba(159,18,57,0.5)' }}
               >
                 {ms && (
                   <div className="flex items-center gap-1 mb-1.5">
@@ -567,7 +568,7 @@ export default function TaskPanel() {
           </div>
 
           {/* ── Site Location ── */}
-          <div className="rounded-xl border border-rose-900/25 p-3.5 space-y-2.5" style={{ background: 'rgba(20,4,8,0.6)' }}>
+          <div className="rounded-xl border border-rose-900/35 p-3.5 space-y-2.5" style={{ background: 'rgba(50,10,22,0.6)' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wide">
                 <MapPin size={12} className={currentDrawing?.lat != null ? 'text-emerald-500' : 'text-slate-400'} />

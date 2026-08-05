@@ -10,10 +10,8 @@ interface AppState {
   activity: ActivityItem[];
   currentDrawingId: string | null;
   selectedElementId: string | null;
-  hoveredElementId: string | null;
   setCurrentDrawingId: (id: string | null) => void;
   setSelectedElementId: (id: string | null) => void;
-  setHoveredElementId: (id: string | null) => void;
   refreshDrawings: () => Promise<void>;
   refreshTasks: () => Promise<void>;
   refreshActivity: () => Promise<void>;
@@ -46,7 +44,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [currentDrawingId, setCurrentDrawingId] = useState<string | null>(null);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
-  const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
   const [focusElementRequest, setFocusElementRequest] = useState<string | null>(null);
 
   const refreshDrawings = useCallback(async () => {
@@ -187,7 +184,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [tasks, currentDrawingId]
   );
 
-  const value: AppState = {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const value: AppState = useMemo(() => ({
     projects,
     drawings,
     tasks,
@@ -195,10 +193,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     activity,
     currentDrawingId,
     selectedElementId,
-    hoveredElementId,
     setCurrentDrawingId,
     setSelectedElementId,
-    setHoveredElementId,
     refreshDrawings,
     refreshTasks,
     refreshActivity,
@@ -219,7 +215,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     resetDrawingColumnPositions,
     patchDrawingColumnLabel,
     patchDrawingElementTypeLabel,
-  };
+  }), [
+    projects, drawings, tasks, milestones, activity,
+    currentDrawingId, selectedElementId,
+    setCurrentDrawingId, setSelectedElementId,
+    refreshDrawings, refreshTasks, refreshActivity, refreshProjects, refreshMilestones,
+    createTask, updateTask, deleteTask, deleteDrawing,
+    createMilestone, updateMilestone, deleteMilestone,
+    currentDrawing, tasksForCurrentDrawing,
+    focusElementRequest, requestFocusElement,
+    patchDrawingColumnPositions, resetDrawingColumnPositions,
+    patchDrawingColumnLabel, patchDrawingElementTypeLabel,
+  ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
