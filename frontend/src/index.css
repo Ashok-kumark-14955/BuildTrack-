@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --shadow-card: 0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 1px 6px -1px rgba(15, 23, 42, 0.07);
+  --shadow-card-hover: 0 6px 16px -4px rgba(15, 23, 42, 0.12), 0 2px 6px -2px rgba(15, 23, 42, 0.06);
+  --shadow-elevated: 0 16px 40px -12px rgba(15, 23, 42, 0.22), 0 4px 14px -4px rgba(15, 23, 42, 0.12);
+  --shadow-toolbar: 0 1px 0 0 rgba(15, 23, 42, 0.05), 0 1px 3px 0 rgba(15, 23, 42, 0.03);
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #09090b;
+  color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Global text brightness: all text near-white for dark theme readability ── */
+.text-slate-100, .text-slate-200, .text-slate-300,
+.text-zinc-100, .text-zinc-200, .text-zinc-300 {
+  color: #f1f5f9 !important;
+}
+.text-slate-400, .text-slate-500, .text-slate-600,
+.text-zinc-400, .text-zinc-500, .text-zinc-600 {
+  color: #cbd5e1 !important;
+}
+.text-slate-700, .text-slate-800, .text-slate-900,
+.text-zinc-700, .text-zinc-800, .text-zinc-900 {
+  color: #e2e8f0 !important;
+}
+.text-gray-400, .text-gray-500, .text-gray-600,
+.text-gray-700, .text-gray-800, .text-gray-900 {
+  color: #cbd5e1 !important;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+.input {
+  width: 100%;
+  border: 1.5px solid rgba(159, 18, 57, 0.35);
+  border-radius: 0.875rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  outline: none;
+  background: rgba(20, 4, 8, 0.75);
+  color: #f8fafc;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.input::placeholder {
+  color: #71717a;
+}
+.input:hover {
+  border-color: rgba(190, 24, 93, 0.55);
+  background: rgba(30, 6, 12, 0.85);
+}
+.input:focus {
+  border-color: #be185d;
+  background: rgba(30, 6, 12, 0.9);
+  box-shadow: 0 0 0 3px rgba(190, 24, 93, 0.18);
+}
+
+/* ── Select/option dark styling ── */
+select.input option {
+  background: #1a0309;
+  color: #f8fafc;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border-radius: 0.875rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+  white-space: nowrap;
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #be185d, #9f1239);
+  color: white;
+  box-shadow: 0 1px 2px rgba(190, 24, 93, 0.25), 0 6px 14px -6px rgba(159, 18, 57, 0.5);
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9f1239, #881337);
+}
+
+.btn-secondary {
+  background: #1e1e2e;
+  color: #cbd5e1;
+  border: 1px solid #2d2d3f;
+}
+.btn-secondary:hover:not(:disabled) {
+  background: #2a2a3e;
+  border-color: #3d3d55;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #94a3b8;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: #1e1e2e;
+  color: #e2e8f0;
+}
+
+.card {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  color: #cbd5e1;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.icon-btn:hover {
+  background: #27272a;
+  color: #ffffff;
+}

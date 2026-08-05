@@ -1,0 +1,42 @@
+# ── Node ──────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Build output ──────────────────────────────
+dist/
+build/
+.next/
+out/
+
+# ── Environment / secrets ─────────────────────
+.env
+.env.local
+.env.*.local
+*.env
+
+# ── SQLite database files ─────────────────────
+*.db
+*.db-shm
+*.db-wal
+
+# ── Uploaded files (binary assets) ───────────
+backend/uploads/
+
+# ── OS / Editor ───────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+.idea/
+
+# ── TypeScript cache ──────────────────────────
+*.tsbuildinfo
+
+# ── Logs ─────────────────────────────────────
+logs/
+*.log
+
+# ── Test coverage ─────────────────────────────
+coverage/
