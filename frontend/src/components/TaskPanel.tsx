@@ -61,7 +61,20 @@ export default function TaskPanel() {
   // Resolve custom label: for columns look up columnLabels on the current drawing
   const columnLabels = ctxCurrentDrawing?.columnLabels ?? {};
 
-  const elementTasks = selectedElementId ? tasksForCurrentDrawing.filter((t) => t.elementId === selectedElementId) : [];
+  // Match tasks to the selected canvas element.
+  // selectedElementId is "Column_A1" or "Beam_A1_B1".
+  // Tasks store their location in gridCode (e.g. "A1") — not by the canvas element ID.
+  // We derive the raw grid code from the canvas element ID to perform the lookup.
+  const elementTasks = selectedElementId
+    ? tasksForCurrentDrawing.filter((t) => {
+        if (selectedElementId.startsWith('Column_')) {
+          const code = selectedElementId.replace('Column_', '');
+          return t.gridCode === code || t.elementId === selectedElementId || t.elementId === code;
+        }
+        // For beams, fall back to elementId match
+        return t.elementId === selectedElementId;
+      })
+    : [];
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -182,7 +195,9 @@ export default function TaskPanel() {
           drawingId: currentDrawingId,
           elementType,
           elementId: selectedElementId,
-          gridCode: elementLabel,
+          // gridCode must be the raw canvas code (e.g. "A1"), not the display label,
+          // so that statusByElement and elementTasks can match by gridCode.
+          gridCode: rawCode,
         });
         setActiveTaskId(created.id);
         toast.success('Task created');
@@ -226,16 +241,49 @@ export default function TaskPanel() {
   const activeMilestone = milestones.find((m) => m.id === form.milestoneId);
 
   return (
-    <div className="w-full h-full flex flex-col shadow-elevated" style={{ background: 'linear-gradient(180deg, #0d0208 0%, #120309 50%, #0a0106 100%)', borderLeft: '1px solid rgba(159,18,57,0.3)' }}>
+    <div className="w-full h-full flex flex-col shadow-elevated" style={{ background: 'linear-gradient(180deg, #180810 0%, #1c0a12 50%, #150710 100%)', borderLeft: '1px solid rgba(159,18,57,0.3)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-rose-900/30" style={{ background: 'linear-gradient(135deg, rgba(20,4,8,0.95) 0%, rgba(10,2,4,0.98) 100%)' }}>
+      <div
+        className="flex items-center justify-between px-5 py-4 border-b"
+        style={{
+          background: isBeam
+            ? 'linear-gradient(135deg, rgba(84,35,8,0.95) 0%, rgba(22,10,6,0.98) 100%)'
+            : 'linear-gradient(135deg, rgba(92,10,32,0.95) 0%, rgba(22,6,12,0.98) 100%)',
+          borderBottomColor: isBeam ? 'rgba(245,158,11,0.35)' : 'rgba(244,63,94,0.35)',
+        }}
+      >
         <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-lg border flex items-center justify-center ${isBeam ? 'bg-amber-950/50 border-amber-800/40' : 'bg-rose-950/50 border-rose-800/40'}`}>
-            {isBeam ? <Minus size={16} className="text-amber-400" /> : <LayoutGrid size={16} className="text-rose-400" />}
+          <div
+            className="w-9 h-9 rounded-lg border flex items-center justify-center"
+            style={{
+              background: isBeam
+                ? 'linear-gradient(135deg, rgba(245,158,11,0.35), rgba(120,53,15,0.4))'
+                : 'linear-gradient(135deg, rgba(244,63,94,0.35), rgba(76,5,25,0.4))',
+              borderColor: isBeam ? 'rgba(245,158,11,0.5)' : 'rgba(244,63,94,0.5)',
+              boxShadow: isBeam
+                ? '0 0 12px rgba(245,158,11,0.35)'
+                : '0 0 12px rgba(244,63,94,0.35)',
+            }}
+          >
+            {isBeam ? <Minus size={16} className="text-amber-300" /> : <LayoutGrid size={16} className="text-rose-300" />}
           </div>
           <div>
-            <div className="text-[10.5px] uppercase tracking-wider font-semibold" style={{ color: 'rgba(251,207,232,0.7)' }}>{isBeam ? 'Beam' : 'Column'}</div>
-            <div className="text-lg font-bold text-white font-display leading-tight">{elementLabel}</div>
+            <div
+              className="text-[10.5px] uppercase tracking-wider font-semibold"
+              style={{ color: isBeam ? 'rgba(253,230,138,0.85)' : 'rgba(251,207,232,0.85)' }}
+            >
+              {isBeam ? 'Beam' : 'Column'}
+            </div>
+            <div
+              className="text-lg font-bold font-display leading-tight bg-clip-text text-transparent"
+              style={{
+                backgroundImage: isBeam
+                  ? 'linear-gradient(90deg, #fff, #fcd34d)'
+                  : 'linear-gradient(90deg, #fff, #fb7185)',
+              }}
+            >
+              {elementLabel}
+            </div>
             {elementLabel !== rawCode && (
               <div className="text-[10px] text-slate-500 font-medium leading-none mt-0.5">{rawCode}</div>
             )}

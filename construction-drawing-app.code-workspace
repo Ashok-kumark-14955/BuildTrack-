@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"mcp": {
+			"servers": {
+				"AshokSprintsTestManagement": {
+					"type": "http",
+					"url": "https://ashoksprintstestmanagement-60067292573.zohomcp.in/mcp/5f9a34f41530a8116b63e288ee394cf5/message"
+				}
+			},
+			"inputs": []
+		}
+	}
+}

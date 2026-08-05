@@ -173,42 +173,41 @@ const ColumnHotspot = memo(function ColumnHotspot({
         fillRadialGradientEndRadius={r * 1.15}
         fillRadialGradientColorStops={
           isEmpty
-            ? [0, '#f1f5f9', 1, '#dbe2ea']
-            : [0, lighten(color), 1, color]
+            ? [0, 'rgba(241,245,249,0.55)', 1, 'rgba(219,226,234,0.45)']
+            : [0, lighten(color) + 'bb', 1, color + '99']
         }
-        opacity={isEmpty ? 0.9 : 1}
-        stroke={isHovered || isSelected ? '#1e293b' : 'rgba(15,23,42,0.45)'}
-        strokeWidth={isHovered || isSelected ? 2 : 1}
+        opacity={isHovered || isSelected ? 1 : 0.72}
+        stroke={isHovered || isSelected ? '#1e293b' : 'rgba(15,23,42,0.35)'}
+        strokeWidth={isHovered || isSelected ? 1.5 : 0.75}
         shadowColor="black"
-        shadowBlur={isHovered ? 10 : 5}
-        shadowOpacity={isHovered ? 0.32 : 0.22}
-        shadowOffsetY={2}
+        shadowBlur={isHovered ? 8 : 3}
+        shadowOpacity={isHovered ? 0.25 : 0.12}
+        shadowOffsetY={1}
       />
-      {/* Show custom label above, default code inside */}
+      {/* Grid label floats above the circle */}
       <Text
         text={label}
-        width={r * 2}
-        height={r * 2}
-        offsetX={r}
-        offsetY={r}
+        width={r * 3}
+        offsetX={r * 1.5}
+        y={-(r + Math.max(10, r * 0.85))}
         align="center"
-        verticalAlign="middle"
-        fontSize={Math.max(9, r * 0.62)}
+        fontSize={Math.max(8, r * 0.58)}
         fontStyle="bold"
         fontFamily={calibrating ? "'Courier New', monospace" : 'sans-serif'}
-        fill={isEmpty ? '#475569' : 'white'}
+        fill={isEmpty ? '#475569' : color}
+        opacity={0.92}
         listening={false}
       />
-      {/* If label was customised, show the original code as tiny subtitle */}
+      {/* If label was customised, show the original code as tiny subtitle above */}
       {label !== code && (
         <Text
           text={code}
-          width={r * 2.8}
-          offsetX={r * 1.4}
-          y={r * 0.62}
+          width={r * 3}
+          offsetX={r * 1.5}
+          y={-(r + Math.max(10, r * 0.85)) + Math.max(8, r * 0.58) + 1}
           align="center"
-          fontSize={Math.max(7, r * 0.42)}
-          fill={isEmpty ? '#94a3b8' : 'rgba(255,255,255,0.7)'}
+          fontSize={Math.max(6, r * 0.38)}
+          fill={isEmpty ? '#94a3b8' : 'rgba(255,255,255,0.65)'}
           listening={false}
         />
       )}
@@ -260,12 +259,12 @@ const BeamHotspot = memo(function BeamHotspot({
         points={[x1, y1, x2, y2]}
         stroke={color}
         strokeWidth={strokeWidth}
-        opacity={isEmpty ? 0.7 : 0.95}
+        opacity={isHovered || isSelected ? 0.85 : isEmpty ? 0.38 : 0.52}
         lineCap="round"
-        hitStrokeWidth={Math.max(18, strokeWidth * 3)}
+        hitStrokeWidth={Math.max(18, strokeWidth * 4)}
         shadowColor="black"
-        shadowBlur={isHovered ? 6 : 0}
-        shadowOpacity={0.2}
+        shadowBlur={isHovered ? 5 : 0}
+        shadowOpacity={0.15}
       />
     </Group>
   );
@@ -443,13 +442,14 @@ export default function DrawingCanvas({ showGrid, fullscreen, calibrating }: Pro
   useEffect(() => { elementPointByIdRef.current = elementPointById; }, [elementPointById]);
 
   const hotspotRadius = useMemo(() => {
-    if (!currentDrawing || !image) return 16;
+    if (!currentDrawing || !image) return 10;
     const cellW = image.width / currentDrawing.gridCols;
     const cellH = image.height / currentDrawing.gridRows;
-    return Math.max(8, Math.min(cellW, cellH) * 0.16);
+    // Reduced: was 0.16, now 0.09 for smaller circles
+    return Math.max(5, Math.min(cellW, cellH) * 0.09);
   }, [currentDrawing, image]);
 
-  const beamThickness = useMemo(() => Math.max(4, hotspotRadius * 0.32), [hotspotRadius]);
+  const beamThickness = useMemo(() => Math.max(2, hotspotRadius * 0.22), [hotspotRadius]);
 
   // ── Focus an element from an EXTERNAL request ONLY (e.g. Task List "Locate" button) ──
   // Direct taps on the canvas (handleSelect) never set focusElementRequest,
@@ -571,13 +571,29 @@ export default function DrawingCanvas({ showGrid, fullscreen, calibrating }: Pro
   const cancelRename = useCallback(() => setRenamingCode(null), []);
 
   // ── Compute per-element status (highest-priority active task wins) ──
+  // Tasks are indexed by their canvas element ID (Column_A1, Beam_A1_B1).
+  // We derive the canvas ID from the task's gridCode field, since task.elementId
+  // may contain drawing-specific labels (FP-A1, COL-A1, etc.) that don't match
+  // the canvas element IDs.
   const statusByElement = useMemo<Record<string, string>>(() => {
     const priorityOrder = ['Blocked', 'Delayed', 'In Progress', 'Assigned', 'Completed'];
     const result: Record<string, string> = {};
+
+    const setPriority = (key: string, status: string) => {
+      const existing = result[key];
+      if (!existing || priorityOrder.indexOf(status) < priorityOrder.indexOf(existing)) {
+        result[key] = status;
+      }
+    };
+
     for (const t of tasksForCurrentDrawing) {
-      const existing = result[t.elementId];
-      if (!existing || priorityOrder.indexOf(t.status) < priorityOrder.indexOf(existing)) {
-        result[t.elementId] = t.status;
+      // Primary: index by canvas Column ID derived from gridCode (e.g. "A1" → "Column_A1")
+      if (t.gridCode) {
+        setPriority(`Column_${t.gridCode}`, t.status);
+      }
+      // Also index by raw elementId so legacy/custom IDs still work
+      if (t.elementId) {
+        setPriority(t.elementId, t.status);
       }
     }
     return result;
