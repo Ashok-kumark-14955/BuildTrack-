@@ -57,14 +57,6 @@ export default function TopToolbar({
   const [draftRows, setDraftRows] = useState(gridRows);
   const [dirty, setDirty] = useState(false);
 
-  /**
-   * totalColumns = how many column circle markers there are (cols × rows of the grid).
-   * totalBeams   = horizontal beams + vertical beams
-   *             = cols × (rows-1)  [vertical spans]  +  (cols-1) × rows [horizontal spans]
-   */
-  const totalColumns = draftCols * draftRows;
-  const totalBeams = draftCols * (draftRows - 1) + (draftCols - 1) * draftRows;
-
   useEffect(() => {
     setDraftCols(gridCols);
     setDraftRows(gridRows);
@@ -88,45 +80,7 @@ export default function TopToolbar({
     setDirty(true);
   };
 
-  /**
-   * Given a target total (cols × rows), find the (cols, rows) pair in [2,30]×[2,30]
-   * that equals the target exactly, preferring the factorization whose rows value
-   * is closest to draftRows.
-   * Returns null if no exact factorization exists in the allowed range.
-   */
-  const exactFactorization = (target: number): { cols: number; rows: number } | null => {
-    let best: { cols: number; rows: number } | null = null;
-    let bestDiff = Infinity;
-    for (let r = 2; r <= 30; r++) {
-      if (target % r === 0) {
-        const c = target / r;
-        if (c >= 2 && c <= 30) {
-          const diff = Math.abs(r - draftRows);
-          if (diff < bestDiff) { bestDiff = diff; best = { cols: c, rows: r }; }
-        }
-      }
-    }
-    return best;
-  };
 
-  // Step total columns by exactly ±1. Scans forward/backward to the nearest
-  // integer that has an exact factorization in [2,30]×[2,30].
-  const adjustTotalCols = (delta: number) => {
-    const current = draftCols * draftRows;
-    const direction = delta > 0 ? 1 : -1;
-    // Search up to 30 steps in the requested direction
-    for (let step = 1; step <= 30; step++) {
-      const t = current + direction * step;
-      if (t < 4) continue;
-      const f = exactFactorization(t);
-      if (f) {
-        setDraftCols(f.cols);
-        setDraftRows(f.rows);
-        setDirty(true);
-        return;
-      }
-    }
-  };
 
   const handleUpload = async (file: File) => {
     setUploading(true);
