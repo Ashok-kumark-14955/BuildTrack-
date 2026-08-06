@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
 import projectsRouter from './routes/projects';
 import drawingsRouter from './routes/drawings';
 import tasksRouter from './routes/tasks';
@@ -23,8 +22,7 @@ const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000
 if (!process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
   app.use(cors());
 }
-app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use(express.json({ limit: '25mb' }));
 
 app.use('/api/projects', projectsRouter);
 app.use('/api/drawings', drawingsRouter);

@@ -1,23 +1,16 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'path';
 import { v4 as uuid } from 'uuid';
-import fs from 'fs';
 import * as db from '../db';
 
 const router = Router();
 
-const uploadDir = path.join(__dirname, '..', '..', 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${uuid()}${ext}`);
-  },
+// Use memory storage so files never touch the ephemeral AppSail disk.
+// The raw buffer is converted to a base64 data URL and persisted in the DB.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB max
 });
-const upload = multer({ storage });
 
 function gridCode(col: number, row: number) {
   const letter = String.fromCharCode(65 + col);
@@ -72,7 +65,12 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   const project = await db.get(req, 'SELECT id FROM projects WHERE id = ?', [resolvedProjectId]);
   if (!project) return res.status(400).json({ error: 'Invalid or missing project. Please reload and try again.' });
   const id = uuid();
-  const fileUrl = `/uploads/${req.file.filename}`;
+
+  // Convert file buffer to a base64 data URL so it's persisted in the
+  // DataStore and survives AppSail container restarts (no local disk needed).
+  const base64Data = req.file.buffer.toString('base64');
+  const dataUrl = `data:${req.file.mimetype};base64,${base64Data}`;
+
   const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
   const createdAt = new Date().toISOString();
   const cols = Math.min(30, Math.max(1, Number(gridCols) || 10));
@@ -82,7 +80,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     req,
     `INSERT INTO drawings (id, projectId, name, fileUrl, fileType, gridCols, gridRows, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, resolvedProjectId, drawingName, fileUrl, fileType, cols, rows, createdAt]
+    [id, resolvedProjectId, drawingName, dataUrl, fileType, cols, rows, createdAt]
   );
 
   await createTasksForGrid(req, id, cols, rows, createdAt);

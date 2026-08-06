@@ -4,7 +4,15 @@ import type { Drawing, Task, Comment, Project, ActivityItem, Milestone, ProjectT
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
 export const api = axios.create({ baseURL: `${API_BASE}/api` });
-export const fileUrl = (path: string) => `${API_BASE}${path}`;
+// If the stored value is already a data URL (base64) or an absolute http URL,
+// return it as-is. Otherwise prepend the API base (legacy /uploads/... paths).
+export const fileUrl = (path: string) => {
+  if (!path) return '';
+  if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  return `${API_BASE}${path}`;
+};
 
 export interface ProjectListParams {
   q?: string;
