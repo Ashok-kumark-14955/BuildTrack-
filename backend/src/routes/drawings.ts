@@ -96,7 +96,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
 // Update grid config (also supports milestoneId, columnPositions, columnLabels, elementTypeLabels, lat, lng)
 router.patch('/:id', async (req, res) => {
-  const { gridCols, gridRows, name, milestoneId, columnPositions, resetColumnPositions, columnLabels, resetColumnLabels, elementTypeLabels, resetElementTypeLabels, lat, lng } = req.body;
+  const { gridCols, gridRows, name, milestoneId, columnPositions, resetColumnPositions, columnLabels, resetColumnLabels, elementTypeLabels, resetElementTypeLabels, lat, lng, fileUrl } = req.body;
   const existing: any = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   const newMilestoneId = 'milestoneId' in req.body ? (milestoneId || null) : existing.milestoneId;
@@ -132,7 +132,7 @@ router.patch('/:id', async (req, res) => {
 
   await db.run(
     req,
-    'UPDATE drawings SET gridCols = ?, gridRows = ?, name = ?, milestoneId = ?, columnPositions = ?, columnLabels = ?, elementTypeLabels = ?, lat = ?, lng = ? WHERE id = ?',
+    'UPDATE drawings SET gridCols = ?, gridRows = ?, name = ?, milestoneId = ?, columnPositions = ?, columnLabels = ?, elementTypeLabels = ?, lat = ?, lng = ?, fileUrl = ? WHERE id = ?',
     [
       gridCols ?? existing.gridCols,
       gridRows ?? existing.gridRows,
@@ -143,6 +143,7 @@ router.patch('/:id', async (req, res) => {
       newElementTypeLabels,
       newLat,
       newLng,
+      fileUrl ?? existing.fileUrl,
       req.params.id,
     ]
   );

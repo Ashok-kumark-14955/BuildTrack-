@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import projectsRouter from './routes/projects';
 import drawingsRouter from './routes/drawings';
 import tasksRouter from './routes/tasks';
@@ -23,6 +24,11 @@ if (!process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
   app.use(cors());
 }
 app.use(express.json({ limit: '25mb' }));
+
+// Static seed-drawing assets bundled with the deployed source (survive
+// AppSail restarts/redeploys since they come from the git-tracked build,
+// unlike runtime-uploaded files on the ephemeral disk).
+app.use('/seed-drawings', express.static(path.join(__dirname, '../assets/seed-drawings')));
 
 app.use('/api/projects', projectsRouter);
 app.use('/api/drawings', drawingsRouter);

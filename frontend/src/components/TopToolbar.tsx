@@ -49,10 +49,12 @@ export default function TopToolbar({
   gridRows,
   onGridSizeChange,
 }: Props) {
-  const { currentDrawing, refreshDrawings, refreshTasks, setCurrentDrawingId, drawings, projects } = useApp();
+  const { currentDrawing, refreshDrawings, refreshTasks, setCurrentDrawingId, drawings, projects, activity } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [showGridSettings, setShowGridSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
   const [draftCols, setDraftCols] = useState(gridCols);
   const [draftRows, setDraftRows] = useState(gridRows);
   const [dirty, setDirty] = useState(false);
@@ -62,6 +64,28 @@ export default function TopToolbar({
     setDraftRows(gridRows);
     setDirty(false);
   }, [gridCols, gridRows]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifications(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [showNotifications]);
+
+  const drawingActivity = activity.filter((a) => !currentDrawing || !a.drawingId || a.drawingId === currentDrawing.id).slice(0, 8);
+
+  const timeAgo = (iso: string) => {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  };
 
   const applyGridSize = () => {
     const c = Math.min(30, Math.max(2, draftCols));
@@ -426,17 +450,60 @@ export default function TopToolbar({
 
       {/* ── Right Actions ── */}
       <div className="ml-auto flex items-center gap-1.5 shrink-0">
-        {/* Bell */}
-        <button
-          className="relative w-8 h-8 flex items-center justify-center rounded-lg transition-all"
-          title="Notifications"
-          style={{ color: '#ffffff', background: 'rgba(26,0,10,0.85)', border: '1px solid rgba(128,0,32,0.4)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(26,0,10,0.85)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.4)'; }}
-        >
-          <Bell size={14} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: '#7c0a2a', boxShadow: '0 0 6px rgba(80,4,24,0.9)' }} />
-        </button>
+        {/* Bell / Notifications */}
+        <div className="relative" ref={notifRef}>
+          <button
+            onClick={() => setShowNotifications((v) => !v)}
+            className="relative w-8 h-8 flex items-center justify-center rounded-lg transition-all"
+            title="Recent activity"
+            style={showNotifications
+              ? { color: '#ffffff', background: 'rgba(219,39,119,0.28)', border: '1px solid rgba(219,39,119,0.6)' }
+              : { color: '#ffffff', background: 'rgba(26,0,10,0.85)', border: '1px solid rgba(128,0,32,0.4)' }}
+            onMouseEnter={(e) => { if (!showNotifications) { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; } }}
+            onMouseLeave={(e) => { if (!showNotifications) { e.currentTarget.style.background = 'rgba(26,0,10,0.85)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.4)'; } }}
+          >
+            <Bell size={14} />
+            {drawingActivity.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: '#fb7185', boxShadow: '0 0 6px rgba(251,113,133,0.9)' }} />
+            )}
+          </button>
+
+          {showNotifications && (
+            <div
+              className="absolute right-0 top-[calc(100%+8px)] w-80 max-h-96 overflow-y-auto rounded-2xl z-50"
+              style={{
+                background: 'linear-gradient(135deg, #1a0008 0%, #250010 50%, #1a0008 100%)',
+                border: '1.5px solid rgba(236,72,153,0.4)',
+                boxShadow: '0 12px 36px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05)',
+              }}
+            >
+              <div className="flex items-center justify-between px-4 py-3 sticky top-0" style={{ borderBottom: '1px solid rgba(159,18,57,0.3)', background: 'rgba(26,0,8,0.95)' }}>
+                <span className="text-[12px] font-black tracking-wide uppercase" style={{ color: '#fce7f3' }}>Recent Activity</span>
+                <button onClick={() => setShowNotifications(false)} style={{ color: 'rgba(255,255,255,0.4)' }} onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')} onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>
+                  <X size={13} />
+                </button>
+              </div>
+              {drawingActivity.length === 0 ? (
+                <div className="px-4 py-8 text-center text-[12px] font-semibold" style={{ color: 'rgba(253,164,175,0.5)' }}>No recent activity</div>
+              ) : (
+                <div className="py-1">
+                  {drawingActivity.map((a) => (
+                    <div key={a.id} className="flex items-start gap-2.5 px-4 py-2.5 transition-colors" style={{ borderBottom: '1px solid rgba(159,18,57,0.12)' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(159,18,57,0.1)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" style={{ background: '#fb7185', boxShadow: '0 0 5px rgba(251,113,133,0.7)' }} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[12.5px] font-semibold leading-snug" style={{ color: '#fce7f3' }}>{a.message}</div>
+                        <div className="text-[10.5px] font-medium mt-0.5" style={{ color: 'rgba(253,164,175,0.55)' }}>{timeAgo(a.createdAt)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <Divider />
 

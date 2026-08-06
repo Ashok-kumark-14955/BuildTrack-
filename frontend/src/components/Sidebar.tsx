@@ -34,58 +34,65 @@ const navItems = [
 // Enhanced progress ring — maroon arc, white center text
 function ProgressRing({ pct, size = 52 }: { pct: number; size?: number }) {
   const sw = 5;
+  const cx = size / 2;
+  const cy = size / 2;
   const r = (size - sw * 2) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
-  const angle = (pct / 100) * 2 * Math.PI - Math.PI / 2;
-  const dotX = size / 2 + r * Math.cos(angle);
-  const dotY = size / 2 + r * Math.sin(angle);
+  const gap = circ - dash;
+
   // Arc colours — maroon palette; green when 100%
   const arcStart = pct >= 100 ? '#4ade80' : '#8b0a2e';
   const arcEnd   = pct >= 100 ? '#22c55e' : '#d6486e';
   const glowCol  = pct >= 100 ? '#4ade80' : '#8b0a2e';
-  const gradId = 'pr-grad';
-  const glowId = 'pr-glow';
+  const gradId = `pr-grad-${size}`;
+
+  // Tip dot position: arc starts at top (-π/2), rotated by pct fraction of circle
+  // The SVG is NOT rotated via CSS; instead we use a transform on the arc group.
+  const tipAngle = -Math.PI / 2 + (pct / 100) * 2 * Math.PI;
+  const dotX = cx + r * Math.cos(tipAngle);
+  const dotY = cy + r * Math.sin(tipAngle);
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
-      {/* Outer ambient maroon glow */}
+      {/* Outer ambient glow */}
       <div className="absolute inset-0 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${glowCol}30 30%, transparent 75%)`, filter: 'blur(7px)' }} />
 
-      <svg width={size} height={size} className="-rotate-90 absolute inset-0" style={{ overflow: 'visible' }}>
+      <svg width={size} height={size} className="absolute inset-0" style={{ overflow: 'visible' }}>
         <defs>
-          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor={arcStart} />
             <stop offset="100%" stopColor={arcEnd} />
           </linearGradient>
-          <filter id={glowId} x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="2.5" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
         </defs>
 
         {/* Dark track */}
-        <circle cx={size/2} cy={size/2} r={r} fill="none"
+        <circle cx={cx} cy={cy} r={r} fill="none"
           stroke="rgba(255,255,255,0.07)" strokeWidth={sw} />
 
         {/* Halo arc */}
         {pct > 0 && (
-          <circle cx={size/2} cy={size/2} r={r} fill="none"
+          <circle cx={cx} cy={cy} r={r} fill="none"
             stroke={arcEnd} strokeWidth={sw + 5}
-            strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-            opacity={0.2} style={{ transition: 'stroke-dasharray 0.9s ease' }} />
+            strokeDasharray={`${dash} ${gap}`}
+            strokeDashoffset={circ * 0.25}
+            strokeLinecap="round"
+            opacity={0.2}
+            style={{ transition: 'stroke-dasharray 0.9s ease' }} />
         )}
 
         {/* Main gradient arc */}
         {pct > 0 && (
-          <circle cx={size/2} cy={size/2} r={r} fill="none"
+          <circle cx={cx} cy={cy} r={r} fill="none"
             stroke={`url(#${gradId})`} strokeWidth={sw}
-            strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+            strokeDasharray={`${dash} ${gap}`}
+            strokeDashoffset={circ * 0.25}
+            strokeLinecap="round"
             style={{ transition: 'stroke-dasharray 0.9s ease', filter: `drop-shadow(0 0 5px ${glowCol}cc)` }} />
         )}
 
-        {/* Tip dot */}
+        {/* Tip dot — positioned at the end of the arc */}
         {pct > 3 && pct < 100 && (
           <circle cx={dotX} cy={dotY} r={sw * 0.75} fill={arcEnd}
             style={{ filter: `drop-shadow(0 0 6px ${arcEnd})` }} />
@@ -118,18 +125,35 @@ export default function Sidebar() {
     localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
   }, [collapsed]);
 
+  const activeProject = projects[0];
+
+  // Scope stats to the active project's drawings only — `tasks` and `drawings`
+  // are fetched globally across all projects, so mixing in other projects'
+  // tasks here produced an incorrect "done" percentage on the project card.
+  const projectDrawingIds = useMemo(
+    () => new Set(drawings.filter((d) => d.projectId === activeProject?.id).map((d) => d.id)),
+    [drawings, activeProject]
+  );
+  const projectTasks = useMemo(
+    () => tasks.filter((t) => projectDrawingIds.has(t.drawingId)),
+    [tasks, projectDrawingIds]
+  );
+
   const stats = useMemo(() => {
-    const total = tasks.length;
-    const completed = tasks.filter((t) => t.status === 'Completed').length;
-    const inProgress = tasks.filter((t) => t.status === 'In Progress').length;
-    const blocked = tasks.filter((t) => t.status === 'Blocked').length;
-    const delayed = tasks.filter((t) => t.status === 'Delayed').length;
-    const assigned = tasks.filter((t) => t.status === 'Assigned').length;
+    const total = projectTasks.length;
+    const completed = projectTasks.filter((t) => t.status === 'Completed').length;
+    const inProgress = projectTasks.filter((t) => t.status === 'In Progress').length;
+    const blocked = projectTasks.filter((t) => t.status === 'Blocked').length;
+    const delayed = projectTasks.filter((t) => t.status === 'Delayed').length;
+    const assigned = projectTasks.filter((t) => t.status === 'Assigned').length;
     const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { total, completed, inProgress, blocked, delayed, assigned, attention: blocked + delayed, pct };
-  }, [tasks]);
+  }, [projectTasks]);
 
-  const activeMilestones = useMemo(() => milestones.filter((m) => m.status === 'Active').length, [milestones]);
+  const activeMilestones = useMemo(
+    () => milestones.filter((m) => m.status === 'Active' && m.projectId === activeProject?.id).length,
+    [milestones, activeProject]
+  );
 
   const switchDrawing = (drawingId: string) => {
     setCurrentDrawingId(drawingId);
@@ -152,7 +176,6 @@ export default function Sidebar() {
     return map;
   }, [tasks]);
 
-  const activeProject = projects[0];
   const managers = useMemo(
     () => Array.from(new Set(projects.map((p) => p.managerName).filter(Boolean))) as string[],
     [projects]
