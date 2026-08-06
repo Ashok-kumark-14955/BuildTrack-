@@ -71,6 +71,8 @@ export const TasksAPI = {
     if (data.message) form.append('message', data.message);
     return api.post<Comment>(`/tasks/${id}/comments`, form).then((r) => r.data);
   },
+  deleteComment: (taskId: string, commentId: string) =>
+    api.delete(`/tasks/${taskId}/comments/${commentId}`),
 };
 
 export const MilestonesAPI = {

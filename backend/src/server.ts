@@ -8,28 +8,13 @@ import milestonesRouter from './routes/milestones';
 import projectTasksRouter from './routes/projectTasks';
 import activityRouter from './routes/activity';
 import geocodeRouter from './routes/geocode';
-import db from './db';
 
 const app = express();
 const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
 
-// Auto-seed sample project data on first boot so the app is explorable with zero setup
-const projectCount = (db.prepare('SELECT COUNT(*) as count FROM projects').get() as { count: number }).count;
-if (projectCount === 0) {
-  require('./seed');
-}
-
-// Auto-seed the Apex Steel sample project (4 steel drawings) if it hasn't been added yet
-const steelProjectCount = (db.prepare("SELECT COUNT(*) as count FROM projects WHERE code = 'ASIC-P1'").get() as { count: number }).count;
-if (steelProjectCount === 0) {
-  require('./seed_steel');
-}
-
-// Self-healing calibration fixup: some hosting environments (e.g. AppSail) may
-// reset/restart with a stale copy of the DB that predates the columnPositions
-// fix. Re-apply known-good grid marker positions for the steel sample drawings
-// on every boot so the fix survives restarts/redeploys regardless of DB state.
-require('./fixCalibration');
+// Data is persisted in Zoho Catalyst Data Store (seeded ahead of time via
+// scripts run against the Catalyst environment). The old auto-seed/self-heal
+// boot logic relied on the local SQLite file and no longer applies here.
 
 app.use(cors());
 app.use(express.json());

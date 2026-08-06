@@ -14,6 +14,7 @@ import {
   Plus,
   Minus,
   Check,
+  Workflow,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { DrawingsAPI } from '../api';
@@ -56,6 +57,14 @@ export default function TopToolbar({
   const [draftRows, setDraftRows] = useState(gridRows);
   const [dirty, setDirty] = useState(false);
 
+  /**
+   * totalColumns = how many column circle markers there are (cols × rows of the grid).
+   * totalBeams   = horizontal beams + vertical beams
+   *             = cols × (rows-1)  [vertical spans]  +  (cols-1) × rows [horizontal spans]
+   */
+  const totalColumns = draftCols * draftRows;
+  const totalBeams = draftCols * (draftRows - 1) + (draftCols - 1) * draftRows;
+
   useEffect(() => {
     setDraftCols(gridCols);
     setDraftRows(gridRows);
@@ -70,8 +79,54 @@ export default function TopToolbar({
     setDirty(false); setShowGridSettings(false);
   };
 
-  const adjustCols = (delta: number) => { setDraftCols((v) => Math.min(30, Math.max(2, v + delta))); setDirty(true); };
-  const adjustRows = (delta: number) => { setDraftRows((v) => Math.min(30, Math.max(2, v + delta))); setDirty(true); };
+  const adjustCols = (delta: number) => {
+    setDraftCols((v) => Math.min(30, Math.max(2, v + delta)));
+    setDirty(true);
+  };
+  const adjustRows = (delta: number) => {
+    setDraftRows((v) => Math.min(30, Math.max(2, v + delta)));
+    setDirty(true);
+  };
+
+  /**
+   * Given a target total (cols × rows), find the (cols, rows) pair in [2,30]×[2,30]
+   * that equals the target exactly, preferring the factorization whose rows value
+   * is closest to draftRows.
+   * Returns null if no exact factorization exists in the allowed range.
+   */
+  const exactFactorization = (target: number): { cols: number; rows: number } | null => {
+    let best: { cols: number; rows: number } | null = null;
+    let bestDiff = Infinity;
+    for (let r = 2; r <= 30; r++) {
+      if (target % r === 0) {
+        const c = target / r;
+        if (c >= 2 && c <= 30) {
+          const diff = Math.abs(r - draftRows);
+          if (diff < bestDiff) { bestDiff = diff; best = { cols: c, rows: r }; }
+        }
+      }
+    }
+    return best;
+  };
+
+  // Step total columns by exactly ±1. Scans forward/backward to the nearest
+  // integer that has an exact factorization in [2,30]×[2,30].
+  const adjustTotalCols = (delta: number) => {
+    const current = draftCols * draftRows;
+    const direction = delta > 0 ? 1 : -1;
+    // Search up to 30 steps in the requested direction
+    for (let step = 1; step <= 30; step++) {
+      const t = current + direction * step;
+      if (t < 4) continue;
+      const f = exactFactorization(t);
+      if (f) {
+        setDraftCols(f.cols);
+        setDraftRows(f.rows);
+        setDirty(true);
+        return;
+      }
+    }
+  };
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -201,40 +256,86 @@ export default function TopToolbar({
 
       <Divider />
 
-      {/* ── Grid Toggle Group (pink active state) ── */}
-      <div className="flex items-center gap-0.5 rounded-lg p-1 shrink-0" style={{
-        background: 'rgba(26,0,10,0.9)',
-        border: '1px solid rgba(128,0,32,0.45)',
-      }}>
+      {/* ── Grid Toggle Group ── */}
+      <div
+        className="flex items-center rounded-full overflow-hidden shrink-0"
+        style={{
+          background: 'linear-gradient(135deg, #1a0008 0%, #280010 100%)',
+          border: '1px solid rgba(159,18,57,0.45)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+        }}
+      >
+        {/* Columns toggle */}
         <button
           onClick={() => setShowGrid(!showGrid)}
           title={showGrid ? 'Hide column markers' : 'Show column markers'}
-          className="flex items-center gap-1.5 text-[13px] px-2.5 py-1.5 rounded-md font-semibold transition-all duration-150"
+          className="relative flex items-center gap-2 text-[12.5px] px-3.5 py-2 font-bold transition-all duration-200 overflow-hidden rounded-full"
           style={showGrid
-            ? { background: 'linear-gradient(135deg, #7c0a2a 0%, #5a0620 55%, #3d0216 100%)', color: '#fff', boxShadow: '0 1px 8px rgba(60,2,18,0.7)' }
-            : { color: 'rgba(253,202,212,0.55)', background: 'transparent' }}
+            ? {
+                background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 55%, #4c0519 100%)',
+                color: '#fff',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
+              }
+            : {
+                background: 'rgba(159,18,57,0.08)',
+                color: 'rgba(253,202,212,0.6)',
+                borderRight: '1px solid rgba(159,18,57,0.2)',
+              }}
+          onMouseEnter={(e) => { if (!showGrid) e.currentTarget.style.background = 'rgba(159,18,57,0.18)'; }}
+          onMouseLeave={(e) => { if (!showGrid) e.currentTarget.style.background = 'rgba(159,18,57,0.08)'; }}
         >
+          {showGrid && (
+            <span className="absolute inset-0 pointer-events-none opacity-20"
+              style={{ background: 'radial-gradient(ellipse at 20% 50%, #fb7185 0%, transparent 70%)' }} />
+          )}
           <Grid3x3 size={13} />
-          <span>Columns</span>
+          <span className="tracking-tight">Columns</span>
+          {showGrid && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#fb7185', boxShadow: '0 0 5px #fb7185' }} />}
         </button>
+
+        {/* Divider */}
+        <div className="w-px self-stretch shrink-0" style={{ background: 'rgba(159,18,57,0.35)' }} />
+
+        {/* Beams toggle */}
         <button
           onClick={() => setShowBeams(!showBeams)}
           title={showBeams ? 'Hide beam markup' : 'Show beam markup'}
-          className="flex items-center gap-1.5 text-[13px] px-2.5 py-1.5 rounded-md font-semibold transition-all duration-150"
+          className="relative flex items-center gap-2 text-[12.5px] px-3.5 py-2 font-bold transition-all duration-200 overflow-hidden rounded-full"
           style={showBeams
-            ? { background: 'linear-gradient(135deg, #7c0a2a 0%, #5a0620 55%, #3d0216 100%)', color: '#fff', boxShadow: '0 1px 8px rgba(60,2,18,0.7)' }
-            : { color: 'rgba(253,202,212,0.55)', background: 'transparent' }}
+            ? {
+                background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 55%, #4c0519 100%)',
+                color: '#fff',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
+              }
+            : {
+                background: 'rgba(159,18,57,0.08)',
+                color: 'rgba(253,202,212,0.6)',
+              }}
+          onMouseEnter={(e) => { if (!showBeams) e.currentTarget.style.background = 'rgba(159,18,57,0.18)'; }}
+          onMouseLeave={(e) => { if (!showBeams) e.currentTarget.style.background = 'rgba(159,18,57,0.08)'; }}
         >
-          <Minus size={13} />
-          <span>Beams</span>
+          {showBeams && (
+            <span className="absolute inset-0 pointer-events-none opacity-20"
+              style={{ background: 'radial-gradient(ellipse at 20% 50%, #fb7185 0%, transparent 70%)' }} />
+          )}
+          <Workflow size={13} />
+          <span className="tracking-tight">Beams</span>
+          {showBeams && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#fb7185', boxShadow: '0 0 5px #fb7185' }} />}
         </button>
+
+        {/* Divider */}
+        <div className="w-px self-stretch shrink-0" style={{ background: 'rgba(159,18,57,0.35)' }} />
+
+        {/* Grid settings */}
         <button
           onClick={() => setShowGridSettings(!showGridSettings)}
           title="Grid settings"
-          className="w-7 h-7 flex items-center justify-center rounded-md transition-all duration-150"
+          className="w-9 h-full flex items-center justify-center transition-all duration-150 rounded-full"
           style={showGridSettings
-            ? { background: 'linear-gradient(135deg, #7c0a2a 0%, #3d0216 100%)', color: '#fff' }
-            : { color: 'rgba(253,202,212,0.45)', background: 'transparent' }}
+            ? { background: 'linear-gradient(135deg, #9f1239 0%, #4c0519 100%)', color: '#fda4af' }
+            : { background: 'rgba(159,18,57,0.08)', color: 'rgba(253,202,212,0.45)' }}
+          onMouseEnter={(e) => { if (!showGridSettings) e.currentTarget.style.background = 'rgba(159,18,57,0.18)'; }}
+          onMouseLeave={(e) => { if (!showGridSettings) e.currentTarget.style.background = 'rgba(159,18,57,0.08)'; }}
         >
           <SlidersHorizontal size={12} />
         </button>
@@ -242,46 +343,101 @@ export default function TopToolbar({
 
       {/* ── Grid Size Popover ── */}
       {showGridSettings && (
-        <div className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 shrink-0" style={{
-          background: 'linear-gradient(135deg, #200010 0%, #2c0018 100%)',
-          border: '1.5px solid rgba(236,72,153,0.45)',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.7)',
-        }}>
-          <span className="text-[10.5px] font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.7)' }}>Cols</span>
-          <div className="flex items-center gap-0.5">
-            <button onClick={() => adjustCols(-1)} className="w-6 h-6 flex items-center justify-center rounded-md" style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', background: 'rgba(255,255,255,0.08)' }}><Minus size={9} /></button>
-            <input type="number" min={2} max={30} value={draftCols}
-              onChange={(e) => { setDraftCols(Number(e.target.value)); setDirty(true); }}
-              onKeyDown={(e) => e.key === 'Enter' && applyGridSize()}
-              className="w-9 text-center text-[13px] font-bold outline-none rounded-md py-0.5"
-              style={{ background: 'rgba(20,0,8,0.98)', border: '1px solid rgba(128,0,32,0.5)', color: '#ffffff' }} />
-            <button onClick={() => adjustCols(1)} className="w-6 h-6 flex items-center justify-center rounded-md" style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', background: 'rgba(255,255,255,0.08)' }}><Plus size={9} /></button>
+        <div
+          className="flex items-center gap-0 rounded-2xl shrink-0 overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #1a0008 0%, #250010 50%, #1a0008 100%)',
+            border: '1.5px solid rgba(236,72,153,0.4)',
+            boxShadow: '0 6px 28px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.05)',
+          }}
+        >
+          {/* ── Grid dimensions (Cols × Rows) ── */}
+          <div className="flex items-center gap-2 px-3 py-2">
+            {/* Cols stepper */}
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[9px] font-black tracking-[0.15em] uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>Cols</span>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => adjustCols(-1)}
+                  className="w-5 h-5 flex items-center justify-center rounded"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
+                >
+                  <Minus size={8} />
+                </button>
+                <input
+                  type="number" min={2} max={30} value={draftCols}
+                  onChange={(e) => { setDraftCols(Number(e.target.value)); setDirty(true); }}
+                  onKeyDown={(e) => e.key === 'Enter' && applyGridSize()}
+                  className="w-8 text-center text-[14px] font-black outline-none rounded py-0"
+                  style={{ background: 'transparent', border: 'none', color: '#ffffff' }}
+                />
+                <button
+                  onClick={() => adjustCols(1)}
+                  className="w-5 h-5 flex items-center justify-center rounded"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
+                >
+                  <Plus size={8} />
+                </button>
+              </div>
+            </div>
+
+            {/* × separator */}
+            <span className="text-[16px] font-black mt-3" style={{ color: 'rgba(236,72,153,0.5)' }}>×</span>
+
+            {/* Rows stepper */}
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[9px] font-black tracking-[0.15em] uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>Rows</span>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => adjustRows(-1)}
+                  className="w-5 h-5 flex items-center justify-center rounded"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
+                >
+                  <Minus size={8} />
+                </button>
+                <input
+                  type="number" min={2} max={30} value={draftRows}
+                  onChange={(e) => { setDraftRows(Number(e.target.value)); setDirty(true); }}
+                  onKeyDown={(e) => e.key === 'Enter' && applyGridSize()}
+                  className="w-8 text-center text-[14px] font-black outline-none rounded py-0"
+                  style={{ background: 'transparent', border: 'none', color: '#ffffff' }}
+                />
+                <button
+                  onClick={() => adjustRows(1)}
+                  className="w-5 h-5 flex items-center justify-center rounded"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
+                >
+                  <Plus size={8} />
+                </button>
+              </div>
+            </div>
           </div>
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>×</span>
-          <span className="text-[10.5px] font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.7)' }}>Rows</span>
-          <div className="flex items-center gap-0.5">
-            <button onClick={() => adjustRows(-1)} className="w-6 h-6 flex items-center justify-center rounded-md" style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', background: 'rgba(255,255,255,0.08)' }}><Minus size={9} /></button>
-            <input type="number" min={2} max={30} value={draftRows}
-              onChange={(e) => { setDraftRows(Number(e.target.value)); setDirty(true); }}
-              onKeyDown={(e) => e.key === 'Enter' && applyGridSize()}
-              className="w-9 text-center text-[13px] font-bold outline-none rounded-md py-0.5"
-              style={{ background: 'rgba(20,0,8,0.98)', border: '1px solid rgba(128,0,32,0.5)', color: '#ffffff' }} />
-            <button onClick={() => adjustRows(1)} className="w-6 h-6 flex items-center justify-center rounded-md" style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', background: 'rgba(255,255,255,0.08)' }}><Plus size={9} /></button>
+
+          {/* ── Divider ── */}
+          <div className="w-px self-stretch my-2" style={{ background: 'rgba(236,72,153,0.2)' }} />
+
+          {/* ── Actions ── */}
+          <div className="flex items-center gap-1 px-2">
+            <button
+              onClick={applyGridSize}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all"
+              style={dirty
+                ? { background: 'linear-gradient(135deg, #9f1239, #6d0120)', color: '#fff', boxShadow: '0 2px 12px rgba(159,18,57,0.6)', border: '1px solid rgba(236,72,153,0.3)' }
+                : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'default' }}
+            >
+              <Check size={10} />
+              Apply
+            </button>
+            <button
+              onClick={() => setShowGridSettings(false)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
+              style={{ color: 'rgba(255,255,255,0.35)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#ffffff'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; }}
+            >
+              <X size={12} />
+            </button>
           </div>
-          <button onClick={applyGridSize}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ml-1"
-            style={dirty
-              ? { background: 'linear-gradient(135deg, #7c0a2a, #3d0216)', color: '#fff', boxShadow: '0 2px 10px rgba(60,2,18,0.7)' }
-              : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.15)' }}>
-            <Check size={10} /> Apply
-          </button>
-          <button onClick={() => setShowGridSettings(false)}
-            className="w-6 h-6 flex items-center justify-center rounded-md transition-colors ml-0.5"
-            style={{ color: 'rgba(255,255,255,0.4)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#ffffff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}>
-            <X size={11} />
-          </button>
         </div>
       )}
 

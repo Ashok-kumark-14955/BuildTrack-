@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';
 import { Stage, Layer, Image as KonvaImage, Circle, Line, Group, Text } from 'react-konva';
 import Konva from 'konva';
-import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw } from 'lucide-react';
+import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../AppContext';
 import { fileUrl, DrawingsAPI } from '../api';
 import { STATUS_COLORS } from '../types';
+import { detectColumnPositions } from '../utils/autoCalibrate';
 
 // ─── Custom hook: load an image with cleanup ──────────────────────────────────
 function useImage(url: string | undefined) {
@@ -170,15 +171,15 @@ const ColumnHotspot = memo(function ColumnHotspot({
       {/* Grid label floats above the circle */}
       <Text
         text={label}
-        width={r * 3}
-        offsetX={r * 1.5}
-        y={-(r + Math.max(10, r * 0.85))}
+        width={r * 4}
+        offsetX={r * 0.5}
+        y={-(r + Math.max(30, r * 2.4))}
         align="center"
-        fontSize={Math.max(8, r * 0.58)}
+        fontSize={Math.max(15, r * 1.35)}
         fontStyle="bold"
         fontFamily={calibrating ? "'Courier New', monospace" : 'sans-serif'}
-        fill={isEmpty ? '#475569' : color}
-        opacity={0.92}
+        fill={isEmpty ? '#64748b' : '#ffffff'}
+        opacity={1}
         listening={false}
       />
       {/* If label was customised, show the original code as tiny subtitle above */}
@@ -286,6 +287,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   // ── Rename modal state ──
   const [renamingCode, setRenamingCode] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [autoCalibrating, setAutoCalibrating] = useState(false);
+  const [calibPanelOpen, setCalibPanelOpen] = useState(true);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const imageNodeRef = useRef<Konva.Image | null>(null);
 
@@ -507,6 +510,43 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     }
   }, [currentDrawing, resetDrawingColumnPositions]);
 
+  // ── Auto-calibrate: run projection analysis on the drawing image ──
+  const handleAutoCalibrate = useCallback(async () => {
+    if (!image || !currentDrawing || autoCalibrating) return;
+    setAutoCalibrating(true);
+    const t = toast.loading('Analysing drawing for column positions…');
+    try {
+      const result = await detectColumnPositions(
+        image,
+        currentDrawing.gridCols,
+        currentDrawing.gridRows,
+      );
+
+      // Build batch of (code → fractional position) updates
+      const updates: Record<string, { x: number; y: number }> = {};
+      for (let row = 0; row < currentDrawing.gridRows; row++) {
+        for (let col = 0; col < currentDrawing.gridCols; col++) {
+          const code = gridLabel(col, row);
+          const x = result.colXs[col] ?? col / Math.max(1, currentDrawing.gridCols - 1);
+          const y = result.rowYs[row] ?? row / Math.max(1, currentDrawing.gridRows - 1);
+          updates[code] = { x, y };
+          patchDrawingColumnPositions(currentDrawing.id, code, x, y);
+        }
+      }
+
+      // Persist all at once
+      await DrawingsAPI.update(currentDrawing.id, { columnPositions: updates });
+      toast.dismiss(t);
+      toast.success(`Auto-calibrated ${Object.keys(updates).length} columns from drawing analysis`, { icon: '🎯', duration: 3000 });
+    } catch (err) {
+      toast.dismiss(t);
+      toast.error('Auto-calibration failed — please calibrate manually');
+      console.error('[autoCalibrate]', err);
+    } finally {
+      setAutoCalibrating(false);
+    }
+  }, [image, currentDrawing, autoCalibrating, patchDrawingColumnPositions]);
+
   // ── Arrow-key nudge: fine-tune the selected column's position while calibrating ──
   const columnElementsRef = useRef(columnElements);
   useEffect(() => { columnElementsRef.current = columnElements; }, [columnElements]);
@@ -665,7 +705,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
             />
           )}
 
-          {showGrid && showBeams && image && !calibrating && beamElements.map((b) => (
+          {showBeams && image && !calibrating && beamElements.map((b) => (
             <BeamHotspot
               key={b.id}
               id={b.id}
@@ -712,28 +752,147 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
         </Layer>
       </Stage>
 
+      {/* ── Calibration side-panel (right edge, non-overlapping) ── */}
       {calibrating && (
         <div
-          className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-2xl shadow-elevated border px-4 py-2.5"
-          style={{ background: 'rgba(255,251,235,0.92)', backdropFilter: 'blur(10px)', borderColor: 'rgba(245,158,11,0.35)' }}
+          className="absolute top-3 right-3 flex flex-col gap-1.5 rounded-2xl shadow-2xl border"
+          style={{
+            background: 'rgba(20, 12, 0, 0.93)',
+            backdropFilter: 'blur(16px)',
+            borderColor: 'rgba(245,158,11,0.55)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(245,158,11,0.1)',
+            width: 196,
+            zIndex: 50,
+          }}
         >
-          <div className="flex items-center gap-2 text-amber-700">
-            <Crosshair size={15} className="shrink-0" />
-            <span className="text-xs font-medium leading-snug">
-              Calibration mode — drag onto position (snaps to row/column). Select + arrow keys to nudge (Shift = 10px). Beams follow automatically.
-              <span className="ml-1.5 font-bold tabular-nums">
-                {Object.keys(currentDrawing.columnPositions || {}).length}/{columnElements.length} calibrated
-              </span>
-            </span>
-          </div>
-          <div className="w-px h-5 bg-amber-300/50 shrink-0" />
+          {/* Header — always visible, click to collapse/expand */}
           <button
-            onClick={handleResetCalibration}
-            title="Reset all column positions to the default evenly-spaced grid"
-            className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors shrink-0"
+            className="flex items-center justify-between px-3 pt-2.5 pb-1.5 border-b w-full text-left"
+            style={{ borderColor: calibPanelOpen ? 'rgba(245,158,11,0.2)' : 'transparent' }}
+            onClick={() => setCalibPanelOpen((v) => !v)}
+            title={calibPanelOpen ? 'Hide calibration tools' : 'Show calibration tools'}
           >
-            <RotateCcw size={11} /> Reset All
+            <div className="flex items-center gap-1.5">
+              <Crosshair size={12} style={{ color: '#fbbf24' }} />
+              <span className="text-[11px] font-bold tracking-wide uppercase" style={{ color: '#fbbf24' }}>Calibrate</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }}>
+                {Object.keys(currentDrawing.columnPositions || {}).length}/{columnElements.length}
+              </span>
+              {calibPanelOpen
+                ? <ChevronUp size={10} style={{ color: 'rgba(251,191,36,0.6)' }} />
+                : <ChevronDown size={10} style={{ color: 'rgba(251,191,36,0.6)' }} />}
+            </div>
           </button>
+
+          {/* Collapsible body */}
+          {calibPanelOpen && <>
+          {/* Hint */}
+          <p className="text-[10px] leading-snug px-3 pb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            Drag circles onto columns. Arrow keys nudge 1px (Shift=10px).
+          </p>
+
+          {/* Tools */}
+          <div className="flex flex-col gap-1 px-2.5 pb-2.5">
+            {/* Auto-detect */}
+            <button
+              onClick={handleAutoCalibrate}
+              disabled={autoCalibrating}
+              title="Auto-detect column positions from drawing image"
+              className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{
+                background: autoCalibrating ? 'rgba(99,102,241,0.06)' : 'rgba(99,102,241,0.18)',
+                borderColor: 'rgba(99,102,241,0.4)',
+                color: autoCalibrating ? 'rgba(165,180,252,0.4)' : '#a5b4fc',
+                cursor: autoCalibrating ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <Wand2 size={11} className={autoCalibrating ? 'animate-pulse' : ''} />
+              {autoCalibrating ? 'Analysing…' : '✦ Auto-detect'}
+            </button>
+
+            <div className="h-px my-0.5" style={{ background: 'rgba(245,158,11,0.15)' }} />
+
+            {/* Even-space row */}
+            <button
+              title="Distribute all columns in selected row evenly (left → right)"
+              onClick={() => {
+                if (!selectedElementId?.startsWith('Column_')) { toast('Select a column first', { icon: '👆' }); return; }
+                const sel = columnElements.find((c) => c.id === selectedElementId);
+                if (!sel || !image) return;
+                const rowCols = columnElements.filter((c) => c.row === sel.row).sort((a, b) => a.col - b.col);
+                if (rowCols.length < 2) return;
+                const x0 = rowCols[0].x; const x1 = rowCols[rowCols.length - 1].x;
+                rowCols.forEach((c, i) => { handleReposition(c.code, x0 + (x1 - x0) * (i / (rowCols.length - 1)), c.y); });
+              }}
+              className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{ background: 'rgba(251,191,36,0.08)', borderColor: 'rgba(245,158,11,0.25)', color: 'rgba(251,191,36,0.85)' }}
+            >
+              <span>↔</span> Even-space row
+            </button>
+
+            {/* Even-space col */}
+            <button
+              title="Distribute all columns in selected col-strip evenly (top → bottom)"
+              onClick={() => {
+                if (!selectedElementId?.startsWith('Column_')) { toast('Select a column first', { icon: '👆' }); return; }
+                const sel = columnElements.find((c) => c.id === selectedElementId);
+                if (!sel || !image) return;
+                const colCols = columnElements.filter((c) => c.col === sel.col).sort((a, b) => a.row - b.row);
+                if (colCols.length < 2) return;
+                const y0 = colCols[0].y; const y1 = colCols[colCols.length - 1].y;
+                colCols.forEach((c, i) => { handleReposition(c.code, c.x, y0 + (y1 - y0) * (i / (colCols.length - 1))); });
+              }}
+              className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{ background: 'rgba(251,191,36,0.08)', borderColor: 'rgba(245,158,11,0.25)', color: 'rgba(251,191,36,0.85)' }}
+            >
+              <span>↕</span> Even-space col
+            </button>
+
+            {/* Align row Y */}
+            <button
+              title="Snap entire row to same Y as selected column"
+              onClick={() => {
+                if (!selectedElementId?.startsWith('Column_')) { toast('Select a column first', { icon: '👆' }); return; }
+                const sel = columnElements.find((c) => c.id === selectedElementId);
+                if (!sel) return;
+                columnElements.filter((c) => c.row === sel.row).forEach((c) => { handleReposition(c.code, c.x, sel.y); });
+              }}
+              className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{ background: 'rgba(251,191,36,0.08)', borderColor: 'rgba(245,158,11,0.25)', color: 'rgba(251,191,36,0.85)' }}
+            >
+              <span>—</span> Align row Y
+            </button>
+
+            {/* Align col X */}
+            <button
+              title="Snap entire col-strip to same X as selected column"
+              onClick={() => {
+                if (!selectedElementId?.startsWith('Column_')) { toast('Select a column first', { icon: '👆' }); return; }
+                const sel = columnElements.find((c) => c.id === selectedElementId);
+                if (!sel) return;
+                columnElements.filter((c) => c.col === sel.col).forEach((c) => { handleReposition(c.code, sel.x, c.y); });
+              }}
+              className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{ background: 'rgba(251,191,36,0.08)', borderColor: 'rgba(245,158,11,0.25)', color: 'rgba(251,191,36,0.85)' }}
+            >
+              <span>|</span> Align col X
+            </button>
+
+            <div className="h-px my-0.5" style={{ background: 'rgba(245,158,11,0.15)' }} />
+
+            {/* Reset All */}
+            <button
+              onClick={handleResetCalibration}
+              title="Reset all column positions to evenly-spaced default"
+              className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{ background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', color: 'rgba(252,165,165,0.8)' }}
+            >
+              <RotateCcw size={10} /> Reset All
+            </button>
+          </div>
+          </>}
         </div>
       )}
 

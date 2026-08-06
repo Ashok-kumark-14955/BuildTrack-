@@ -450,7 +450,7 @@ export default function Sidebar() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-1">
+                          <div className="flex items-start justify-between gap-1 pr-6">
                             <span className="text-[11.5px] font-bold leading-tight truncate"
                               style={{ color: active ? '#fff' : 'rgba(255,225,238,0.88)' }}>
                               {d.name}

@@ -17,7 +17,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.2.0",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.1",
+    "zcatalyst-sdk-node": "^3.4.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

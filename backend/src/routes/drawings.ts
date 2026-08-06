@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs';
-import db from '../db';
+import * as db from '../db';
 
 const router = Router();
 
@@ -35,50 +35,41 @@ function serialize(row: any) {
   return { ...row, columnPositions, columnLabels, elementTypeLabels };
 }
 
-function createTasksForGrid(drawingId: string, cols: number, rows: number, createdAt: string) {
-  const insertTask = db.prepare(
-    `INSERT INTO tasks (id, drawingId, gridCode, name, description, category, priority, assignedTo, startDate, dueDate, status, progress, elementType, elementId, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  );
-  db.exec('BEGIN');
-  try {
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const code = gridCode(col, row);
-        insertTask.run(
-          uuid(), drawingId, code, `Grid ${code}`, '', '', 'Medium', '', '', '', 'Assigned', 0,
-          'column', `Column_${code}`, createdAt, createdAt
-        );
-      }
+async function createTasksForGrid(req: any, drawingId: string, cols: number, rows: number, createdAt: string) {
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const code = gridCode(col, row);
+      await db.run(
+        req,
+        `INSERT INTO tasks (id, drawingId, gridCode, name, description, category, priorityLevel, assignedTo, startDate, dueDate, status, progress, elementType, elementId, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [uuid(), drawingId, code, `Grid ${code}`, '', '', 'Medium', '', '', '', 'Assigned', 0, 'column', `Column_${code}`, createdAt, createdAt]
+      );
     }
-    db.exec('COMMIT');
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
   }
 }
 
 // List drawings (optionally by project)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const { projectId } = req.query;
   const rows = projectId
-    ? db.prepare('SELECT * FROM drawings WHERE projectId = ? ORDER BY createdAt DESC').all(projectId)
-    : db.prepare('SELECT * FROM drawings ORDER BY createdAt DESC').all();
+    ? await db.all(req, 'SELECT * FROM drawings WHERE projectId = ? ORDER BY createdAt DESC', [projectId])
+    : await db.all(req, 'SELECT * FROM drawings ORDER BY createdAt DESC');
   res.json(rows.map(serialize));
 });
 
-router.get('/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM drawings WHERE id = ?').get(req.params.id);
+router.get('/:id', async (req, res) => {
+  const row = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
   if (!row) return res.status(404).json({ error: 'Not found' });
   res.json(serialize(row));
 });
 
 // Upload a new drawing
-router.post('/upload', upload.single('file'), (req, res) => {
+router.post('/upload', upload.single('file'), async (req, res) => {
   const { projectId, name, gridCols, gridRows } = req.body;
   if (!req.file) return res.status(400).json({ error: 'File is required' });
   const resolvedProjectId = projectId || 'default';
-  const project = db.prepare('SELECT id FROM projects WHERE id = ?').get(resolvedProjectId);
+  const project = await db.get(req, 'SELECT id FROM projects WHERE id = ?', [resolvedProjectId]);
   if (!project) return res.status(400).json({ error: 'Invalid or missing project. Please reload and try again.' });
   const id = uuid();
   const fileUrl = `/uploads/${req.file.filename}`;
@@ -87,28 +78,28 @@ router.post('/upload', upload.single('file'), (req, res) => {
   const cols = Math.min(30, Math.max(1, Number(gridCols) || 10));
   const rows = Math.min(30, Math.max(1, Number(gridRows) || 8));
   const drawingName = name || req.file.originalname;
-  db.prepare(
+  await db.run(
+    req,
     `INSERT INTO drawings (id, projectId, name, fileUrl, fileType, gridCols, gridRows, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, resolvedProjectId, drawingName, fileUrl, fileType, cols, rows, createdAt);
-
-  createTasksForGrid(id, cols, rows, createdAt);
-  db.prepare('INSERT INTO activity (id, taskId, drawingId, message, createdAt) VALUES (?, ?, ?, ?, ?)').run(
-    uuid(), null, id, `${cols * rows} tasks auto-created for "${drawingName}"`, createdAt
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, resolvedProjectId, drawingName, fileUrl, fileType, cols, rows, createdAt]
   );
 
-  const row = db.prepare('SELECT * FROM drawings WHERE id = ?').get(id);
+  await createTasksForGrid(req, id, cols, rows, createdAt);
+  await db.run(
+    req,
+    'INSERT INTO activity (id, taskId, drawingId, message, createdAt) VALUES (?, ?, ?, ?, ?)',
+    [uuid(), null, id, `${cols * rows} tasks auto-created for "${drawingName}"`, createdAt]
+  );
+
+  const row = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [id]);
   res.status(201).json(serialize(row));
 });
 
 // Update grid config (also supports milestoneId, columnPositions, columnLabels, elementTypeLabels, lat, lng)
-router.patch('/:id', (req, res) => {
-  // Idempotent column migrations
-  try { db.exec("ALTER TABLE drawings ADD COLUMN columnLabels TEXT NOT NULL DEFAULT '{}'"); } catch { /* exists */ }
-  try { db.exec("ALTER TABLE drawings ADD COLUMN elementTypeLabels TEXT NOT NULL DEFAULT '{}'"); } catch { /* exists */ }
-
+router.patch('/:id', async (req, res) => {
   const { gridCols, gridRows, name, milestoneId, columnPositions, resetColumnPositions, columnLabels, resetColumnLabels, elementTypeLabels, resetElementTypeLabels, lat, lng } = req.body;
-  const existing: any = db.prepare('SELECT * FROM drawings WHERE id = ?').get(req.params.id);
+  const existing: any = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   const newMilestoneId = 'milestoneId' in req.body ? (milestoneId || null) : existing.milestoneId;
   const newLat = 'lat' in req.body ? (lat ?? null) : existing.lat;
@@ -141,23 +132,27 @@ router.patch('/:id', (req, res) => {
     newElementTypeLabels = JSON.stringify({ ...current, ...elementTypeLabels });
   }
 
-  db.prepare('UPDATE drawings SET gridCols = ?, gridRows = ?, name = ?, milestoneId = ?, columnPositions = ?, columnLabels = ?, elementTypeLabels = ?, lat = ?, lng = ? WHERE id = ?').run(
-    gridCols ?? existing.gridCols,
-    gridRows ?? existing.gridRows,
-    name ?? existing.name,
-    newMilestoneId,
-    newColumnPositions,
-    newColumnLabels,
-    newElementTypeLabels,
-    newLat,
-    newLng,
-    req.params.id
+  await db.run(
+    req,
+    'UPDATE drawings SET gridCols = ?, gridRows = ?, name = ?, milestoneId = ?, columnPositions = ?, columnLabels = ?, elementTypeLabels = ?, lat = ?, lng = ? WHERE id = ?',
+    [
+      gridCols ?? existing.gridCols,
+      gridRows ?? existing.gridRows,
+      name ?? existing.name,
+      newMilestoneId,
+      newColumnPositions,
+      newColumnLabels,
+      newElementTypeLabels,
+      newLat,
+      newLng,
+      req.params.id,
+    ]
   );
-  res.json(serialize(db.prepare('SELECT * FROM drawings WHERE id = ?').get(req.params.id)));
+  res.json(serialize(await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id])));
 });
 
-router.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM drawings WHERE id = ?').run(req.params.id);
+router.delete('/:id', async (req, res) => {
+  await db.run(req, 'DELETE FROM drawings WHERE id = ?', [req.params.id]);
   res.status(204).end();
 });
 

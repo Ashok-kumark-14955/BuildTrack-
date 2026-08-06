@@ -688,16 +688,57 @@ export default function TaskPanel() {
               </div>
               <div className="space-y-2.5 max-h-52 overflow-y-auto mb-3 pr-1">
                 {comments.map((c) => (
-                  <div key={c.id} className="text-sm bg-zinc-900 rounded-lg p-2.5 border border-zinc-800">
+                  <div key={c.id} className="group relative text-sm bg-zinc-900 rounded-lg p-2.5 border border-zinc-800">
                     <div className="flex justify-between text-xs text-slate-500 mb-0.5">
                       <span className="font-medium text-slate-400">{c.author}</span>
-                      <span>{new Date(c.createdAt).toLocaleString()}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>{new Date(c.createdAt).toLocaleString()}</span>
+                        <button
+                          title="Delete comment"
+                          onClick={async () => {
+                            if (!activeTaskId) return;
+                            if (!window.confirm('Delete this comment?')) return;
+                            try {
+                              await TasksAPI.deleteComment(activeTaskId, c.id);
+                              setComments((prev) => prev.filter((x) => x.id !== c.id));
+                              toast.success('Comment deleted', { duration: 1500 });
+                            } catch {
+                              toast.error('Failed to delete comment');
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center rounded transition-all hover:bg-red-900/40"
+                          style={{ color: 'rgba(248,113,113,0.7)' }}
+                        >
+                          <Trash2 size={9} />
+                        </button>
+                      </div>
                     </div>
                     {c.message && <div className="text-slate-200">{c.message}</div>}
                     {c.photoUrl && (
-                      <a href={fileUrl(c.photoUrl)} target="_blank" rel="noreferrer" className="block mt-2">
-                        <img src={fileUrl(c.photoUrl)} alt="Site photo" className="rounded-lg border border-slate-200 max-h-40 object-cover" />
-                      </a>
+                      <div className="relative mt-2 group/photo">
+                        <a href={fileUrl(c.photoUrl)} target="_blank" rel="noreferrer" className="block">
+                          <img src={fileUrl(c.photoUrl)} alt="Site photo" className="rounded-lg border border-slate-200 max-h-40 object-cover" />
+                        </a>
+                        <button
+                          title="Delete photo"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            if (!activeTaskId) return;
+                            if (!window.confirm('Delete this photo?')) return;
+                            try {
+                              await TasksAPI.deleteComment(activeTaskId, c.id);
+                              setComments((prev) => prev.filter((x) => x.id !== c.id));
+                              toast.success('Photo deleted', { duration: 1500 });
+                            } catch {
+                              toast.error('Failed to delete photo');
+                            }
+                          }}
+                          className="absolute top-1.5 right-1.5 opacity-0 group-hover/photo:opacity-100 w-6 h-6 flex items-center justify-center rounded-md transition-all"
+                          style={{ background: 'rgba(220,38,38,0.85)', color: '#fff', border: '1px solid rgba(248,113,113,0.4)' }}
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
