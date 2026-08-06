@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileImage,
@@ -116,6 +116,8 @@ function ProgressRing({ pct, size = 52 }: { pct: number; size?: number }) {
 export default function Sidebar() {
   const { tasks, drawings, projects, milestones, refreshProjects, currentDrawingId, setCurrentDrawingId, deleteDrawing } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
+  const params = useParams<{ id?: string }>();
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1');
   const [drawingFilter, setDrawingFilter] = useState('');
@@ -125,7 +127,23 @@ export default function Sidebar() {
     localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
   }, [collapsed]);
 
-  const activeProject = projects[0];
+  // Resolve the "selected" project: prefer the :id route param (e.g. on
+  // /projects/:id), then the currently open drawing's project, falling back
+  // to the first project — previously this was hardcoded to projects[0],
+  // so the sidebar card never reflected the project the user navigated to.
+  const currentDrawing = useMemo(() => drawings.find((d) => d.id === currentDrawingId), [drawings, currentDrawingId]);
+  const routeProjectId = location.pathname.startsWith('/projects/') ? params.id : undefined;
+  const activeProject = useMemo(() => {
+    if (routeProjectId) {
+      const match = projects.find((p) => p.id === routeProjectId);
+      if (match) return match;
+    }
+    if (currentDrawing?.projectId) {
+      const match = projects.find((p) => p.id === currentDrawing.projectId);
+      if (match) return match;
+    }
+    return projects[0];
+  }, [projects, routeProjectId, currentDrawing]);
 
   // Scope stats to the active project's drawings only — `tasks` and `drawings`
   // are fetched globally across all projects, so mixing in other projects'

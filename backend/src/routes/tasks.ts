@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { v4 as uuid } from 'uuid';
 import * as db from '../db';
+import { reportTaskCompletion } from '../cliqReport';
 
 const router = Router();
 
@@ -92,6 +93,15 @@ router.put('/:id', async (req, res, next) => {
     );
     if (req.body.status && req.body.status !== existing.status) {
       await logActivity(req, `Task "${merged.name}" status changed to ${merged.status}`, req.params.id, existing.drawingId);
+      if (merged.status === 'Completed') {
+        reportTaskCompletion(req, {
+          id: req.params.id,
+          name: merged.name,
+          drawingId: existing.drawingId,
+          assignedTo: merged.assignedTo,
+          category: merged.category,
+        }); // fire-and-forget, don't delay the response
+      }
     } else {
       await logActivity(req, `Task "${merged.name}" updated`, req.params.id, existing.drawingId);
     }

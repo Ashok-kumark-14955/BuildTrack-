@@ -259,9 +259,10 @@ interface Props {
   showBeams: boolean;
   fullscreen: boolean;
   calibrating: boolean;
+  onSnapshotReady?: (fn: () => string | null) => void;
 }
 
-export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibrating }: Props) {
+export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibrating, onSnapshotReady }: Props) {
   const {
     currentDrawing,
     tasksForCurrentDrawing,
@@ -548,6 +549,17 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   }, [image, currentDrawing, autoCalibrating, patchDrawingColumnPositions]);
 
   // ── Arrow-key nudge: fine-tune the selected column's position while calibrating ──
+  // ── Expose snapshot function to parent ──
+  useEffect(() => {
+    if (!onSnapshotReady) return;
+    onSnapshotReady(() => {
+      const stage = stageRef.current;
+      if (!stage) return null;
+      return stage.toDataURL({ pixelRatio: 2 });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSnapshotReady]);
+
   const columnElementsRef = useRef(columnElements);
   useEffect(() => { columnElementsRef.current = columnElements; }, [columnElements]);
   useEffect(() => {

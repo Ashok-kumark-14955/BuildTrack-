@@ -516,42 +516,200 @@ export default function TaskList() {
 
       {/* ── Milestone Modal ── */}
       {showMsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-[400px] max-w-[90vw] p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Flag size={16} className="text-violet-500" />
-                <span className="font-bold text-slate-800 text-lg">{editingMs ? 'Edit Milestone' : 'New Milestone'}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
+          <div
+            className="relative w-[460px] max-w-[94vw] rounded-3xl overflow-hidden shadow-2xl"
+            style={{
+              background: 'linear-gradient(160deg, #130509 0%, #220b14 45%, #1a0a10 100%)',
+              border: '1px solid rgba(216,72,110,0.3)',
+              boxShadow: '0 0 0 1px rgba(216,72,110,0.08), 0 32px 64px rgba(0,0,0,0.75), 0 0 80px rgba(190,24,93,0.14)',
+            }}
+          >
+            {/* Top gradient accent bar */}
+            <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #8b0a2e, #d6486e, #fb923c, #d6486e, #8b0a2e)' }} />
+
+            {/* Ambient glow orb */}
+            <div className="absolute top-0 right-0 w-48 h-48 pointer-events-none opacity-10 rounded-full"
+              style={{ background: 'radial-gradient(circle, #d6486e 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+
+            <div className="relative p-6 space-y-5">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      background: 'linear-gradient(145deg, #d6486e 0%, #8b0a2e 100%)',
+                      border: '1px solid rgba(216,72,110,0.5)',
+                      boxShadow: '0 0 20px rgba(214,72,110,0.35)',
+                    }}>
+                    <Flag size={16} className="text-white" />
+                  </div>
+                  <div>
+                    <div className="text-white font-extrabold text-[16px] leading-tight">
+                      {editingMs ? 'Edit Milestone' : 'New Milestone'}
+                    </div>
+                    <div className="text-[10px] font-semibold uppercase tracking-widest mt-0.5" style={{ color: '#e88aa5' }}>
+                      {editingMs ? 'Update milestone details' : 'Track a project checkpoint'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMsModal(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl transition-all"
+                  style={{ color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#ffffff'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+                >
+                  <X size={15} />
+                </button>
               </div>
-              <button onClick={() => setShowMsModal(false)} className="icon-btn w-8 h-8"><X size={16} /></button>
-            </div>
-            <div className="space-y-3">
-              <label className="block">
-                <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Name</span>
-                <input className="input w-full" placeholder="e.g. Foundation Works" value={msForm.name} onChange={(e) => setMsForm({ ...msForm, name: e.target.value })} />
-              </label>
-              <label className="block">
-                <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</span>
-                <textarea className="input w-full min-h-16 resize-none" value={msForm.description} onChange={(e) => setMsForm({ ...msForm, description: e.target.value })} />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Due Date</span>
-                  <input type="date" className="input w-full" value={msForm.dueDate} onChange={(e) => setMsForm({ ...msForm, dueDate: e.target.value })} />
-                </label>
-                <label className="block">
-                  <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Status</span>
-                  <select className="input w-full" value={msForm.status} onChange={(e) => setMsForm({ ...msForm, status: e.target.value as any })}>
-                    {MILESTONE_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </label>
+
+              {/* Divider */}
+              <div className="h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(216,72,110,0.3), transparent)' }} />
+
+              {/* Form fields */}
+              <div className="space-y-4">
+                {/* Name */}
+                <div>
+                  <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>
+                    Milestone Name <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold text-white outline-none transition-all placeholder:font-normal"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(216,72,110,0.25)',
+                      color: '#ffffff',
+                    }}
+                    placeholder="e.g. Foundation Works Complete"
+                    value={msForm.name}
+                    onChange={(e) => setMsForm({ ...msForm, name: e.target.value })}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.7)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(190,24,93,0.15)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.25)'; e.currentTarget.style.boxShadow = 'none'; }}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>
+                    Description
+                  </label>
+                  <textarea
+                    className="w-full px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-white outline-none resize-none transition-all placeholder:font-normal"
+                    rows={3}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(216,72,110,0.25)',
+                      color: '#ffffff',
+                    }}
+                    placeholder="Brief description of what this milestone represents…"
+                    value={msForm.description}
+                    onChange={(e) => setMsForm({ ...msForm, description: e.target.value })}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.7)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(190,24,93,0.15)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.25)'; e.currentTarget.style.boxShadow = 'none'; }}
+                  />
+                </div>
+
+                {/* Due Date + Status */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>
+                      Due Date
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-[13px] font-semibold text-white outline-none transition-all"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(216,72,110,0.25)',
+                        colorScheme: 'dark',
+                      }}
+                      value={msForm.dueDate}
+                      onChange={(e) => setMsForm({ ...msForm, dueDate: e.target.value })}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.7)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(190,24,93,0.15)'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.25)'; e.currentTarget.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>
+                      Status
+                    </label>
+                    <select
+                      className="w-full px-3.5 py-2.5 rounded-xl text-[13px] font-semibold text-white outline-none transition-all appearance-none cursor-pointer"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(216,72,110,0.25)',
+                      }}
+                      value={msForm.status}
+                      onChange={(e) => setMsForm({ ...msForm, status: e.target.value as any })}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.7)'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.25)'; }}
+                    >
+                      {MILESTONE_STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s} style={{ background: '#1a0008', color: '#ffffff' }}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button onClick={saveMilestone} className="btn btn-primary flex-1 py-2.5">
-                <Flag size={15} /> {editingMs ? 'Update' : 'Create'} Milestone
-              </button>
-              <button onClick={() => setShowMsModal(false)} className="btn btn-ghost px-4">Cancel</button>
+
+              {/* Status colour hint chips */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {(['Active','Completed','On Hold','Cancelled'] as const).map((s) => {
+                  const colors: Record<string, string> = { Active: '#f87171', Completed: '#4ade80', 'On Hold': '#fbbf24', Cancelled: '#6b7280' };
+                  const selected = msForm.status === s;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => setMsForm({ ...msForm, status: s })}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all"
+                      style={{
+                        background: selected ? `${colors[s]}22` : 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${selected ? colors[s] + '66' : 'rgba(255,255,255,0.1)'}`,
+                        color: selected ? colors[s] : 'rgba(255,255,255,0.4)',
+                        boxShadow: selected ? `0 0 10px ${colors[s]}33` : 'none',
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colors[s] }} />
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Divider */}
+              <div className="h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(216,72,110,0.2), transparent)' }} />
+
+              {/* Action buttons */}
+              <div className="flex gap-2.5">
+                <button
+                  onClick={saveMilestone}
+                  disabled={!msForm.name.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    background: msForm.name.trim()
+                      ? 'linear-gradient(135deg, #d6486e 0%, #8b0a2e 60%, #5a0620 100%)'
+                      : 'rgba(100,0,30,0.3)',
+                    color: '#ffffff',
+                    border: '1px solid rgba(216,72,110,0.4)',
+                    boxShadow: msForm.name.trim() ? '0 4px 18px rgba(190,24,93,0.45), inset 0 1px 0 rgba(255,255,255,0.1)' : 'none',
+                  }}
+                  onMouseEnter={(e) => { if (msForm.name.trim()) e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}
+                >
+                  <Flag size={14} />
+                  {editingMs ? 'Update Milestone' : 'Create Milestone'}
+                </button>
+                <button
+                  onClick={() => setShowMsModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                  style={{ color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#ffffff'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

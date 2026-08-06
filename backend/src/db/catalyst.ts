@@ -4,7 +4,7 @@ import type { Request } from 'express';
 // Admin scope bypasses per-row/table permission checks — this server has no
 // end-user auth layer of its own, so it acts as the trusted backend.
 function app(req: Request) {
-  return catalyst.initialize(req, { scope: 'admin' });
+  return catalyst.initialize(req as any, { scope: 'admin' });
 }
 
 export function datastore(req: Request) {

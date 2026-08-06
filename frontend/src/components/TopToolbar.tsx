@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Upload,
   Grid3x3,
@@ -15,6 +16,10 @@ import {
   Minus,
   Check,
   Workflow,
+  Share2,
+  Download,
+  Copy,
+  CheckCheck,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { DrawingsAPI } from '../api';
@@ -34,6 +39,48 @@ interface Props {
   gridCols: number;
   gridRows: number;
   onGridSizeChange: (cols: number, rows: number) => void;
+  onShareSnapshot?: () => string | null;
+}
+
+/** Renders a positioned div into document.body to escape overflow:hidden parents */
+function PortalDropdown({
+  anchorRef,
+  children,
+  onClose,
+}: {
+  anchorRef: React.RefObject<HTMLElement | null>;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  useEffect(() => {
+    if (!anchorRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+  }, [anchorRef]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (anchorRef.current && !anchorRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [anchorRef, onClose]);
+
+  if (!pos) return null;
+
+  return createPortal(
+    <div
+      style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 9999 }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body
+  );
 }
 
 export default function TopToolbar({
@@ -48,13 +95,20 @@ export default function TopToolbar({
   gridCols,
   gridRows,
   onGridSizeChange,
+  onShareSnapshot,
 }: Props) {
   const { currentDrawing, refreshDrawings, refreshTasks, setCurrentDrawingId, drawings, projects, activity } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [showGridSettings, setShowGridSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const notifRef = useRef<HTMLDivElement>(null);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  const notifBtnRef = useRef<HTMLButtonElement>(null);
+  const shareBtnRef = useRef<HTMLButtonElement>(null);
+
   const [draftCols, setDraftCols] = useState(gridCols);
   const [draftRows, setDraftRows] = useState(gridRows);
   const [dirty, setDirty] = useState(false);
@@ -65,16 +119,65 @@ export default function TopToolbar({
     setDirty(false);
   }, [gridCols, gridRows]);
 
-  useEffect(() => {
-    if (!showNotifications) return;
-    const onClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifications(false);
-    };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [showNotifications]);
+  const handleDownloadSnapshot = () => {
+    const dataUrl = onShareSnapshot?.();
+    if (!dataUrl) { toast.error('No drawing loaded'); return; }
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `${currentDrawing?.name || 'drawing'}.png`;
+    a.click();
+    toast.success('Downloaded!');
+    setShowShareMenu(false);
+  };
 
-  const drawingActivity = activity.filter((a) => !currentDrawing || !a.drawingId || a.drawingId === currentDrawing.id).slice(0, 8);
+  const handleCopySnapshot = async () => {
+    const dataUrl = onShareSnapshot?.();
+    if (!dataUrl) { toast.error('No drawing loaded'); return; }
+    setSharing(true);
+    try {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      setCopied(true);
+      toast.success('Copied to clipboard!');
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast.error('Copy not supported in this browser');
+    } finally {
+      setSharing(false);
+      setShowShareMenu(false);
+    }
+  };
+
+  const handleWebShare = async () => {
+    const dataUrl = onShareSnapshot?.();
+    if (!dataUrl) { toast.error('No drawing loaded'); return; }
+    setSharing(true);
+    try {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `${currentDrawing?.name || 'drawing'}.png`, { type: blob.type });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: currentDrawing?.name || 'Drawing', files: [file] });
+        toast.success('Shared!');
+      } else {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `${currentDrawing?.name || 'drawing'}.png`;
+        a.click();
+        toast.success('Downloaded (share not supported in browser)');
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') toast.error('Share failed');
+    } finally {
+      setSharing(false);
+      setShowShareMenu(false);
+    }
+  };
+
+  const drawingActivity = activity
+    .filter((a) => !currentDrawing || !a.drawingId || a.drawingId === currentDrawing.id)
+    .slice(0, 8);
 
   const timeAgo = (iso: string) => {
     const diffMs = Date.now() - new Date(iso).getTime();
@@ -83,8 +186,7 @@ export default function TopToolbar({
     if (mins < 60) return `${mins}m ago`;
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   };
 
   const applyGridSize = () => {
@@ -95,16 +197,8 @@ export default function TopToolbar({
     setDirty(false); setShowGridSettings(false);
   };
 
-  const adjustCols = (delta: number) => {
-    setDraftCols((v) => Math.min(30, Math.max(2, v + delta)));
-    setDirty(true);
-  };
-  const adjustRows = (delta: number) => {
-    setDraftRows((v) => Math.min(30, Math.max(2, v + delta)));
-    setDirty(true);
-  };
-
-
+  const adjustCols = (delta: number) => { setDraftCols((v) => Math.min(30, Math.max(2, v + delta))); setDirty(true); };
+  const adjustRows = (delta: number) => { setDraftRows((v) => Math.min(30, Math.max(2, v + delta))); setDirty(true); };
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -141,21 +235,121 @@ export default function TopToolbar({
     } finally { setUploading(false); }
   };
 
-  // Palette: maroon bg + dark-pink buttons
-  // bg-dark:    #1a0008
-  // bg-mid:     #2a000f
-  // btn-dpink:  #be185d → #9f1239
-  // accent:     #db2777
-  // text:       #fce7f3
-  // subtext:    #fda4af
-
   const Divider = () => (
     <div className="w-px h-6 shrink-0 mx-0.5" style={{ background: 'linear-gradient(180deg, transparent, rgba(190,24,93,0.4), transparent)' }} />
   );
 
+  /* ── Share dropdown content ─────────────────────────────────────────────── */
+  const ShareDropdown = (
+    <div
+      className="w-52 rounded-2xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #1a0008 0%, #250010 50%, #1a0008 100%)',
+        border: '1.5px solid rgba(236,72,153,0.4)',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05)',
+      }}
+    >
+      <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid rgba(159,18,57,0.3)' }}>
+        <span className="text-[11px] font-black tracking-widest uppercase" style={{ color: '#fce7f3' }}>Export Drawing</span>
+        <button onClick={() => setShowShareMenu(false)} style={{ color: 'rgba(255,255,255,0.4)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>
+          <X size={12} />
+        </button>
+      </div>
+      <div className="flex flex-col gap-1 p-2">
+        <button onClick={handleDownloadSnapshot}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[12.5px] font-semibold transition-all text-left"
+          style={{ color: '#fce7f3' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(159,18,57,0.2)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+          <span className="w-7 h-7 flex items-center justify-center rounded-lg shrink-0"
+            style={{ background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.35)' }}>
+            <Download size={13} style={{ color: '#a5b4fc' }} />
+          </span>
+          <div>
+            <div className="font-bold" style={{ color: '#ffffff' }}>Download PNG</div>
+            <div className="text-[10px]" style={{ color: 'rgba(253,164,175,0.6)' }}>Save to device</div>
+          </div>
+        </button>
+
+        <button onClick={handleCopySnapshot}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[12.5px] font-semibold transition-all text-left"
+          style={{ color: '#fce7f3' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(159,18,57,0.2)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+          <span className="w-7 h-7 flex items-center justify-center rounded-lg shrink-0"
+            style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}>
+            {copied ? <CheckCheck size={13} style={{ color: '#86efac' }} /> : <Copy size={13} style={{ color: '#86efac' }} />}
+          </span>
+          <div>
+            <div className="font-bold" style={{ color: '#ffffff' }}>{copied ? 'Copied!' : 'Copy Image'}</div>
+            <div className="text-[10px]" style={{ color: 'rgba(253,164,175,0.6)' }}>Copy to clipboard</div>
+          </div>
+        </button>
+
+        <button onClick={handleWebShare}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[12.5px] font-semibold transition-all text-left"
+          style={{ color: '#fce7f3' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(159,18,57,0.2)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+          <span className="w-7 h-7 flex items-center justify-center rounded-lg shrink-0"
+            style={{ background: 'rgba(236,72,153,0.15)', border: '1px solid rgba(236,72,153,0.3)' }}>
+            <Share2 size={13} style={{ color: '#f9a8d4' }} />
+          </span>
+          <div>
+            <div className="font-bold" style={{ color: '#ffffff' }}>Share</div>
+            <div className="text-[10px]" style={{ color: 'rgba(253,164,175,0.6)' }}>Via native share sheet</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ── Notification dropdown content ──────────────────────────────────────── */
+  const NotifDropdown = (
+    <div
+      className="w-80 max-h-96 overflow-y-auto rounded-2xl"
+      style={{
+        background: 'linear-gradient(135deg, #1a0008 0%, #250010 50%, #1a0008 100%)',
+        border: '1.5px solid rgba(236,72,153,0.4)',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05)',
+      }}
+    >
+      <div className="flex items-center justify-between px-4 py-3 sticky top-0"
+        style={{ borderBottom: '1px solid rgba(159,18,57,0.3)', background: 'rgba(26,0,8,0.95)' }}>
+        <span className="text-[12px] font-black tracking-wide uppercase" style={{ color: '#fce7f3' }}>Recent Activity</span>
+        <button onClick={() => setShowNotifications(false)} style={{ color: 'rgba(255,255,255,0.4)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>
+          <X size={13} />
+        </button>
+      </div>
+      {drawingActivity.length === 0 ? (
+        <div className="px-4 py-8 text-center text-[12px] font-semibold" style={{ color: 'rgba(253,164,175,0.5)' }}>No recent activity</div>
+      ) : (
+        <div className="py-1">
+          {drawingActivity.map((a) => (
+            <div key={a.id} className="flex items-start gap-2.5 px-4 py-2.5 transition-colors"
+              style={{ borderBottom: '1px solid rgba(159,18,57,0.12)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(159,18,57,0.1)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5"
+                style={{ background: '#fb7185', boxShadow: '0 0 5px rgba(251,113,133,0.7)' }} />
+              <div className="min-w-0 flex-1">
+                <div className="text-[12.5px] font-semibold leading-snug" style={{ color: '#fce7f3' }}>{a.message}</div>
+                <div className="text-[10.5px] font-medium mt-0.5" style={{ color: 'rgba(253,164,175,0.55)' }}>{timeAgo(a.createdAt)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div
-      className="h-[60px] flex items-center px-4 shrink-0 relative z-10 overflow-hidden"
+      className="h-[60px] flex items-center px-4 shrink-0 relative z-50 overflow-visible"
       style={{
         background: 'linear-gradient(135deg, #1a0008 0%, #220010 45%, #2a000f 70%, #1a0008 100%)',
         borderBottom: '1px solid rgba(128,0,32,0.55)',
@@ -163,7 +357,7 @@ export default function TopToolbar({
         gap: '6px',
       }}
     >
-      {/* Left accent stripe — dark-pink on maroon */}
+      {/* Left accent stripe */}
       <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{
         background: 'linear-gradient(180deg, #7c0a2a 0%, #5a0620 50%, #3d0216 100%)',
         boxShadow: '0 0 10px rgba(80,4,24,0.7)',
@@ -187,21 +381,16 @@ export default function TopToolbar({
       <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden"
         onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])} />
 
-      {/* ── Upload (pink button) ── */}
+      {/* ── Upload ── */}
       <button
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading}
         className="flex items-center gap-1.5 text-[13px] font-bold px-3.5 py-[7px] rounded-lg shrink-0 transition-all duration-200"
         style={uploading
           ? { background: 'rgba(80,4,24,0.3)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(120,8,40,0.3)', cursor: 'not-allowed' }
-          : {
-              background: 'linear-gradient(135deg, #7c0a2a 0%, #5a0620 55%, #3d0216 100%)',
-              color: '#fff',
-              border: '1px solid rgba(120,8,40,0.5)',
-              boxShadow: '0 2px 14px rgba(60,2,18,0.7), inset 0 1px 0 rgba(255,255,255,0.08)',
-            }}
-        onMouseEnter={(e) => { if (!uploading) { e.currentTarget.style.filter = 'brightness(1.2)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(80,4,24,0.8), inset 0 1px 0 rgba(255,255,255,0.08)'; } }}
-        onMouseLeave={(e) => { if (!uploading) { e.currentTarget.style.filter = 'brightness(1)'; e.currentTarget.style.boxShadow = '0 2px 14px rgba(60,2,18,0.7), inset 0 1px 0 rgba(255,255,255,0.08)'; } }}
+          : { background: 'linear-gradient(135deg, #7c0a2a 0%, #5a0620 55%, #3d0216 100%)', color: '#fff', border: '1px solid rgba(120,8,40,0.5)', boxShadow: '0 2px 14px rgba(60,2,18,0.7), inset 0 1px 0 rgba(255,255,255,0.08)' }}
+        onMouseEnter={(e) => { if (!uploading) { e.currentTarget.style.filter = 'brightness(1.2)'; } }}
+        onMouseLeave={(e) => { if (!uploading) { e.currentTarget.style.filter = 'brightness(1)'; } }}
       >
         {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
         <span className="hidden sm:inline">{uploading ? 'Uploading…' : 'Upload'}</span>
@@ -213,16 +402,11 @@ export default function TopToolbar({
           <FileImage size={13} className="absolute left-2.5 pointer-events-none shrink-0 z-10" style={{ color: 'rgba(255,255,255,0.6)' }} />
           <select
             className="w-full pl-8 pr-7 py-[7px] text-[13px] appearance-none cursor-pointer outline-none truncate font-semibold rounded-lg transition-all"
-            style={{
-              background: 'rgba(30,0,12,0.95)',
-              border: '1.5px solid rgba(128,0,32,0.55)',
-              color: '#ffffff',
-              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)',
-            }}
+            style={{ background: 'rgba(30,0,12,0.95)', border: '1.5px solid rgba(128,0,32,0.55)', color: '#ffffff', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)' }}
             value={currentDrawing?.id || ''}
             onChange={(e) => setCurrentDrawingId(e.target.value)}
-            onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(219,39,119,0.7)'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(190,24,93,0.18), inset 0 1px 3px rgba(0,0,0,0.5)'; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(128,0,32,0.55)'; e.currentTarget.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.5)'; }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(219,39,119,0.7)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(128,0,32,0.55)'; }}
           >
             {drawings.map((d) => (
               <option key={d.id} value={d.id} style={{ background: '#1a0008', color: '#ffffff' }}>{d.name}</option>
@@ -237,81 +421,41 @@ export default function TopToolbar({
       {/* ── Grid Toggle Group ── */}
       <div
         className="flex items-center rounded-full overflow-hidden shrink-0"
-        style={{
-          background: 'linear-gradient(135deg, #1a0008 0%, #280010 100%)',
-          border: '1px solid rgba(159,18,57,0.45)',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
-        }}
+        style={{ background: 'linear-gradient(135deg, #1a0008 0%, #280010 100%)', border: '1px solid rgba(159,18,57,0.45)', boxShadow: '0 2px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)' }}
       >
-        {/* Columns toggle */}
-        <button
-          onClick={() => setShowGrid(!showGrid)}
-          title={showGrid ? 'Hide column markers' : 'Show column markers'}
+        <button onClick={() => setShowGrid(!showGrid)} title={showGrid ? 'Hide column markers' : 'Show column markers'}
           className="relative flex items-center gap-2 text-[12.5px] px-3.5 py-2 font-bold transition-all duration-200 overflow-hidden rounded-full"
           style={showGrid
-            ? {
-                background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 55%, #4c0519 100%)',
-                color: '#fff',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
-              }
-            : {
-                background: 'rgba(159,18,57,0.08)',
-                color: 'rgba(253,202,212,0.6)',
-                borderRight: '1px solid rgba(159,18,57,0.2)',
-              }}
+            ? { background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 55%, #4c0519 100%)', color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)' }
+            : { background: 'rgba(159,18,57,0.08)', color: 'rgba(253,202,212,0.6)' }}
           onMouseEnter={(e) => { if (!showGrid) e.currentTarget.style.background = 'rgba(159,18,57,0.18)'; }}
           onMouseLeave={(e) => { if (!showGrid) e.currentTarget.style.background = 'rgba(159,18,57,0.08)'; }}
         >
-          {showGrid && (
-            <span className="absolute inset-0 pointer-events-none opacity-20"
-              style={{ background: 'radial-gradient(ellipse at 20% 50%, #fb7185 0%, transparent 70%)' }} />
-          )}
-          <Grid3x3 size={13} />
-          <span className="tracking-tight">Columns</span>
+          {showGrid && <span className="absolute inset-0 pointer-events-none opacity-20" style={{ background: 'radial-gradient(ellipse at 20% 50%, #fb7185 0%, transparent 70%)' }} />}
+          <Grid3x3 size={13} /><span className="tracking-tight">Columns</span>
           {showGrid && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#fb7185', boxShadow: '0 0 5px #fb7185' }} />}
         </button>
 
-        {/* Divider */}
         <div className="w-px self-stretch shrink-0" style={{ background: 'rgba(159,18,57,0.35)' }} />
 
-        {/* Beams toggle */}
-        <button
-          onClick={() => setShowBeams(!showBeams)}
-          title={showBeams ? 'Hide beam markup' : 'Show beam markup'}
+        <button onClick={() => setShowBeams(!showBeams)} title={showBeams ? 'Hide beam markup' : 'Show beam markup'}
           className="relative flex items-center gap-2 text-[12.5px] px-3.5 py-2 font-bold transition-all duration-200 overflow-hidden rounded-full"
           style={showBeams
-            ? {
-                background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 55%, #4c0519 100%)',
-                color: '#fff',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
-              }
-            : {
-                background: 'rgba(159,18,57,0.08)',
-                color: 'rgba(253,202,212,0.6)',
-              }}
+            ? { background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 55%, #4c0519 100%)', color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)' }
+            : { background: 'rgba(159,18,57,0.08)', color: 'rgba(253,202,212,0.6)' }}
           onMouseEnter={(e) => { if (!showBeams) e.currentTarget.style.background = 'rgba(159,18,57,0.18)'; }}
           onMouseLeave={(e) => { if (!showBeams) e.currentTarget.style.background = 'rgba(159,18,57,0.08)'; }}
         >
-          {showBeams && (
-            <span className="absolute inset-0 pointer-events-none opacity-20"
-              style={{ background: 'radial-gradient(ellipse at 20% 50%, #fb7185 0%, transparent 70%)' }} />
-          )}
-          <Workflow size={13} />
-          <span className="tracking-tight">Beams</span>
+          {showBeams && <span className="absolute inset-0 pointer-events-none opacity-20" style={{ background: 'radial-gradient(ellipse at 20% 50%, #fb7185 0%, transparent 70%)' }} />}
+          <Workflow size={13} /><span className="tracking-tight">Beams</span>
           {showBeams && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#fb7185', boxShadow: '0 0 5px #fb7185' }} />}
         </button>
 
-        {/* Divider */}
         <div className="w-px self-stretch shrink-0" style={{ background: 'rgba(159,18,57,0.35)' }} />
 
-        {/* Grid settings */}
-        <button
-          onClick={() => setShowGridSettings(!showGridSettings)}
-          title="Grid settings"
+        <button onClick={() => setShowGridSettings(!showGridSettings)} title="Grid settings"
           className="w-9 h-full flex items-center justify-center transition-all duration-150 rounded-full"
-          style={showGridSettings
-            ? { background: 'linear-gradient(135deg, #9f1239 0%, #4c0519 100%)', color: '#fda4af' }
-            : { background: 'rgba(159,18,57,0.08)', color: 'rgba(253,202,212,0.45)' }}
+          style={showGridSettings ? { background: 'linear-gradient(135deg, #9f1239 0%, #4c0519 100%)', color: '#fda4af' } : { background: 'rgba(159,18,57,0.08)', color: 'rgba(253,202,212,0.45)' }}
           onMouseEnter={(e) => { if (!showGridSettings) e.currentTarget.style.background = 'rgba(159,18,57,0.18)'; }}
           onMouseLeave={(e) => { if (!showGridSettings) e.currentTarget.style.background = 'rgba(159,18,57,0.08)'; }}
         >
@@ -319,100 +463,54 @@ export default function TopToolbar({
         </button>
       </div>
 
-      {/* ── Grid Size Popover ── */}
+      {/* ── Grid Size Popover (inline – no portal needed, sits in toolbar flow) ── */}
       {showGridSettings && (
-        <div
-          className="flex items-center gap-0 rounded-2xl shrink-0 overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, #1a0008 0%, #250010 50%, #1a0008 100%)',
-            border: '1.5px solid rgba(236,72,153,0.4)',
-            boxShadow: '0 6px 28px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.05)',
-          }}
-        >
-          {/* ── Grid dimensions (Cols × Rows) ── */}
+        <div className="flex items-center gap-0 rounded-2xl shrink-0 overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #1a0008 0%, #250010 50%, #1a0008 100%)', border: '1.5px solid rgba(236,72,153,0.4)', boxShadow: '0 6px 28px rgba(0,0,0,0.75)' }}>
           <div className="flex items-center gap-2 px-3 py-2">
-            {/* Cols stepper */}
             <div className="flex flex-col items-center gap-0.5">
               <span className="text-[9px] font-black tracking-[0.15em] uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>Cols</span>
               <div className="flex items-center gap-0.5">
-                <button
-                  onClick={() => adjustCols(-1)}
-                  className="w-5 h-5 flex items-center justify-center rounded"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
-                >
-                  <Minus size={8} />
-                </button>
-                <input
-                  type="number" min={2} max={30} value={draftCols}
+                <button onClick={() => adjustCols(-1)} className="w-5 h-5 flex items-center justify-center rounded"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}><Minus size={8} /></button>
+                <input type="number" min={2} max={30} value={draftCols}
                   onChange={(e) => { setDraftCols(Number(e.target.value)); setDirty(true); }}
                   onKeyDown={(e) => e.key === 'Enter' && applyGridSize()}
                   className="w-8 text-center text-[14px] font-black outline-none rounded py-0"
-                  style={{ background: 'transparent', border: 'none', color: '#ffffff' }}
-                />
-                <button
-                  onClick={() => adjustCols(1)}
-                  className="w-5 h-5 flex items-center justify-center rounded"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
-                >
-                  <Plus size={8} />
-                </button>
+                  style={{ background: 'transparent', border: 'none', color: '#ffffff' }} />
+                <button onClick={() => adjustCols(1)} className="w-5 h-5 flex items-center justify-center rounded"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}><Plus size={8} /></button>
               </div>
             </div>
-
-            {/* × separator */}
             <span className="text-[16px] font-black mt-3" style={{ color: 'rgba(236,72,153,0.5)' }}>×</span>
-
-            {/* Rows stepper */}
             <div className="flex flex-col items-center gap-0.5">
               <span className="text-[9px] font-black tracking-[0.15em] uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>Rows</span>
               <div className="flex items-center gap-0.5">
-                <button
-                  onClick={() => adjustRows(-1)}
-                  className="w-5 h-5 flex items-center justify-center rounded"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
-                >
-                  <Minus size={8} />
-                </button>
-                <input
-                  type="number" min={2} max={30} value={draftRows}
+                <button onClick={() => adjustRows(-1)} className="w-5 h-5 flex items-center justify-center rounded"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}><Minus size={8} /></button>
+                <input type="number" min={2} max={30} value={draftRows}
                   onChange={(e) => { setDraftRows(Number(e.target.value)); setDirty(true); }}
                   onKeyDown={(e) => e.key === 'Enter' && applyGridSize()}
                   className="w-8 text-center text-[14px] font-black outline-none rounded py-0"
-                  style={{ background: 'transparent', border: 'none', color: '#ffffff' }}
-                />
-                <button
-                  onClick={() => adjustRows(1)}
-                  className="w-5 h-5 flex items-center justify-center rounded"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
-                >
-                  <Plus size={8} />
-                </button>
+                  style={{ background: 'transparent', border: 'none', color: '#ffffff' }} />
+                <button onClick={() => adjustRows(1)} className="w-5 h-5 flex items-center justify-center rounded"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}><Plus size={8} /></button>
               </div>
             </div>
           </div>
-
-          {/* ── Divider ── */}
           <div className="w-px self-stretch my-2" style={{ background: 'rgba(236,72,153,0.2)' }} />
-
-          {/* ── Actions ── */}
           <div className="flex items-center gap-1 px-2">
-            <button
-              onClick={applyGridSize}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all"
+            <button onClick={applyGridSize} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all"
               style={dirty
                 ? { background: 'linear-gradient(135deg, #9f1239, #6d0120)', color: '#fff', boxShadow: '0 2px 12px rgba(159,18,57,0.6)', border: '1px solid rgba(236,72,153,0.3)' }
-                : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'default' }}
-            >
-              <Check size={10} />
-              Apply
+                : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'default' }}>
+              <Check size={10} />Apply
             </button>
-            <button
-              onClick={() => setShowGridSettings(false)}
+            <button onClick={() => setShowGridSettings(false)}
               className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
               style={{ color: 'rgba(255,255,255,0.35)' }}
               onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#ffffff'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; }}
-            >
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; }}>
               <X size={12} />
             </button>
           </div>
@@ -421,24 +519,22 @@ export default function TopToolbar({
 
       <Divider />
 
-      {/* ── Calibrate (pink on hover / amber when active) ── */}
-      <button
-        onClick={() => setCalibrating(!calibrating)}
+      {/* ── Calibrate ── */}
+      <button onClick={() => setCalibrating(!calibrating)}
         title={calibrating ? 'Done calibrating' : 'Drag columns to their exact position'}
         className="flex items-center gap-1.5 text-[13px] px-3 py-[7px] rounded-lg font-semibold transition-all duration-150 shrink-0"
         style={calibrating
           ? { background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 60%, #d97706 100%)', color: '#1a0500', boxShadow: '0 2px 12px rgba(245,158,11,0.5)', border: '1px solid rgba(251,191,36,0.3)' }
           : { background: 'rgba(26,0,10,0.9)', color: '#ffffff', border: '1px solid rgba(128,0,32,0.45)' }}
-        onMouseEnter={(e) => { if (!calibrating) { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; e.currentTarget.style.color = '#ffffff'; } }}
-        onMouseLeave={(e) => { if (!calibrating) { e.currentTarget.style.background = 'rgba(26,0,10,0.9)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.45)'; e.currentTarget.style.color = '#ffffff'; } }}
+        onMouseEnter={(e) => { if (!calibrating) { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; } }}
+        onMouseLeave={(e) => { if (!calibrating) { e.currentTarget.style.background = 'rgba(26,0,10,0.9)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.45)'; } }}
       >
         <Crosshair size={13} />
         <span>{calibrating ? 'Done' : 'Calibrate'}</span>
       </button>
 
       {/* ── Fullscreen ── */}
-      <button
-        onClick={() => setFullscreen(!fullscreen)}
+      <button onClick={() => setFullscreen(!fullscreen)}
         title={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         className="w-8 h-8 flex items-center justify-center rounded-lg transition-all shrink-0"
         style={{ color: '#ffffff', border: '1px solid rgba(128,0,32,0.4)', background: 'rgba(26,0,10,0.85)' }}
@@ -450,64 +546,64 @@ export default function TopToolbar({
 
       {/* ── Right Actions ── */}
       <div className="ml-auto flex items-center gap-1.5 shrink-0">
-        {/* Bell / Notifications */}
-        <div className="relative" ref={notifRef}>
-          <button
-            onClick={() => setShowNotifications((v) => !v)}
-            className="relative w-8 h-8 flex items-center justify-center rounded-lg transition-all"
-            title="Recent activity"
-            style={showNotifications
-              ? { color: '#ffffff', background: 'rgba(219,39,119,0.28)', border: '1px solid rgba(219,39,119,0.6)' }
-              : { color: '#ffffff', background: 'rgba(26,0,10,0.85)', border: '1px solid rgba(128,0,32,0.4)' }}
-            onMouseEnter={(e) => { if (!showNotifications) { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; } }}
-            onMouseLeave={(e) => { if (!showNotifications) { e.currentTarget.style.background = 'rgba(26,0,10,0.85)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.4)'; } }}
-          >
-            <Bell size={14} />
-            {drawingActivity.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: '#fb7185', boxShadow: '0 0 6px rgba(251,113,133,0.9)' }} />
-            )}
-          </button>
 
-          {showNotifications && (
-            <div
-              className="absolute right-0 top-[calc(100%+8px)] w-80 max-h-96 overflow-y-auto rounded-2xl z-50"
-              style={{
-                background: 'linear-gradient(135deg, #1a0008 0%, #250010 50%, #1a0008 100%)',
-                border: '1.5px solid rgba(236,72,153,0.4)',
-                boxShadow: '0 12px 36px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05)',
-              }}
+        {/* ── Share Button ── */}
+        {onShareSnapshot && (
+          <>
+            <button
+              ref={shareBtnRef}
+              onClick={() => { setShowShareMenu((v) => !v); setShowNotifications(false); }}
+              title="Share / Export drawing"
+              disabled={sharing}
+              className="flex items-center gap-1.5 text-[13px] font-semibold px-3 py-[7px] rounded-lg transition-all duration-150 shrink-0"
+              style={showShareMenu
+                ? { background: 'rgba(219,39,119,0.28)', color: '#ffffff', border: '1px solid rgba(219,39,119,0.6)' }
+                : { background: 'rgba(26,0,10,0.85)', color: '#ffffff', border: '1px solid rgba(128,0,32,0.4)' }}
+              onMouseEnter={(e) => { if (!showShareMenu && !sharing) { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; } }}
+              onMouseLeave={(e) => { if (!showShareMenu && !sharing) { e.currentTarget.style.background = 'rgba(26,0,10,0.85)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.4)'; } }}
             >
-              <div className="flex items-center justify-between px-4 py-3 sticky top-0" style={{ borderBottom: '1px solid rgba(159,18,57,0.3)', background: 'rgba(26,0,8,0.95)' }}>
-                <span className="text-[12px] font-black tracking-wide uppercase" style={{ color: '#fce7f3' }}>Recent Activity</span>
-                <button onClick={() => setShowNotifications(false)} style={{ color: 'rgba(255,255,255,0.4)' }} onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')} onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>
-                  <X size={13} />
-                </button>
-              </div>
-              {drawingActivity.length === 0 ? (
-                <div className="px-4 py-8 text-center text-[12px] font-semibold" style={{ color: 'rgba(253,164,175,0.5)' }}>No recent activity</div>
-              ) : (
-                <div className="py-1">
-                  {drawingActivity.map((a) => (
-                    <div key={a.id} className="flex items-start gap-2.5 px-4 py-2.5 transition-colors" style={{ borderBottom: '1px solid rgba(159,18,57,0.12)' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(159,18,57,0.1)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" style={{ background: '#fb7185', boxShadow: '0 0 5px rgba(251,113,133,0.7)' }} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[12.5px] font-semibold leading-snug" style={{ color: '#fce7f3' }}>{a.message}</div>
-                        <div className="text-[10.5px] font-medium mt-0.5" style={{ color: 'rgba(253,164,175,0.55)' }}>{timeAgo(a.createdAt)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+              {sharing ? <Loader2 size={13} className="animate-spin" /> : <Share2 size={13} />}
+              <span className="hidden sm:inline">Share</span>
+            </button>
+
+            {showShareMenu && (
+              <PortalDropdown anchorRef={shareBtnRef} onClose={() => setShowShareMenu(false)}>
+                {ShareDropdown}
+              </PortalDropdown>
+            )}
+          </>
+        )}
 
         <Divider />
 
-        {/* User pill */}
+        {/* ── Bell / Notifications ── */}
+        <button
+          ref={notifBtnRef}
+          onClick={() => { setShowNotifications((v) => !v); setShowShareMenu(false); }}
+          className="relative w-8 h-8 flex items-center justify-center rounded-lg transition-all"
+          title="Recent activity"
+          style={showNotifications
+            ? { color: '#ffffff', background: 'rgba(219,39,119,0.28)', border: '1px solid rgba(219,39,119,0.6)' }
+            : { color: '#ffffff', background: 'rgba(26,0,10,0.85)', border: '1px solid rgba(128,0,32,0.4)' }}
+          onMouseEnter={(e) => { if (!showNotifications) { e.currentTarget.style.background = 'rgba(219,39,119,0.25)'; e.currentTarget.style.borderColor = 'rgba(219,39,119,0.55)'; } }}
+          onMouseLeave={(e) => { if (!showNotifications) { e.currentTarget.style.background = 'rgba(26,0,10,0.85)'; e.currentTarget.style.borderColor = 'rgba(128,0,32,0.4)'; } }}
+        >
+          <Bell size={14} />
+          {drawingActivity.length > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
+              style={{ background: '#fb7185', boxShadow: '0 0 6px rgba(251,113,133,0.9)' }} />
+          )}
+        </button>
+
+        {showNotifications && (
+          <PortalDropdown anchorRef={notifBtnRef} onClose={() => setShowNotifications(false)}>
+            {NotifDropdown}
+          </PortalDropdown>
+        )}
+
+        <Divider />
+
+        {/* ── User pill ── */}
         <div
           className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all"
           style={{ border: '1px solid rgba(128,0,32,0.35)', background: 'rgba(26,0,10,0.7)' }}

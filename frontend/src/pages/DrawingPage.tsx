@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useApp } from '../AppContext';
 import { DrawingsAPI } from '../api';
 import DrawingCanvas from '../components/DrawingCanvas';
@@ -12,6 +12,13 @@ export default function DrawingPage() {
   const [showBeams, setShowBeams] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const [calibrating, setCalibrating] = useState(false);
+
+  // Snapshot fn registered by DrawingCanvas via onSnapshotReady
+  const snapshotFnRef = useRef<(() => string | null) | null>(null);
+  const handleSnapshotReady = (fn: () => string | null) => {
+    snapshotFnRef.current = fn;
+  };
+  const getSnapshot = () => snapshotFnRef.current?.() ?? null;
 
   const handleGridSizeChange = async (cols: number, rows: number) => {
     if (!currentDrawing) return;
@@ -34,11 +41,18 @@ export default function DrawingPage() {
           gridCols={currentDrawing?.gridCols || 10}
           gridRows={currentDrawing?.gridRows || 8}
           onGridSizeChange={handleGridSizeChange}
+          onShareSnapshot={getSnapshot}
         />
       )}
       <div className="flex-1 flex overflow-hidden relative">
         <div className="flex-1 min-w-0 relative">
-          <DrawingCanvas showGrid={showGrid} showBeams={showBeams} fullscreen={fullscreen} calibrating={calibrating} />
+          <DrawingCanvas
+            showGrid={showGrid}
+            showBeams={showBeams}
+            fullscreen={fullscreen}
+            calibrating={calibrating}
+            onSnapshotReady={handleSnapshotReady}
+          />
           {!fullscreen && <Legend />}
           {fullscreen && (
             <button

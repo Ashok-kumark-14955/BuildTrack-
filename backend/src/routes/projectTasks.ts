@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import * as db from '../db';
+import { reportTaskCompletion } from '../cliqReport';
 
 const router = Router();
 
@@ -99,6 +100,14 @@ router.put('/:id', async (req, res) => {
       JSON.stringify(tags), merged.updatedAt, req.params.id,
     ]
   );
+  if (req.body.status && req.body.status !== existing.status && (merged.status === 'Completed' || merged.status === 'Done')) {
+    reportTaskCompletion(req, {
+      id: req.params.id,
+      name: merged.name,
+      projectId: existing.projectId,
+      assignedTo: merged.assignee,
+    }); // fire-and-forget, don't delay the response
+  }
   res.json(serialize(await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [req.params.id])));
 });
 

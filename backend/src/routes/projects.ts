@@ -10,21 +10,37 @@ const SORT_COLUMNS: Record<string, string> = {
   updatedAt: 'updatedAt',
 };
 
-async function projectStats(req: any, projectId: string) {
-  const total: any = await db.get(req, 'SELECT COUNT(id) as c FROM project_tasks WHERE projectId = ?', [projectId]);
-  const done: any = await db.get(req, "SELECT COUNT(id) as c FROM project_tasks WHERE projectId = ? AND status = 'Done'", [projectId]);
-  const members: any = await db.get(
-    req,
-    "SELECT COUNT(DISTINCT assignee) as c FROM project_tasks WHERE projectId = ? AND assignee IS NOT NULL AND assignee != ''",
-    [projectId]
-  );
-  const taskCount = Number(total?.c ?? 0);
-  const doneCount = Number(done?.c ?? 0);
+export async function projectStats(req: any, projectId: string) {
+  // Drawing-linked tasks (created via the drawing markup workflow) are the
+  // real source of task/progress data in this app — the separate
+  // `project_tasks` table (Kanban-style "Task List" feature) is tracked
+  // independently and is often empty, so it must not be the only source
+  // used for the project's headline progress numbers. ZCQL (via the thin
+  // wrapper in db/catalyst.ts) doesn't support JOINs, so resolve the
+  // drawing ids for this project first, then query tasks by drawingId.
+  const drawings = await db.all(req, 'SELECT id FROM drawings WHERE projectId = ?', [projectId]);
+  const drawingIds: string[] = drawings.map((d: any) => d.id);
+
+  let drawingTasks: any[] = [];
+  if (drawingIds.length > 0) {
+    for (const id of drawingIds) {
+      const rows = await db.all(req, 'SELECT status, assignedTo FROM tasks WHERE drawingId = ?', [id]);
+      drawingTasks.push(...rows.map((t: any) => ({ status: t.status, assignee: t.assignedTo })));
+    }
+  }
+
+  const projectTasks = await db.all(req, 'SELECT status, assignee FROM project_tasks WHERE projectId = ?', [projectId]);
+
+  const allTasks = [...drawingTasks, ...projectTasks];
+  const taskCount = allTasks.length;
+  const doneCount = allTasks.filter((t) => t.status === 'Completed' || t.status === 'Done').length;
+  const members = new Set(allTasks.map((t) => t.assignee).filter((a) => a && String(a).trim() !== '')).size;
+
   return {
     taskCount,
     doneCount,
     progress: taskCount > 0 ? Math.round((doneCount / taskCount) * 100) : 0,
-    members: Number(members?.c ?? 0),
+    members,
   };
 }
 
