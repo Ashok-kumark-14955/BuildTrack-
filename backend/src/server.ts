@@ -16,7 +16,13 @@ const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000
 // scripts run against the Catalyst environment). The old auto-seed/self-heal
 // boot logic relied on the local SQLite file and no longer applies here.
 
-app.use(cors());
+// In production, Catalyst's Authorized Domains / CORS Domain list injects
+// Access-Control-Allow-Origin at the gateway level. Setting it again here
+// would produce duplicate header values that browsers reject, so we only
+// apply the Express `cors()` middleware for local development.
+if (!process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
+  app.use(cors());
+}
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
