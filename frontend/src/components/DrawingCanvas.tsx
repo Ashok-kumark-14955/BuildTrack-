@@ -675,6 +675,25 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
 
   const cancelRename = useCallback(() => setRenamingCode(null), []);
 
+  // ── Apply / remove Konva filter cache when highContrast toggles ──
+  // The ref callback on KonvaImage only fires on mount/unmount, NOT on prop changes.
+  // We need a separate effect that reacts to the highContrast flag.
+  useEffect(() => {
+    const node = imageNodeRef.current;
+    if (!node) return;
+    if (highContrast) {
+      // cache() rasterises the node so Konva can apply pixel-level filters (Invert, Contrast).
+      setTimeout(() => {
+        node.cache();
+        node.getLayer()?.batchDraw();
+      }, 60);
+    } else {
+      // clearCache() removes the off-screen canvas so the original image renders normally.
+      node.clearCache();
+      node.getLayer()?.batchDraw();
+    }
+  }, [highContrast]);
+
   // ── Compute per-element status (highest-priority active task wins) ──
   // Tasks are indexed by their canvas element ID (Column_A1, Beam_A1_B1).
   // We derive the canvas ID from the task's gridCode field, since task.elementId
@@ -772,18 +791,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               listening={false}
               filters={highContrast ? [Konva.Filters.Invert, Konva.Filters.Contrast] : []}
               contrast={highContrast ? 15 : 0}
-              ref={(node) => {
-                imageNodeRef.current = node;
-                // Only cache when high-contrast filters are actually active.
-                // Caching unconditionally writes the image to an off-screen canvas,
-                // which can produce a blank/black frame before the GPU composites it.
-                if (node && highContrast) {
-                  setTimeout(() => {
-                    node.cache();
-                    node.getLayer()?.batchDraw();
-                  }, 60);
-                }
-              }}
+              ref={(node) => { imageNodeRef.current = node; }}
             />
           )}
 
