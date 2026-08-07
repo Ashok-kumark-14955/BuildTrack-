@@ -6,13 +6,23 @@
 export async function convertToOutline(file: File): Promise<File> {
   if (!file.type.startsWith('image/')) return file;
 
-  const bitmap = await createImageBitmap(file);
-  const { width, height } = bitmap;
+  const sourceUrl = URL.createObjectURL(file);
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to read uploaded image'));
+    img.src = sourceUrl;
+  });
+
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(bitmap, 0, 0);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(image, 0, 0, width, height);
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const src = imgData.data;
@@ -53,6 +63,7 @@ export async function convertToOutline(file: File): Promise<File> {
   const blob: Blob = await new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Outline conversion failed'))), 'image/png')
   );
+  URL.revokeObjectURL(sourceUrl);
   const outName = file.name.replace(/\.[^./]+$/, '') + '-outline.png';
   return new File([blob], outName, { type: 'image/png' });
 }

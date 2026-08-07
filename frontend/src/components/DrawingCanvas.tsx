@@ -303,6 +303,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   const [renameValue, setRenameValue] = useState('');
   const [autoCalibrating, setAutoCalibrating] = useState(false);
   const [calibPanelOpen, setCalibPanelOpen] = useState(true);
+  const [highContrast, setHighContrast] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const imageNodeRef = useRef<Konva.Image | null>(null);
 
@@ -453,6 +455,20 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   }, [currentDrawing, image]);
 
   const beamThickness = useMemo(() => Math.max(2, hotspotRadius * 0.22), [hotspotRadius]);
+  const activeElementMeta = useMemo(() => {
+    if (!selectedElementId) return null;
+    if (selectedElementId.startsWith('Column_')) {
+      const col = columnElements.find((c) => c.id === selectedElementId);
+      if (!col) return null;
+      const label = currentDrawing?.columnLabels?.[col.code] || col.code;
+      return { kind: 'Column', label, subtitle: `Grid ${col.code}` };
+    }
+    if (selectedElementId.startsWith('Beam_')) {
+      const beam = selectedElementId.replace('Beam_', '').replaceAll('_', ' → ');
+      return { kind: 'Beam', label: beam, subtitle: 'Structural span' };
+    }
+    return null;
+  }, [selectedElementId, columnElements, currentDrawing]);
 
   // ── Focus an element from an EXTERNAL request ONLY (e.g. Task List "Locate" button) ──
   // Direct taps on the canvas (handleSelect) never set focusElementRequest,
@@ -716,8 +732,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               width={image.width}
               height={image.height}
               listening={false}
-              filters={[Konva.Filters.Invert, Konva.Filters.Contrast]}
-              contrast={15}
+              filters={highContrast ? [Konva.Filters.Invert, Konva.Filters.Contrast] : []}
+              contrast={highContrast ? 15 : 0}
               ref={(node) => {
                 imageNodeRef.current = node;
                 if (node && image) {
@@ -756,7 +772,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
                 key={id}
                 id={id}
                 code={code}
-                label={label}
+                label={showLabels ? label : ''}
                 x={x}
                 y={y}
                 radius={hotspotRadius}
@@ -923,6 +939,39 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
 
       {/* ── Zoom Controls ── */}
       <div
+        className="absolute top-4 left-1/2 -translate-x-1/2 rounded-2xl border px-3 py-2 flex items-center gap-2 z-20"
+        style={{
+          background: 'rgba(15, 23, 42, 0.78)',
+          backdropFilter: 'blur(14px)',
+          borderColor: 'rgba(148,163,184,0.22)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+        }}
+      >
+        <button
+          onClick={() => setHighContrast((v) => !v)}
+          className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
+          style={{
+            background: highContrast ? 'rgba(56,189,248,0.18)' : 'rgba(51,65,85,0.65)',
+            color: highContrast ? '#bae6fd' : '#cbd5e1',
+            border: '1px solid rgba(148,163,184,0.2)',
+          }}
+        >
+          {highContrast ? 'High Contrast On' : 'High Contrast Off'}
+        </button>
+        <button
+          onClick={() => setShowLabels((v) => !v)}
+          className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
+          style={{
+            background: showLabels ? 'rgba(192,132,252,0.18)' : 'rgba(51,65,85,0.65)',
+            color: showLabels ? '#e9d5ff' : '#cbd5e1',
+            border: '1px solid rgba(148,163,184,0.2)',
+          }}
+        >
+          {showLabels ? 'Labels On' : 'Labels Off'}
+        </button>
+      </div>
+
+      <div
         className="absolute bottom-5 right-5 flex flex-col gap-1 rounded-2xl p-1.5 shadow-elevated border"
         style={{ background: 'rgba(24,24,27,0.88)', backdropFilter: 'blur(12px)', borderColor: 'rgba(63,63,70,0.8)' }}
       >
@@ -946,6 +995,22 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
       >
         {Math.round(scale * 100)}%
       </div>
+
+      {activeElementMeta && (
+        <div
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-2xl border px-4 py-3 min-w-[220px] z-20"
+          style={{
+            background: 'rgba(15,23,42,0.88)',
+            backdropFilter: 'blur(16px)',
+            borderColor: 'rgba(96,165,250,0.28)',
+            boxShadow: '0 12px 35px rgba(0,0,0,0.38)',
+          }}
+        >
+          <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-sky-300/80">Selected</div>
+          <div className="mt-1 text-sm font-bold text-white">{activeElementMeta.kind}: {activeElementMeta.label}</div>
+          <div className="text-xs text-slate-300 mt-0.5">{activeElementMeta.subtitle}</div>
+        </div>
+      )}
 
       {/* ── Column Rename Modal ── */}
       {renamingCode && (

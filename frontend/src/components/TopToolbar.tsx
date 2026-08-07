@@ -214,12 +214,19 @@ export default function TopToolbar({
       }
     } catch { /* use defaults */ }
 
-    let uploadFile = file;
-    if (file.type.startsWith('image/')) {
-      const t = toast.loading('Converting to outline…');
-      try { uploadFile = await convertToOutline(file); } catch { /* fallback */ } finally { toast.dismiss(t); }
-    }
     try {
+      let uploadFile = file;
+      if (file.type.startsWith('image/')) {
+        const t = toast.loading('Converting to outline…');
+        try {
+          uploadFile = await convertToOutline(file);
+        } catch {
+          uploadFile = file;
+        } finally {
+          toast.dismiss(t);
+        }
+      }
+
       const form = new FormData();
       form.append('file', uploadFile, uploadFile.name);
       form.append('name', file.name);
