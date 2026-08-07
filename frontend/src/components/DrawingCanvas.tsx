@@ -27,7 +27,25 @@ function useImage(url: string | undefined) {
       if (src && !src.startsWith('data:') && !src.includes('stratus') && !src.includes('amazonaws')) {
         image.crossOrigin = 'anonymous';
       }
-      image.onload = () => { if (!cancelled) setImg(image); };
+      image.onload = () => {
+        if (cancelled) return;
+        // Ensure the browser has fully decoded the image and its natural
+        // dimensions are available before passing it to Konva.
+        // decode() guarantees paint-ready state including naturalWidth/Height.
+        if (typeof image.decode === 'function') {
+          image.decode()
+            .then(() => {
+              if (cancelled) return;
+              // Force CSS size to match pixel size so image.width === naturalWidth
+              image.style.width = `${image.naturalWidth}px`;
+              image.style.height = `${image.naturalHeight}px`;
+              setImg(image);
+            })
+            .catch(() => { if (!cancelled) setImg(image); });
+        } else {
+          setImg(image);
+        }
+      };
       image.onerror = () => { if (!cancelled) setImg(null); };
       image.src = src;
     })();
@@ -345,15 +363,21 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   const imageRef = useRef(image);
   useEffect(() => { imageRef.current = image; }, [image]);
 
+  // ── Stable helpers: read actual pixel dimensions regardless of CSS size ──
+  const imgW = useCallback((img: HTMLImageElement) => img.naturalWidth || img.width || 1, []);
+  const imgH = useCallback((img: HTMLImageElement) => img.naturalHeight || img.height || 1, []);
+
   // ── Fit to screen (stable — reads current values via refs) ──
   const fitToScreen = useCallback(() => {
     const img = imageRef.current;
     const sz = sizeRef.current;
     if (!img || !sz.width || !sz.height) return;
-    const s = Math.min(sz.width / img.width, sz.height / img.height) * 0.95;
+    const w = img.naturalWidth || img.width || 1;
+    const h = img.naturalHeight || img.height || 1;
+    const s = Math.min(sz.width / w, sz.height / h) * 0.95;
     const newPos = {
-      x: (sz.width - img.width * s) / 2,
-      y: (sz.height - img.height * s) / 2,
+      x: (sz.width - w * s) / 2,
+      y: (sz.height - h * s) / 2,
     };
     setScale(s);
     setPos(newPos);
@@ -364,10 +388,12 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   // Auto-fit whenever the image changes (new drawing selected) OR container resizes
   useEffect(() => {
     if (!image || !size.width || !size.height) return;
-    const s = Math.min(size.width / image.width, size.height / image.height) * 0.95;
+    const w = image.naturalWidth || image.width || 1;
+    const h = image.naturalHeight || image.height || 1;
+    const s = Math.min(size.width / w, size.height / h) * 0.95;
     const newPos = {
-      x: (size.width - image.width * s) / 2,
-      y: (size.height - image.height * s) / 2,
+      x: (size.width - w * s) / 2,
+      y: (size.height - h * s) / 2,
     };
     setScale(s);
     setPos(newPos);
@@ -382,6 +408,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     const cols = currentDrawing.gridCols;
     const rows = currentDrawing.gridRows;
     const overrides = currentDrawing.columnPositions || {};
+    const iw = image.naturalWidth || image.width || 1;
+    const ih = image.naturalHeight || image.height || 1;
     const points: { id: string; code: string; x: number; y: number; row: number; col: number }[] = [];
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
@@ -389,7 +417,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
         const override = overrides[code];
         const fx = override ? override.x : cols > 1 ? col / (cols - 1) : 0.5;
         const fy = override ? override.y : rows > 1 ? row / (rows - 1) : 0.5;
-        points.push({ id: `Column_${code}`, code, x: fx * image.width, y: fy * image.height, row, col });
+        points.push({ id: `Column_${code}`, code, x: fx * iw, y: fy * ih, row, col });
       }
     }
     return points;
@@ -448,8 +476,10 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
 
   const hotspotRadius = useMemo(() => {
     if (!currentDrawing || !image) return 10;
-    const cellW = image.width / currentDrawing.gridCols;
-    const cellH = image.height / currentDrawing.gridRows;
+    const iw = image.naturalWidth || image.width || 1;
+    const ih = image.naturalHeight || image.height || 1;
+    const cellW = iw / currentDrawing.gridCols;
+    const cellH = ih / currentDrawing.gridRows;
     // Reduced: was 0.16, now 0.09 for smaller circles
     return Math.max(5, Math.min(cellW, cellH) * 0.09);
   }, [currentDrawing, image]);
@@ -519,8 +549,10 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   // Uses an optimistic local patch so the image never unmounts/reloads on each drag.
   const handleReposition = useCallback(async (code: string, px: number, py: number) => {
     if (!currentDrawing || !image) return;
-    const x = Math.min(1, Math.max(0, px / image.width));
-    const y = Math.min(1, Math.max(0, py / image.height));
+    const iw = image.naturalWidth || image.width || 1;
+    const ih = image.naturalHeight || image.height || 1;
+    const x = Math.min(1, Math.max(0, px / iw));
+    const y = Math.min(1, Math.max(0, py / ih));
     // Update local state immediately — no full refresh, no image flicker
     patchDrawingColumnPositions(currentDrawing.id, code, x, y);
     // Fire-and-forget persist to backend
@@ -729,8 +761,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
           {image && (
             <KonvaImage
               image={image}
-              width={image.width}
-              height={image.height}
+              width={image.naturalWidth || image.width}
+              height={image.naturalHeight || image.height}
               listening={false}
               filters={highContrast ? [Konva.Filters.Invert, Konva.Filters.Contrast] : []}
               contrast={highContrast ? 15 : 0}
