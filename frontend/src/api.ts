@@ -1,15 +1,34 @@
 import axios from 'axios';
 import type { Drawing, Task, Comment, Project, ActivityItem, Milestone, ProjectTask, ProjectTaskComment } from './types';
+import { resolveFileUrl as resolveIdb } from './utils/imageStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
 export const api = axios.create({ baseURL: `${API_BASE}/api` });
-// If the stored value is already a data URL (base64) or an absolute http URL,
-// return it as-is. Otherwise prepend the API base (legacy /uploads/... paths).
+
+/**
+ * Resolve any stored file URL to something a browser can render:
+ *   - "idb://<key>"  → data URL fetched from IndexedDB (async)
+ *   - "data:..."     → returned as-is
+ *   - "/uploads/..." → prepend API_BASE (legacy paths)
+ *   - http(s)://...  → returned as-is
+ *
+ * This is the ASYNC version. Use `fileUrlSync` only for backwards-compat
+ * code that doesn't yet support async display.
+ */
+export const fileUrlAsync = (path: string): Promise<string> => {
+  if (!path) return Promise.resolve('');
+  return resolveIdb(path).then((v) => v ?? '');
+};
+
+/**
+ * Synchronous helper for non-idb URLs (legacy /uploads/... or data:/http paths).
+ * idb:// URLs are NOT supported here — use fileUrlAsync for those.
+ */
 export const fileUrl = (path: string) => {
   if (!path) return '';
-  if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
+  if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://') || path.startsWith('idb://')) {
+    return path; // caller must use fileUrlAsync to resolve idb://
   }
   return `${API_BASE}${path}`;
 };

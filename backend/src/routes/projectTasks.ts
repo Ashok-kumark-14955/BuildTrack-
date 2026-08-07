@@ -101,14 +101,14 @@ router.put('/:id', async (req, res) => {
     ]
   );
   if (req.body.status && req.body.status !== existing.status && (merged.status === 'Completed' || merged.status === 'Done')) {
-    reportTaskCompletion(req, {
+    await reportTaskCompletion(req, {
       id: req.params.id,
       name: merged.name,
       projectId: existing.projectId,
       assignedTo: merged.assignee,
       dueDate: merged.dueDate,
       priority: merged.priority ?? existing.priorityLevel,
-    }); // fire-and-forget, don't delay the response
+    });
   }
   res.json(serialize(await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [req.params.id])));
 });

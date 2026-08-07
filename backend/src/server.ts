@@ -32,6 +32,11 @@ app.use(express.json({ limit: '25mb' }));
 // unlike runtime-uploaded files on the ephemeral disk).
 app.use('/seed-drawings', express.static(path.join(__dirname, '../assets/seed-drawings')));
 
+// Serve locally-uploaded photo comment files (for local dev).
+// In production (AppSail), the disk is ephemeral so photo comments use
+// base64 data URLs stored in the DB instead (see tasks.ts).
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+
 app.use('/api/projects', projectsRouter);
 app.use('/api/drawings', drawingsRouter);
 app.use('/api/tasks', tasksRouter);

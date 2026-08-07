@@ -66,10 +66,14 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   if (!project) return res.status(400).json({ error: 'Invalid or missing project. Please reload and try again.' });
   const id = uuid();
 
-  // Convert file buffer to a base64 data URL so it's persisted in the
-  // DataStore and survives AppSail container restarts (no local disk needed).
-  const base64Data = req.file.buffer.toString('base64');
-  const dataUrl = `data:${req.file.mimetype};base64,${base64Data}`;
+  // If the frontend supplied an idbKey the image lives in the browser's
+  // IndexedDB. We store the lightweight sentinel "idb://<key>" as fileUrl.
+  // This avoids writing multi-MB base64 blobs into the DataStore and keeps
+  // DataStore usage well under the free-tier quota.
+  const idbKey: string | undefined = req.body.idbKey;
+  const dataUrl = idbKey
+    ? `idb://${idbKey}`
+    : `data:${req.file!.mimetype};base64,${req.file!.buffer.toString('base64')}`;
 
   const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
   const createdAt = new Date().toISOString();

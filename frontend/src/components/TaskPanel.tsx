@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, Trash2, Save, Plus, MessageSquare, Send, LayoutGrid, Minus, Flag, Camera, Image as ImageIcon, MapPin, Navigation, Crosshair, Pencil, Check } from 'lucide-react';
 import { useApp } from '../AppContext';
-import { TasksAPI, DrawingsAPI, GeocodeAPI, fileUrl } from '../api';
+import { TasksAPI, DrawingsAPI, GeocodeAPI } from '../api';
+import { fileToDataUrl, saveImage, resolveFileUrl } from '../utils/imageStorage';
 import {
   CATEGORY_OPTIONS, CONSTRUCTION_STAGE_SUGGESTIONS, BEAM_STAGE_SUGGESTIONS, PRIORITY_OPTIONS, STATUS_COLORS, STATUS_OPTIONS,
   type Comment, type ElementType, type Task, type TaskPriority, type TaskStatus,
@@ -282,7 +283,19 @@ export default function TaskPanel() {
     if (!activeTaskId) return;
     setUploadingPhoto(true);
     try {
-      const c = await TasksAPI.addPhotoComment(activeTaskId, file, { author: 'You', message: commentText });
+      // Store photo locally in IndexedDB and pass the idb:// key as photoUrl.
+      const dataUrl = await fileToDataUrl(file);
+      const idbKey = `photo-${crypto.randomUUID()}`;
+      await saveImage(idbKey, dataUrl);
+      const idbPhotoUrl = `idb://${idbKey}`;
+
+      // Tell the backend to create a comment record with photoUrl = idb://<key>.
+      // No binary upload needed — photo lives in the browser.
+      const c = await TasksAPI.addComment(activeTaskId, {
+        author: 'You',
+        message: commentText,
+        photoUrl: idbPhotoUrl,
+      });
       setComments((prev) => [...prev, c]);
       setCommentText('');
       toast.success('Photo added');
@@ -716,9 +729,7 @@ export default function TaskPanel() {
                     {c.message && <div className="text-slate-200">{c.message}</div>}
                     {c.photoUrl && (
                       <div className="relative mt-2 group/photo">
-                        <a href={fileUrl(c.photoUrl)} target="_blank" rel="noreferrer" className="block">
-                          <img src={fileUrl(c.photoUrl)} alt="Site photo" className="rounded-lg border border-slate-200 max-h-40 object-cover" />
-                        </a>
+                        <ResolvedPhoto photoUrl={c.photoUrl} />
                         <button
                           title="Delete photo"
                           onClick={async (e) => {
@@ -776,6 +787,27 @@ export default function TaskPanel() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Async image component that resolves idb:// URLs from IndexedDB before rendering. */
+function ResolvedPhoto({ photoUrl }: { photoUrl: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    resolveFileUrl(photoUrl).then((resolved) => {
+      if (!cancelled) setSrc(resolved);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [photoUrl]);
+
+  if (!src) return <div className="rounded-lg border border-slate-700 h-10 bg-zinc-900 animate-pulse" />;
+
+  return (
+    <a href={src} target="_blank" rel="noreferrer" className="block">
+      <img src={src} alt="Site photo" className="rounded-lg border border-slate-200 max-h-40 object-cover" />
+    </a>
   );
 }
 

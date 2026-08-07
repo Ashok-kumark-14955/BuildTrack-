@@ -4,21 +4,29 @@ import Konva from 'konva';
 import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../AppContext';
-import { fileUrl, DrawingsAPI } from '../api';
+import { DrawingsAPI } from '../api';
+import { resolveFileUrl } from '../utils/imageStorage';
 import { STATUS_COLORS } from '../types';
 import { detectColumnPositions } from '../utils/autoCalibrate';
 
-// ─── Custom hook: load an image with cleanup ──────────────────────────────────
+// ─── Custom hook: load an image with cleanup (supports idb:// keys) ──────────
 function useImage(url: string | undefined) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   useEffect(() => {
     if (!url) { setImg(null); return; }
     let cancelled = false;
-    const image = new window.Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => { if (!cancelled) setImg(image); };
-    image.onerror = () => { if (!cancelled) setImg(null); };
-    image.src = url;
+
+    (async () => {
+      // Resolve idb:// → data URL before creating the Image element
+      const src = await resolveFileUrl(url);
+      if (cancelled || !src) return;
+      const image = new window.Image();
+      image.crossOrigin = 'anonymous';
+      image.onload = () => { if (!cancelled) setImg(image); };
+      image.onerror = () => { if (!cancelled) setImg(null); };
+      image.src = src;
+    })();
+
     return () => { cancelled = true; };
   }, [url]);
   return img;
@@ -293,7 +301,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   const renameInputRef = useRef<HTMLInputElement>(null);
   const imageNodeRef = useRef<Konva.Image | null>(null);
 
-  const image = useImage(currentDrawing ? fileUrl(currentDrawing.fileUrl) : undefined);
+  const image = useImage(currentDrawing ? currentDrawing.fileUrl : undefined);
 
   // Re-cache whenever the image changes so the Brighten filter is applied correctly.
   // We use a small timeout to ensure the Konva layer has painted the new image first.

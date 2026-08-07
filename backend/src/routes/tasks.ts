@@ -1,20 +1,17 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { v4 as uuid } from 'uuid';
 import * as db from '../db';
 import { reportTaskCompletion } from '../cliqReport';
 
 const router = Router();
 
-const uploadDir = path.join(__dirname, '..', '..', 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => cb(null, `${uuid()}${path.extname(file.originalname)}`),
+// Use memory storage so photo comments are stored as base64 data URLs in the DB.
+// This avoids any dependency on the ephemeral AppSail disk (same approach as drawings).
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max per photo
 });
-const upload = multer({ storage });
 
 // The DataStore column is named "priorityLevel" ("priority" collides with a
 // reserved word); map it back to "priority" for the API contract.
@@ -94,7 +91,7 @@ router.put('/:id', async (req, res, next) => {
     if (req.body.status && req.body.status !== existing.status) {
       await logActivity(req, `Task "${merged.name}" status changed to ${merged.status}`, req.params.id, existing.drawingId);
       if (merged.status === 'Completed') {
-        reportTaskCompletion(req, {
+        await reportTaskCompletion(req, {
           id: req.params.id,
           name: merged.name,
           drawingId: existing.drawingId,
@@ -102,7 +99,7 @@ router.put('/:id', async (req, res, next) => {
           category: merged.category,
           dueDate: merged.dueDate,
           priority: merged.priority ?? existing.priorityLevel,
-        }); // fire-and-forget, don't delay the response
+        });
       }
     } else {
       await logActivity(req, `Task "${merged.name}" updated`, req.params.id, existing.drawingId);
@@ -132,7 +129,15 @@ router.get('/:id/comments', async (req, res, next) => {
 router.post('/:id/comments', upload.single('photo'), async (req, res, next) => {
   try {
     const { author, message } = req.body;
-    const photoUrl = req.file ? `/uploads/${req.file.filename}` : (req.body.photoUrl || null);
+    // Convert uploaded photo buffer to a base64 data URL so it persists in the
+    // DB without needing the local disk (same approach used for drawing files).
+    let photoUrl: string | null = null;
+    if (req.file) {
+      const base64Data = req.file.buffer.toString('base64');
+      photoUrl = `data:${req.file.mimetype};base64,${base64Data}`;
+    } else if (req.body.photoUrl) {
+      photoUrl = req.body.photoUrl;
+    }
     const id = uuid();
     const createdAt = new Date().toISOString();
     await db.run(
@@ -151,11 +156,7 @@ router.delete('/:taskId/comments/:commentId', async (req, res, next) => {
   try {
     const comment: any = await db.get(req, 'SELECT * FROM comments WHERE id = ? AND taskId = ?', [req.params.commentId, req.params.taskId]);
     if (!comment) return res.status(404).json({ error: 'Comment not found' });
-    // Delete uploaded photo file if present
-    if (comment.photoUrl) {
-      const filePath = path.join(__dirname, '..', '..', comment.photoUrl);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
+    // Photos are now stored as base64 data URLs in the DB — no disk file to clean up.
     await db.run(req, 'DELETE FROM comments WHERE id = ?', [req.params.commentId]);
     res.status(204).end();
   } catch (err) { next(err); }

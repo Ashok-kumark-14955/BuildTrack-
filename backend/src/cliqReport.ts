@@ -17,11 +17,12 @@ export interface TaskLike {
   priority?: string;
 }
 
-function isCliqMessageTool(name: string): boolean {
+function isCliqChannelUniqueNameTool(name: string): boolean {
   const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
   return normalized.includes('cliq')
     && normalized.includes('message')
     && normalized.includes('channel')
+    && normalized.includes('unique_name')
     && (normalized.includes('send') || normalized.includes('post'));
 }
 
@@ -48,9 +49,10 @@ async function sendCliqText(text: string): Promise<void> {
       await client.connect(transport);
       const configuredTool = process.env.ZOHO_CLIQ_MCP_TOOL;
       const tools = configuredTool ? null : await client.listTools();
-      const toolName = configuredTool || tools?.tools.find((tool) => isCliqMessageTool(tool.name))?.name;
+      const toolName = configuredTool
+        || tools?.tools.find((tool) => isCliqChannelUniqueNameTool(tool.name))?.name;
       if (!toolName) {
-        throw new Error('Zoho Cliq channel-message tool was not found in the configured MCP server');
+        throw new Error('Zoho Cliq channel-unique-name message tool was not found in the configured MCP server');
       }
 
       const result = await client.callTool({
