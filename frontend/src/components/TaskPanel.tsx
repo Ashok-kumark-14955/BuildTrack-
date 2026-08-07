@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, Trash2, Save, Plus, MessageSquare, Send, LayoutGrid, Minus, Flag, Camera, Image as ImageIcon, MapPin, Navigation, Crosshair, Pencil, Check } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { TasksAPI, DrawingsAPI, GeocodeAPI } from '../api';
-import { fileToDataUrl, saveImage, resolveFileUrl } from '../utils/imageStorage';
+import { fileToDataUrl, resolveFileUrl } from '../utils/imageStorage';
 import {
   CATEGORY_OPTIONS, CONSTRUCTION_STAGE_SUGGESTIONS, BEAM_STAGE_SUGGESTIONS, PRIORITY_OPTIONS, STATUS_COLORS, STATUS_OPTIONS,
   type Comment, type ElementType, type Task, type TaskPriority, type TaskStatus,
@@ -283,18 +283,13 @@ export default function TaskPanel() {
     if (!activeTaskId) return;
     setUploadingPhoto(true);
     try {
-      // Store photo locally in IndexedDB and pass the idb:// key as photoUrl.
+      // Convert photo to base64 data URL and store it directly in the backend DB.
+      // This ensures photos are visible on any device/browser without IndexedDB.
       const dataUrl = await fileToDataUrl(file);
-      const idbKey = `photo-${crypto.randomUUID()}`;
-      await saveImage(idbKey, dataUrl);
-      const idbPhotoUrl = `idb://${idbKey}`;
-
-      // Tell the backend to create a comment record with photoUrl = idb://<key>.
-      // No binary upload needed — photo lives in the browser.
       const c = await TasksAPI.addComment(activeTaskId, {
         author: 'You',
         message: commentText,
-        photoUrl: idbPhotoUrl,
+        photoUrl: dataUrl,
       });
       setComments((prev) => [...prev, c]);
       setCommentText('');

@@ -25,7 +25,7 @@ import { useApp } from '../AppContext';
 import { DrawingsAPI } from '../api';
 import { detectGridFromImage } from '../utils/gridDetect';
 import { convertToOutline } from '../utils/outlineConvert';
-import { fileToDataUrl, saveImage } from '../utils/imageStorage';
+import { fileToDataUrl } from '../utils/imageStorage';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -221,25 +221,18 @@ export default function TopToolbar({
       try { uploadFile = await convertToOutline(file); } catch { /* fallback */ } finally { toast.dismiss(t); }
     }
     try {
-      // 1. Convert the (possibly outlined) file to a data URL and save it in IndexedDB.
-      //    This keeps large binary data off the backend DataStore entirely.
+      // Convert the (possibly outlined) file to a base64 data URL.
+      // This is stored directly in the backend DB so it works across all
+      // browsers/devices — no IndexedDB dependency for persistence.
       const dataUrl = await fileToDataUrl(uploadFile);
-      const idbKey = `drawing-${crypto.randomUUID()}`;
-      await saveImage(idbKey, dataUrl);
 
-      // 2. Tell the backend to create a drawing record. We send a tiny sentinel
-      //    fileUrl (`idb://<key>`) instead of the raw base64 — the backend stores
-      //    this key; the frontend resolves it from IndexedDB when rendering.
       const form = new FormData();
-      // Send a 1-byte placeholder so the backend multer middleware still gets a
-      // "file" field (it validates presence). The real data is in IndexedDB.
-      const placeholder = new Blob([''], { type: uploadFile.type });
-      form.append('file', placeholder, uploadFile.name);
+      form.append('file', uploadFile, uploadFile.name);
       form.append('name', file.name);
       form.append('projectId', currentDrawing?.projectId || projects[0]?.id || '');
       form.append('gridCols', String(cols));
       form.append('gridRows', String(rows));
-      form.append('idbKey', idbKey); // tells backend to store idb://<key>
+      form.append('dataUrl', dataUrl); // send base64 directly
       const drawing = await DrawingsAPI.upload(form);
       await Promise.all([refreshDrawings(), refreshTasks()]);
       setCurrentDrawingId(drawing.id);

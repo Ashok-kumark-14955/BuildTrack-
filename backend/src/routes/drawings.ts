@@ -66,13 +66,11 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   if (!project) return res.status(400).json({ error: 'Invalid or missing project. Please reload and try again.' });
   const id = uuid();
 
-  // If the frontend supplied an idbKey the image lives in the browser's
-  // IndexedDB. We store the lightweight sentinel "idb://<key>" as fileUrl.
-  // This avoids writing multi-MB base64 blobs into the DataStore and keeps
-  // DataStore usage well under the free-tier quota.
-  const idbKey: string | undefined = req.body.idbKey;
-  const dataUrl = idbKey
-    ? `idb://${idbKey}`
+  // If the frontend sent a pre-built base64 dataUrl, use it directly.
+  // Otherwise fall back to converting the uploaded file buffer.
+  const bodyDataUrl: string | undefined = req.body.dataUrl;
+  const dataUrl = bodyDataUrl && bodyDataUrl.startsWith('data:')
+    ? bodyDataUrl
     : `data:${req.file!.mimetype};base64,${req.file!.buffer.toString('base64')}`;
 
   const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
