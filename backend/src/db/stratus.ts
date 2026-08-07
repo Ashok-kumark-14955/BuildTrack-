@@ -33,7 +33,7 @@ export async function uploadFile(
   const ext = mimetype.split('/')[1]?.replace('jpeg', 'jpg') || 'bin';
   const key = `${folder}/${uuid()}.${ext}`;
   const bucket = app(req).stratus().bucket(BUCKET_NAME);
-  await (bucket as any).putObject(key, buffer, { contentType: mimetype, overwrite: false });
+  await bucket.putObject(key, buffer, { contentType: mimetype, overwrite: false });
   return key;
 }
 
@@ -44,10 +44,10 @@ export async function uploadFile(
  */
 export async function getSignedUrl(req: Request, key: string): Promise<string> {
   const bucket = app(req).stratus().bucket(BUCKET_NAME);
-  const res = await (bucket as any).generatePreSignedUrl(key, 'GET', {
-    expiryIn: 7 * 24 * 3600, // 7 days
+  const res = await bucket.generatePreSignedUrl(key, 'GET', {
+    expiryIn: String(7 * 24 * 3600), // 7 days — must be a string per SDK
   });
-  return res.signature as string;
+  return (res.signature ?? '') as string;
 }
 
 /**

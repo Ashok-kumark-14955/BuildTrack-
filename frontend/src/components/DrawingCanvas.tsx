@@ -21,7 +21,12 @@ function useImage(url: string | undefined) {
       const src = await resolveFileUrl(url);
       if (cancelled || !src) return;
       const image = new window.Image();
-      image.crossOrigin = 'anonymous';
+      // Don't set crossOrigin for Stratus pre-signed URLs or data: URLs —
+      // those won't pass CORS preflight with 'anonymous'.
+      // Only set it for same-origin / explicitly CORS-enabled URLs.
+      if (src && !src.startsWith('data:') && !src.includes('stratus') && !src.includes('amazonaws')) {
+        image.crossOrigin = 'anonymous';
+      }
       image.onload = () => { if (!cancelled) setImg(image); };
       image.onerror = () => { if (!cancelled) setImg(null); };
       image.src = src;

@@ -40,7 +40,8 @@ async function resolveFileUrl(req: any, fileUrl: string): Promise<string> {
     const key = fileUrl.slice('stratus://'.length);
     try {
       return await getSignedUrl(req, key);
-    } catch {
+    } catch (err: any) {
+      console.error('[stratus] Failed to generate signed URL for', key, err?.message || err);
       return fileUrl; // fallback — frontend will show broken image
     }
   }
@@ -86,44 +87,53 @@ router.get('/:id', async (req, res) => {
 
 // Upload a new drawing
 router.post('/upload', upload.single('file'), async (req, res) => {
-  const { projectId, name, gridCols, gridRows } = req.body;
-  if (!req.file) return res.status(400).json({ error: 'File is required' });
-  const resolvedProjectId = projectId || 'default';
-  const project = await db.get(req, 'SELECT id FROM projects WHERE id = ?', [resolvedProjectId]);
-  if (!project) return res.status(400).json({ error: 'Invalid or missing project. Please reload and try again.' });
-  const id = uuid();
+  try {
+    const { projectId, name, gridCols, gridRows } = req.body;
+    if (!req.file) return res.status(400).json({ error: 'File is required' });
+    const resolvedProjectId = projectId || 'default';
+    const project = await db.get(req, 'SELECT id FROM projects WHERE id = ?', [resolvedProjectId]);
+    if (!project) return res.status(400).json({ error: 'Invalid or missing project. Please reload and try again.' });
+    const id = uuid();
 
-  let storedFileUrl: string;
-  if (isStratusEnabled()) {
-    // Production: upload binary to Stratus, store "stratus://<key>" in DB.
-    const key = await uploadFile(req, req.file.buffer, req.file.mimetype, 'drawings');
-    storedFileUrl = `stratus://${key}`;
-  } else {
-    // Local dev: store as base64 data URL (no Stratus available locally).
-    storedFileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    let storedFileUrl: string;
+    if (isStratusEnabled()) {
+      // Production: upload to Stratus. Surface error clearly if bucket doesn't exist.
+      // Do NOT fall back to base64 — DataStore has a ~2 MB column limit and the
+      // stored value would be silently truncated, causing "Cannot GET /uploads/..." errors.
+      const key = await uploadFile(req, req.file.buffer, req.file.mimetype, 'drawings');
+      storedFileUrl = `stratus://${key}`;
+    } else {
+      // Local dev: store as base64 data URL (no Stratus available locally).
+      storedFileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
+
+    const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
+    const createdAt = new Date().toISOString();
+    const cols = Math.min(30, Math.max(1, Number(gridCols) || 10));
+    const rows = Math.min(30, Math.max(1, Number(gridRows) || 8));
+    const drawingName = name || req.file.originalname;
+    await db.run(
+      req,
+      `INSERT INTO drawings (id, projectId, name, fileUrl, fileType, gridCols, gridRows, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, resolvedProjectId, drawingName, storedFileUrl, fileType, cols, rows, createdAt]
+    );
+
+    await createTasksForGrid(req, id, cols, rows, createdAt);
+    await db.run(
+      req,
+      'INSERT INTO activity (id, taskId, drawingId, message, createdAt) VALUES (?, ?, ?, ?, ?)',
+      [uuid(), null, id, `${cols * rows} tasks auto-created for "${drawingName}"`, createdAt]
+    );
+
+    const row = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [id]);
+    res.status(201).json(await serializeWithUrl(req, row));
+  } catch (err: any) {
+    console.error('[upload] Failed to upload drawing:', err?.message || err);
+    res.status(500).json({
+      error: err?.message || 'Upload failed. Ensure the Stratus bucket "buildtrack" exists in your Catalyst project.',
+    });
   }
-
-  const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
-  const createdAt = new Date().toISOString();
-  const cols = Math.min(30, Math.max(1, Number(gridCols) || 10));
-  const rows = Math.min(30, Math.max(1, Number(gridRows) || 8));
-  const drawingName = name || req.file.originalname;
-  await db.run(
-    req,
-    `INSERT INTO drawings (id, projectId, name, fileUrl, fileType, gridCols, gridRows, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, resolvedProjectId, drawingName, storedFileUrl, fileType, cols, rows, createdAt]
-  );
-
-  await createTasksForGrid(req, id, cols, rows, createdAt);
-  await db.run(
-    req,
-    'INSERT INTO activity (id, taskId, drawingId, message, createdAt) VALUES (?, ?, ?, ?, ?)',
-    [uuid(), null, id, `${cols * rows} tasks auto-created for "${drawingName}"`, createdAt]
-  );
-
-  const row = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [id]);
-  res.status(201).json(await serializeWithUrl(req, row));
 });
 
 // Update grid config (also supports milestoneId, columnPositions, columnLabels, elementTypeLabels, lat, lng)
