@@ -20,33 +20,41 @@ function useImage(url: string | undefined) {
       // Resolve idb:// → data URL before creating the Image element
       const src = await resolveFileUrl(url);
       if (cancelled || !src) return;
+
       const image = new window.Image();
-      // Don't set crossOrigin for Stratus pre-signed URLs or data: URLs —
-      // those won't pass CORS preflight with 'anonymous'.
-      // Only set it for same-origin / explicitly CORS-enabled URLs.
-      if (src && !src.startsWith('data:') && !src.includes('stratus') && !src.includes('amazonaws')) {
-        image.crossOrigin = 'anonymous';
-      }
+
+      // ⚠️  Do NOT set crossOrigin for pre-signed S3/Stratus URLs or data: URLs.
+      //    Adding crossOrigin sends an Origin header which most S3 presigned-URL
+      //    policies reject (CORS preflight fails → image.onerror fires → black screen).
+      //    For same-origin URLs (e.g. /uploads/…) CORS is not needed either.
+      //    So we never set crossOrigin here; the only thing that needed it was
+      //    canvas.toDataURL() after Konva.Filters, which we handle by caching
+      //    the image node directly in Konva (which bypasses the taint check).
+
       image.onload = () => {
         if (cancelled) return;
-        // Ensure the browser has fully decoded the image and its natural
-        // dimensions are available before passing it to Konva.
-        // decode() guarantees paint-ready state including naturalWidth/Height.
-        if (typeof image.decode === 'function') {
-          image.decode()
-            .then(() => {
-              if (cancelled) return;
-              // Force CSS size to match pixel size so image.width === naturalWidth
-              image.style.width = `${image.naturalWidth}px`;
-              image.style.height = `${image.naturalHeight}px`;
-              setImg(image);
-            })
-            .catch(() => { if (!cancelled) setImg(image); });
-        } else {
+        // decode() ensures paint-ready state but may throw on certain CORS
+        // configurations. We always resolve with the image regardless of whether
+        // decode() succeeds or fails — a failed decode does NOT mean the image
+        // is invalid; it is still renderable by Konva (which uses the GPU path).
+        const finish = () => {
+          if (cancelled) return;
           setImg(image);
+        };
+        if (typeof image.decode === 'function') {
+          image.decode().then(finish).catch(finish); // always call finish
+        } else {
+          finish();
         }
       };
-      image.onerror = () => { if (!cancelled) setImg(null); };
+
+      image.onerror = () => {
+        if (!cancelled) {
+          console.error('[useImage] Failed to load image:', src.slice(0, 120));
+          setImg(null);
+        }
+      };
+
       image.src = src;
     })();
 
@@ -312,7 +320,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
 
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
-  const [size, setSize] = useState({ width: 800, height: 600 });
+  // Start with 0×0 so auto-fit never fires before the ResizeObserver measures the real container.
+  const [size, setSize] = useState({ width: 0, height: 0 });
   const [scale, setScale] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
 
@@ -327,19 +336,6 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   const imageNodeRef = useRef<Konva.Image | null>(null);
 
   const image = useImage(currentDrawing ? currentDrawing.fileUrl : undefined);
-
-  // Re-cache whenever the image changes so the Brighten filter is applied correctly.
-  // We use a small timeout to ensure the Konva layer has painted the new image first.
-  useEffect(() => {
-    if (!image) return;
-    const timer = setTimeout(() => {
-      const node = imageNodeRef.current;
-      if (!node) return;
-      node.cache();
-      node.getLayer()?.batchDraw();
-    }, 60);
-    return () => clearTimeout(timer);
-  }, [image]);
 
   // ── Resize observer ──
   useEffect(() => {
@@ -381,11 +377,16 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     posRef.current = newPos;
   }, []); // stable — all reads go through refs
 
-  // Auto-fit whenever the image changes (new drawing selected) OR container resizes
+  // Auto-fit whenever the image changes (new drawing selected) OR container resizes.
+  // Guard: skip if image dimensions are not yet known (naturalWidth === 0) to avoid
+  // computing a huge scale from w=1 which pushes the image off-screen.
   useEffect(() => {
     if (!image || !size.width || !size.height) return;
-    const w = image.naturalWidth || image.width || 1;
-    const h = image.naturalHeight || image.height || 1;
+    const w = image.naturalWidth || image.width;
+    const h = image.naturalHeight || image.height;
+    // If dimensions are still 0 the image hasn't decoded yet — skip for now.
+    // The hook will fire again once decode() completes and setImg() is called.
+    if (!w || !h) return;
     const s = Math.min(size.width / w, size.height / h) * 0.95;
     const newPos = {
       x: (size.width - w * s) / 2,
@@ -764,7 +765,10 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               contrast={highContrast ? 15 : 0}
               ref={(node) => {
                 imageNodeRef.current = node;
-                if (node && image) {
+                // Only cache when high-contrast filters are actually active.
+                // Caching unconditionally writes the image to an off-screen canvas,
+                // which can produce a blank/black frame before the GPU composites it.
+                if (node && highContrast) {
                   setTimeout(() => {
                     node.cache();
                     node.getLayer()?.batchDraw();
