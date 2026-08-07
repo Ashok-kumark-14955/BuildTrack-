@@ -71,14 +71,42 @@ app.get('/api/debug/stratus-test', async (req, res) => {
         const catalystApp = catalyst.initialize(req, { scope: 'admin' });
         const stratus = catalystApp.stratus();
         const bucketName = process.env.STRATUS_BUCKET || 'buildtrack';
+        // List all buckets to see what exists
+        let allBuckets = null;
+        try {
+            allBuckets = await stratus.listBuckets();
+        }
+        catch (e) {
+            allBuckets = { error: e?.message };
+        }
         let bucketExists = false;
         try {
             bucketExists = await stratus.headBucket(bucketName);
         }
         catch (e) {
-            return res.json({ ok: false, step: 'headBucket', bucket: bucketName, error: e?.message || String(e) });
+            return res.json({ ok: false, step: 'headBucket', bucket: bucketName, error: e?.message || String(e), allBuckets });
         }
-        res.json({ ok: true, bucket: bucketName, exists: bucketExists });
+        res.json({ ok: true, bucket: bucketName, exists: bucketExists, allBuckets });
+    }
+    catch (err) {
+        res.status(500).json({ ok: false, error: err?.message || String(err) });
+    }
+});
+// Debug: create the Stratus bucket if it doesn't exist (call once from browser)
+app.post('/api/debug/create-bucket', async (req, res) => {
+    try {
+        const catalyst = require('zcatalyst-sdk-node');
+        const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+        const stratus = catalystApp.stratus();
+        const bucketName = process.env.STRATUS_BUCKET || 'buildtrack';
+        let result;
+        try {
+            result = await stratus.createBucket(bucketName);
+        }
+        catch (e) {
+            return res.json({ ok: false, step: 'createBucket', bucket: bucketName, error: e?.message || String(e) });
+        }
+        res.json({ ok: true, bucket: bucketName, result });
     }
     catch (err) {
         res.status(500).json({ ok: false, error: err?.message || String(err) });
