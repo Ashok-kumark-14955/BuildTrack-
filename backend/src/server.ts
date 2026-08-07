@@ -59,6 +59,27 @@ app.post('/api/cliq-report', async (req, res) => {
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+// TEMPORARY debug endpoint — lists all env keys that contain CATALYST, ZOHO, or are related
+// to Stratus detection. Remove after confirming the right env var names.
+app.get('/api/debug/env', (_req, res) => {
+  const relevant = Object.entries(process.env)
+    .filter(([k]) => k.includes('CATALYST') || k.includes('ZOHO') || k === 'USE_STRATUS' || k === 'PORT')
+    .reduce<Record<string, string>>((acc, [k, v]) => {
+      acc[k] = v ? v.slice(0, 40) : '';
+      return acc;
+    }, {});
+  res.json({ stratusEnabled: Boolean(
+    process.env.X_ZOHO_CATALYST_LISTEN_PORT ||
+    process.env.CATALYST_PROJECT_ID ||
+    process.env.X_ZOHO_CATALYST_PROJECT_ID ||
+    process.env.ZOHO_CATALYST_PROJECT_ID ||
+    process.env.X_CATALYST_ENVIRONMENT ||
+    process.env.CATALYST_ENVIRONMENT ||
+    process.env.X_ZOHO_CATALYST_API_DOMAIN ||
+    process.env.USE_STRATUS === 'true'
+  ), relevant });
+});
+
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
 });

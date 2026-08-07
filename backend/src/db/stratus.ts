@@ -61,8 +61,36 @@ export async function getSignedUrl(req: Request, key: string): Promise<string> {
 }
 
 /**
- * Returns true when we are running inside Catalyst (AppSail).
+ * Returns true when we are running inside Catalyst (AppSail / Functions).
+ *
+ * Catalyst sets several environment variables on all managed runtimes.
+ * We check multiple known ones so the detection is robust across
+ * different Catalyst runtime versions.
  */
 export function isStratusEnabled(): boolean {
-  return Boolean(process.env.X_ZOHO_CATALYST_LISTEN_PORT);
+  const enabled = Boolean(
+    process.env.X_ZOHO_CATALYST_LISTEN_PORT ||
+    process.env.CATALYST_PROJECT_ID ||
+    process.env.X_ZOHO_CATALYST_PROJECT_ID ||
+    process.env.ZOHO_CATALYST_PROJECT_ID ||
+    process.env.X_CATALYST_ENVIRONMENT ||
+    process.env.CATALYST_ENVIRONMENT ||
+    // AppSail always injects an API domain variable
+    process.env.X_ZOHO_CATALYST_API_DOMAIN ||
+    // Explicit opt-in via env var (useful for testing)
+    process.env.USE_STRATUS === 'true'
+  );
+
+  // Log once at startup so we can confirm the correct path is taken
+  if (!_stratusLogged) {
+    _stratusLogged = true;
+    const keys = Object.keys(process.env).filter((k) =>
+      k.includes('CATALYST') || k.includes('ZOHO') || k === 'USE_STRATUS'
+    );
+    console.log('[stratus] isStratusEnabled =', enabled, '| relevant env keys:', keys.join(', ') || '(none)');
+  }
+
+  return enabled;
 }
+
+let _stratusLogged = false;
