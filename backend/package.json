@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "nodemon --exec \"node --experimental-sqlite -r ts-node/register/transpile-only\" --watch src -e ts src/server.ts",
     "build": "tsc",
-    "start": "npm run build && node --experimental-sqlite dist/server.js",
+    "start": "node --experimental-sqlite dist/server.js",
     "seed": "node --experimental-sqlite -r ts-node/register/transpile-only src/seed.ts"
   },
   "keywords": [],

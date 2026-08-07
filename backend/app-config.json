@@ -1,0 +1,9 @@
+{
+  "command": "node --experimental-sqlite dist/server.js",
+  "stack": "node22",
+  "memory": 512,
+  "scripts": {
+    "predeploy": "npm run build"
+  },
+  "env_variables": {}
+}
