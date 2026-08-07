@@ -363,10 +363,6 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   const imageRef = useRef(image);
   useEffect(() => { imageRef.current = image; }, [image]);
 
-  // ── Stable helpers: read actual pixel dimensions regardless of CSS size ──
-  const imgW = useCallback((img: HTMLImageElement) => img.naturalWidth || img.width || 1, []);
-  const imgH = useCallback((img: HTMLImageElement) => img.naturalHeight || img.height || 1, []);
-
   // ── Fit to screen (stable — reads current values via refs) ──
   const fitToScreen = useCallback(() => {
     const img = imageRef.current;
