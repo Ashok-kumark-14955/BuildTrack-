@@ -18,26 +18,28 @@ const BUCKET_NAME = process.env.STRATUS_BUCKET || 'buildtrack';
 
 /**
  * Returns a Catalyst SDK instance with admin scope.
- * In AppSail, passing null (no req) forces the SDK to use the service-account
- * credentials injected by the AppSail runtime — no user session needed.
+ *
+ * AppSail injects x-zc-* headers (project id, key, credentials) into every
+ * incoming request via its reverse-proxy layer. Passing req + admin scope
+ * is the correct pattern for server-side Catalyst SDK calls in AppSail.
  */
-function adminApp() {
-  return catalyst.initialize(null as any, { scope: 'admin' });
+function adminApp(req: Request) {
+  return catalyst.initialize(req as any, { scope: 'admin' });
 }
 
 /**
  * Upload a buffer to Stratus and return the object key.
- * The key is stored in the DB; call getSignedUrl(key) to get a fresh link.
+ * The key is stored in the DB; call getSignedUrl(req, key) to get a fresh link.
  */
 export async function uploadFile(
-  _req: Request,
+  req: Request,
   buffer: Buffer,
   mimetype: string,
   folder = 'uploads'
 ): Promise<string> {
   const ext = mimetype.split('/')[1]?.replace('jpeg', 'jpg') || 'bin';
   const key = `${folder}/${uuid()}.${ext}`;
-  const bucket = adminApp().stratus().bucket(BUCKET_NAME);
+  const bucket = adminApp(req).stratus().bucket(BUCKET_NAME);
   await bucket.putObject(key, buffer, { contentType: mimetype, overwrite: false });
   return key;
 }
@@ -47,8 +49,8 @@ export async function uploadFile(
  * Call this whenever the frontend asks for a drawing/photo — the URL is
  * always fresh so it never 404s.
  */
-export async function getSignedUrl(_req: Request, key: string): Promise<string> {
-  const bucket = adminApp().stratus().bucket(BUCKET_NAME);
+export async function getSignedUrl(req: Request, key: string): Promise<string> {
+  const bucket = adminApp(req).stratus().bucket(BUCKET_NAME);
   // expiryIn must be a number (seconds). 7 days = 604800s.
   const res = await bucket.generatePreSignedUrl(key, 'GET', {
     expiryIn: 7 * 24 * 3600,

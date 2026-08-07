@@ -21,26 +21,23 @@ const zcatalyst_sdk_node_1 = __importDefault(require("zcatalyst-sdk-node"));
 const uuid_1 = require("uuid");
 const BUCKET_NAME = process.env.STRATUS_BUCKET || 'buildtrack';
 /**
- * Returns a Catalyst SDK instance initialised from the environment.
+ * Returns a Catalyst SDK instance with admin scope.
  *
- * AppSail injects CATALYST_PROJECT_ID and other env vars into the process.
- * Passing no request context forces the SDK into environment-based init,
- * which works correctly for server-to-Stratus calls where there is no
- * end-user session. Admin scope bypasses permission checks.
+ * AppSail injects x-zc-* headers (project id, key, credentials) into every
+ * incoming request via its reverse-proxy layer. Passing req + admin scope
+ * is the correct pattern for server-side Catalyst SDK calls in AppSail.
  */
-function adminApp() {
-    // The SDK accepts an options-only call when project context comes from env vars.
-    // Cast as `any` to satisfy TypeScript — the runtime signature supports it.
-    return zcatalyst_sdk_node_1.default.initialize({ scope: 'admin' });
+function adminApp(req) {
+    return zcatalyst_sdk_node_1.default.initialize(req, { scope: 'admin' });
 }
 /**
  * Upload a buffer to Stratus and return the object key.
  * The key is stored in the DB; call getSignedUrl(req, key) to get a fresh link.
  */
-async function uploadFile(_req, buffer, mimetype, folder = 'uploads') {
+async function uploadFile(req, buffer, mimetype, folder = 'uploads') {
     const ext = mimetype.split('/')[1]?.replace('jpeg', 'jpg') || 'bin';
     const key = `${folder}/${(0, uuid_1.v4)()}.${ext}`;
-    const bucket = adminApp().stratus().bucket(BUCKET_NAME);
+    const bucket = adminApp(req).stratus().bucket(BUCKET_NAME);
     await bucket.putObject(key, buffer, { contentType: mimetype, overwrite: false });
     return key;
 }
@@ -49,8 +46,8 @@ async function uploadFile(_req, buffer, mimetype, folder = 'uploads') {
  * Call this whenever the frontend asks for a drawing/photo — the URL is
  * always fresh so it never 404s.
  */
-async function getSignedUrl(_req, key) {
-    const bucket = adminApp().stratus().bucket(BUCKET_NAME);
+async function getSignedUrl(req, key) {
+    const bucket = adminApp(req).stratus().bucket(BUCKET_NAME);
     // expiryIn must be a number (seconds). 7 days = 604800s.
     const res = await bucket.generatePreSignedUrl(key, 'GET', {
         expiryIn: 7 * 24 * 3600,
