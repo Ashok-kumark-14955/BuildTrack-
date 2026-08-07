@@ -47,7 +47,25 @@ export async function getSignedUrl(req: Request, key: string): Promise<string> {
   const res = await bucket.generatePreSignedUrl(key, 'GET', {
     expiryIn: String(7 * 24 * 3600), // 7 days — must be a string per SDK
   });
-  return (res.signature ?? '') as string;
+
+  // Log the full response so we can see every property the SDK returns.
+  // This will appear in the AppSail function logs in Catalyst Console.
+  console.log('[stratus] generatePreSignedUrl raw response:', JSON.stringify(res));
+
+  // The SDK TypeScript type declares `res.signature` but the actual API
+  // response may use a different key. Use the first truthy string we find.
+  const url = (res as any).signed_url
+    || (res as any).signedUrl
+    || (res as any).url
+    || (res as any).link
+    || res.signature
+    || '';
+
+  if (!url) {
+    console.error('[stratus] No signed URL found in response. Full response:', JSON.stringify(res));
+  }
+
+  return url as string;
 }
 
 /**
