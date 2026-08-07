@@ -19,7 +19,11 @@ function useImage(url: string | undefined) {
     (async () => {
       // Resolve idb:// → data URL before creating the Image element
       const src = await resolveFileUrl(url);
-      if (cancelled || !src) return;
+      console.log('[useImage] url=', url?.slice(0, 80), '| resolved src prefix=', src?.slice(0, 80));
+      if (cancelled || !src) {
+        console.warn('[useImage] src is null/empty or cancelled — skipping load');
+        return;
+      }
 
       const image = new window.Image();
 
@@ -33,24 +37,29 @@ function useImage(url: string | undefined) {
 
       image.onload = () => {
         if (cancelled) return;
+        console.log('[useImage] onload fired — naturalWidth=', image.naturalWidth, 'naturalHeight=', image.naturalHeight);
         // decode() ensures paint-ready state but may throw on certain CORS
         // configurations. We always resolve with the image regardless of whether
         // decode() succeeds or fails — a failed decode does NOT mean the image
         // is invalid; it is still renderable by Konva (which uses the GPU path).
         const finish = () => {
           if (cancelled) return;
+          console.log('[useImage] setImg called');
           setImg(image);
         };
         if (typeof image.decode === 'function') {
-          image.decode().then(finish).catch(finish); // always call finish
+          image.decode().then(finish).catch((e) => {
+            console.warn('[useImage] decode() threw (non-fatal):', e?.message);
+            finish();
+          });
         } else {
           finish();
         }
       };
 
-      image.onerror = () => {
+      image.onerror = (e) => {
         if (!cancelled) {
-          console.error('[useImage] Failed to load image:', src.slice(0, 120));
+          console.error('[useImage] onerror — LOAD FAILED. src=', src.slice(0, 120), e);
           setImg(null);
         }
       };
