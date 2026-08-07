@@ -69,6 +69,25 @@ app.get('/api/debug/headers', (req, res) => {
   });
 });
 
+// Debug: test Stratus SDK init and bucket head-check from inside AppSail
+app.get('/api/debug/stratus-test', async (req, res) => {
+  try {
+    const catalyst = require('zcatalyst-sdk-node');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const stratus = catalystApp.stratus();
+    const bucketName = process.env.STRATUS_BUCKET || 'buildtrack';
+    let bucketExists = false;
+    try {
+      bucketExists = await stratus.headBucket(bucketName);
+    } catch (e: any) {
+      return res.json({ ok: false, step: 'headBucket', bucket: bucketName, error: e?.message || String(e) });
+    }
+    res.json({ ok: true, bucket: bucketName, exists: bucketExists });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err?.message || String(err) });
+  }
+});
+
 // TEMPORARY debug endpoint — lists all env keys that contain CATALYST, ZOHO, or are related
 // to Stratus detection. Remove after confirming the right env var names.
 app.get('/api/debug/env', (_req, res) => {
