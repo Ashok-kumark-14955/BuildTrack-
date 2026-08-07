@@ -106,6 +106,8 @@ router.put('/:id', async (req, res) => {
       name: merged.name,
       projectId: existing.projectId,
       assignedTo: merged.assignee,
+      dueDate: merged.dueDate,
+      priority: merged.priority ?? existing.priorityLevel,
     }); // fire-and-forget, don't delay the response
   }
   res.json(serialize(await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [req.params.id])));

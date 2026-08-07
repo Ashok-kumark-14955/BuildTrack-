@@ -4,14 +4,14 @@ import * as XLSX from 'xlsx';
 import {
   Download, Search, ClipboardList, ArrowUp, ArrowDown,
   Flag, ChevronDown, ChevronRight, X, FileImage,
-  LayoutGrid, Building2, Minus, Plus, MapPin, Navigation, Crosshair,
+  LayoutGrid, Building2, Minus, Plus, MapPin, Navigation, Crosshair, Send,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import {
   STATUS_COLORS, STATUS_OPTIONS, PRIORITY_OPTIONS,
   MILESTONE_STATUS_OPTIONS, CATEGORY_OPTIONS, type Task, type Milestone, type Drawing,
 } from '../types';
-import { DrawingsAPI } from '../api';
+import { DrawingsAPI, CliqAPI } from '../api';
 import toast from 'react-hot-toast';
 
 type SortKey = 'gridCode' | 'name' | 'status' | 'assignedTo' | 'priority' | 'dueDate' | 'progress';
@@ -496,6 +496,43 @@ export default function TaskList() {
                                           </div>
                                           <span className="tabular-nums text-slate-400 w-6">{t.progress}%</span>
                                         </div>
+                                      </td>
+                                      {/* Cliq report button — only for completed tasks */}
+                                      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+                                        {t.status === 'Completed' && (
+                                          <button
+                                            title="Send completion report to Zoho Cliq"
+                                            onClick={async (e) => {
+                                              e.stopPropagation();
+                                              const tid = toast.loading('Sending to Zoho Cliq…');
+                                              try {
+                                                const result = await CliqAPI.sendReport(t.id);
+                                                toast.dismiss(tid);
+                                                if (result.ok) toast.success(result.message);
+                                                else toast.error(result.message);
+                                              } catch {
+                                                toast.dismiss(tid);
+                                                toast.error('Failed to send Cliq report');
+                                              }
+                                            }}
+                                            className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg transition-all"
+                                            style={{
+                                              background: 'rgba(14,165,233,0.12)',
+                                              border: '1px solid rgba(14,165,233,0.3)',
+                                              color: '#38bdf8',
+                                            }}
+                                            onMouseEnter={(e) => {
+                                              e.currentTarget.style.background = 'rgba(14,165,233,0.25)';
+                                              e.currentTarget.style.borderColor = 'rgba(14,165,233,0.6)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.currentTarget.style.background = 'rgba(14,165,233,0.12)';
+                                              e.currentTarget.style.borderColor = 'rgba(14,165,233,0.3)';
+                                            }}
+                                          >
+                                            <Send size={9} /> Cliq
+                                          </button>
+                                        )}
                                       </td>
                                     </tr>
                                   ))}

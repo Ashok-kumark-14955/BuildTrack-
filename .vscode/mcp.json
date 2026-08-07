@@ -1,4 +1,9 @@
 {
 	"inputs": [],
-	"servers": {}
+	"servers": {
+		"BuildTrack Assistant": {
+			"type": "http",
+			"url": "https://construction-backend-50044693287.development.catalystappsail.in/mcp"
+		}
+	}
 }

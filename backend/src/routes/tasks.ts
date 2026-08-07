@@ -100,6 +100,8 @@ router.put('/:id', async (req, res, next) => {
           drawingId: existing.drawingId,
           assignedTo: merged.assignedTo,
           category: merged.category,
+          dueDate: merged.dueDate,
+          priority: merged.priority ?? existing.priorityLevel,
         }); // fire-and-forget, don't delay the response
       }
     } else {

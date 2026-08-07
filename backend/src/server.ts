@@ -8,6 +8,8 @@ import milestonesRouter from './routes/milestones';
 import projectTasksRouter from './routes/projectTasks';
 import activityRouter from './routes/activity';
 import geocodeRouter from './routes/geocode';
+import mcpRouter from './routes/mcp';
+import { sendManualCliqReport } from './cliqReport';
 
 const app = express();
 const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
@@ -37,6 +39,18 @@ app.use('/api/milestones', milestonesRouter);
 app.use('/api/project-tasks', projectTasksRouter);
 app.use('/api/activity', activityRouter);
 app.use('/api/geocode', geocodeRouter);
+app.use('/mcp', mcpRouter);
+
+// Manual Cliq report endpoint — called from the frontend's "Send Report to Cliq" button.
+// Body: { taskId: string }
+app.post('/api/cliq-report', async (req, res) => {
+  const { taskId } = req.body || {};
+  if (!taskId) {
+    return res.status(400).json({ ok: false, message: 'taskId is required' });
+  }
+  const result = await sendManualCliqReport(req, taskId);
+  res.status(result.ok ? 200 : 500).json(result);
+});
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 

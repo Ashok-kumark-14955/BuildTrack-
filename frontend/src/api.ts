@@ -98,6 +98,11 @@ export const ActivityAPI = {
     api.get<ActivityItem[]>('/activity', { params: drawingId ? { drawingId } : {} }).then((r) => r.data),
 };
 
+export const CliqAPI = {
+  sendReport: (taskId: string) =>
+    api.post<{ ok: boolean; message: string }>('/cliq-report', { taskId }).then((r) => r.data),
+};
+
 export const GeocodeAPI = {
   reverse: (lat: number, lng: number) =>
     api.get<{ displayName: string }>('/geocode/reverse', { params: { lat, lng } }).then((r) => r.data.displayName),
