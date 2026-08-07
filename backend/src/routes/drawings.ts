@@ -2,11 +2,12 @@ import { Router } from 'express';
 import multer from 'multer';
 import { v4 as uuid } from 'uuid';
 import * as db from '../db';
+import { uploadFile, getSignedUrl, isStratusEnabled } from '../db/stratus';
 
 const router = Router();
 
-// Use memory storage so files never touch the ephemeral AppSail disk.
-// The raw buffer is converted to a base64 data URL and persisted in the DB.
+// Memory storage — buffer is uploaded to Stratus (production) or stored
+// as a base64 data URL (local dev, where Stratus is not available).
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB max
@@ -26,6 +27,31 @@ function serialize(row: any) {
   let elementTypeLabels = {};
   try { elementTypeLabels = row.elementTypeLabels ? JSON.parse(row.elementTypeLabels) : {}; } catch { elementTypeLabels = {}; }
   return { ...row, columnPositions, columnLabels, elementTypeLabels };
+}
+
+/**
+ * If the stored fileUrl is a Stratus object key (starts with "stratus://"),
+ * resolve it to a 7-day signed URL before sending to the client.
+ * For data: URLs (local dev) or legacy /uploads/ paths, return as-is.
+ */
+async function resolveFileUrl(req: any, fileUrl: string): Promise<string> {
+  if (!fileUrl) return fileUrl;
+  if (fileUrl.startsWith('stratus://')) {
+    const key = fileUrl.slice('stratus://'.length);
+    try {
+      return await getSignedUrl(req, key);
+    } catch {
+      return fileUrl; // fallback — frontend will show broken image
+    }
+  }
+  return fileUrl;
+}
+
+async function serializeWithUrl(req: any, row: any) {
+  if (!row) return row;
+  const base = serialize(row);
+  base.fileUrl = await resolveFileUrl(req, base.fileUrl || '');
+  return base;
 }
 
 async function createTasksForGrid(req: any, drawingId: string, cols: number, rows: number, createdAt: string) {
@@ -48,13 +74,14 @@ router.get('/', async (req, res) => {
   const rows = projectId
     ? await db.all(req, 'SELECT * FROM drawings WHERE projectId = ? ORDER BY createdAt DESC', [projectId])
     : await db.all(req, 'SELECT * FROM drawings ORDER BY createdAt DESC');
-  res.json(rows.map(serialize));
+  const resolved = await Promise.all(rows.map((r) => serializeWithUrl(req, r)));
+  res.json(resolved);
 });
 
 router.get('/:id', async (req, res) => {
   const row = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
   if (!row) return res.status(404).json({ error: 'Not found' });
-  res.json(serialize(row));
+  res.json(await serializeWithUrl(req, row));
 });
 
 // Upload a new drawing
@@ -66,12 +93,15 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   if (!project) return res.status(400).json({ error: 'Invalid or missing project. Please reload and try again.' });
   const id = uuid();
 
-  // If the frontend sent a pre-built base64 dataUrl, use it directly.
-  // Otherwise fall back to converting the uploaded file buffer.
-  const bodyDataUrl: string | undefined = req.body.dataUrl;
-  const dataUrl = bodyDataUrl && bodyDataUrl.startsWith('data:')
-    ? bodyDataUrl
-    : `data:${req.file!.mimetype};base64,${req.file!.buffer.toString('base64')}`;
+  let storedFileUrl: string;
+  if (isStratusEnabled()) {
+    // Production: upload binary to Stratus, store "stratus://<key>" in DB.
+    const key = await uploadFile(req, req.file.buffer, req.file.mimetype, 'drawings');
+    storedFileUrl = `stratus://${key}`;
+  } else {
+    // Local dev: store as base64 data URL (no Stratus available locally).
+    storedFileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  }
 
   const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
   const createdAt = new Date().toISOString();
@@ -82,7 +112,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     req,
     `INSERT INTO drawings (id, projectId, name, fileUrl, fileType, gridCols, gridRows, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, resolvedProjectId, drawingName, dataUrl, fileType, cols, rows, createdAt]
+    [id, resolvedProjectId, drawingName, storedFileUrl, fileType, cols, rows, createdAt]
   );
 
   await createTasksForGrid(req, id, cols, rows, createdAt);
@@ -93,7 +123,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   );
 
   const row = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [id]);
-  res.status(201).json(serialize(row));
+  res.status(201).json(await serializeWithUrl(req, row));
 });
 
 // Update grid config (also supports milestoneId, columnPositions, columnLabels, elementTypeLabels, lat, lng)
@@ -149,7 +179,7 @@ router.patch('/:id', async (req, res) => {
       req.params.id,
     ]
   );
-  res.json(serialize(await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id])));
+  res.json(await serializeWithUrl(req, await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id])));
 });
 
 router.delete('/:id', async (req, res) => {

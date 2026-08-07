@@ -3,6 +3,7 @@ import multer from 'multer';
 import { v4 as uuid } from 'uuid';
 import * as db from '../db';
 import { reportTaskCompletion } from '../cliqReport';
+import { uploadFile, getSignedUrl, isStratusEnabled } from '../db/stratus';
 
 const router = Router();
 
@@ -133,8 +134,14 @@ router.post('/:id/comments', upload.single('photo'), async (req, res, next) => {
     // DB without needing the local disk (same approach used for drawing files).
     let photoUrl: string | null = null;
     if (req.file) {
-      const base64Data = req.file.buffer.toString('base64');
-      photoUrl = `data:${req.file.mimetype};base64,${base64Data}`;
+      if (isStratusEnabled()) {
+        // Production: upload to Stratus and store a signed URL (7 days)
+        const key = await uploadFile(req, req.file.buffer, req.file.mimetype, 'photos');
+        photoUrl = await getSignedUrl(req, key);
+      } else {
+        // Local dev: store as base64 data URL
+        photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
     } else if (req.body.photoUrl) {
       photoUrl = req.body.photoUrl;
     }
