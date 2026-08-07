@@ -59,6 +59,16 @@ app.post('/api/cliq-report', async (req, res) => {
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+// Debug: see what request headers AppSail injects (remove after investigation)
+app.get('/api/debug/headers', (req, res) => {
+  res.json({
+    headers: req.headers,
+    catalystRelated: Object.entries(req.headers)
+      .filter(([k]) => k.includes('catalyst') || k.includes('zoho') || k.includes('zc'))
+      .reduce<Record<string, any>>((acc, [k, v]) => { acc[k] = v; return acc; }, {})
+  });
+});
+
 // TEMPORARY debug endpoint — lists all env keys that contain CATALYST, ZOHO, or are related
 // to Stratus detection. Remove after confirming the right env var names.
 app.get('/api/debug/env', (_req, res) => {

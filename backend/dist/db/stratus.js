@@ -21,16 +21,21 @@ const zcatalyst_sdk_node_1 = __importDefault(require("zcatalyst-sdk-node"));
 const uuid_1 = require("uuid");
 const BUCKET_NAME = process.env.STRATUS_BUCKET || 'buildtrack';
 /**
- * Returns a Catalyst SDK instance with admin scope.
- * In AppSail, passing null (no req) forces the SDK to use the service-account
- * credentials injected by the AppSail runtime — no user session needed.
+ * Returns a Catalyst SDK instance initialised from the environment.
+ *
+ * AppSail injects CATALYST_PROJECT_ID and other env vars into the process.
+ * Passing no request context forces the SDK into environment-based init,
+ * which works correctly for server-to-Stratus calls where there is no
+ * end-user session. Admin scope bypasses permission checks.
  */
 function adminApp() {
-    return zcatalyst_sdk_node_1.default.initialize(null, { scope: 'admin' });
+    // The SDK accepts an options-only call when project context comes from env vars.
+    // Cast as `any` to satisfy TypeScript — the runtime signature supports it.
+    return zcatalyst_sdk_node_1.default.initialize({ scope: 'admin' });
 }
 /**
  * Upload a buffer to Stratus and return the object key.
- * The key is stored in the DB; call getSignedUrl(key) to get a fresh link.
+ * The key is stored in the DB; call getSignedUrl(req, key) to get a fresh link.
  */
 async function uploadFile(_req, buffer, mimetype, folder = 'uploads') {
     const ext = mimetype.split('/')[1]?.replace('jpeg', 'jpg') || 'bin';
