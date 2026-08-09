@@ -218,7 +218,7 @@ const ColumnHotspot = memo(function ColumnHotspot({
         shadowOpacity={isHovered ? 0.45 : 0.25}
         shadowOffsetY={1}
       />
-      {/* Grid label floats above the circle */}
+      {/* Grid label floats above the circle — same colour as the circle fill */}
       <Text
         text={label}
         width={r * 4}
@@ -228,7 +228,7 @@ const ColumnHotspot = memo(function ColumnHotspot({
         fontSize={Math.max(15, r * 1.35)}
         fontStyle="bold"
         fontFamily={calibrating ? "'Courier New', monospace" : 'sans-serif'}
-        fill={isEmpty ? '#64748b' : '#ffffff'}
+        fill={isEmpty ? '#64748b' : color}
         opacity={1}
         listening={false}
       />
@@ -241,7 +241,7 @@ const ColumnHotspot = memo(function ColumnHotspot({
           y={-(r + Math.max(10, r * 0.85)) + Math.max(8, r * 0.58) + 1}
           align="center"
           fontSize={Math.max(6, r * 0.38)}
-          fill={isEmpty ? '#94a3b8' : 'rgba(255,255,255,0.65)'}
+          fill={isEmpty ? '#94a3b8' : color}
           listening={false}
         />
       )}
