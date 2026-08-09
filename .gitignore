@@ -6,7 +6,10 @@ yarn-error.log*
 pnpm-debug.log*
 
 # ── Build output ──────────────────────────────
-dist/
+# Note: backend/dist is intentionally tracked so AppSail has compiled JS to serve.
+# Only frontend dist is excluded (Catalyst Slate builds from source).
+frontend/dist/
+frontend/build/
 build/
 .next/
 out/
