@@ -1,5 +1,6 @@
 {
-  "command": "node --experimental-sqlite dist/server.js",
+  "command": "npm start",
+  "build_path": "./",
   "stack": "node22",
   "memory": 512,
   "scripts": {

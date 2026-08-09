@@ -28,14 +28,15 @@ jobs:
           npm run build
 
       - name: Deploy backend to AppSail
-        working-directory: backend
+        # Must run from the repo root (where catalyst.json lives) for the CLI to find project config.
+        # --build-path MUST be an absolute path — relative paths fail at runtime (app never starts).
         run: >
           catalyst deploy appsail -ni
           --token "${{ secrets.CATALYST_TOKEN }}"
           --org "${{ vars.CATALYST_ORG_ID }}"
           --project "${{ vars.CATALYST_PROJECT_ID }}"
           --name construction-backend
-          --build-path .
+          --build-path ${{ github.workspace }}/backend
           --stack node22
           --command "npm start"
 
