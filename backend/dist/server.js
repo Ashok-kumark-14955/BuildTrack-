@@ -15,6 +15,7 @@ const activity_1 = __importDefault(require("./routes/activity"));
 const geocode_1 = __importDefault(require("./routes/geocode"));
 const mcp_1 = __importDefault(require("./routes/mcp"));
 const cliqReport_1 = require("./cliqReport");
+const seed_house_1 = require("./seed_house");
 const app = (0, express_1.default)();
 const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
 // Data is persisted in Zoho Catalyst Data Store (seeded ahead of time via
@@ -55,6 +56,30 @@ app.post('/api/cliq-report', async (req, res) => {
     res.status(result.ok ? 200 : 500).json(result);
 });
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
-app.listen(PORT, () => {
+// ── Permanent sample data: House Building Project ──────────────────────────
+// Run once per cold-start; the seedHouseProject function is idempotent (skips
+// if the project already exists) so it is safe to call on every boot.
+app.get('/api/_seed-house', async (req, res) => {
+    try {
+        await (0, seed_house_1.seedHouseProject)(req);
+        res.json({ ok: true, message: 'House Building Project seed complete (or already existed).' });
+    }
+    catch (err) {
+        console.error('[seed_house] error', err);
+        res.status(500).json({ ok: false, error: String(err?.message ?? err) });
+    }
+});
+app.listen(PORT, async () => {
     console.log(`Backend running on http://localhost:${PORT}`);
+    // Trigger house project seed via internal HTTP call so Catalyst SDK
+    // initialises correctly (it needs a real Express Request context).
+    const baseUrl = `http://localhost:${PORT}`;
+    try {
+        const response = await fetch(`${baseUrl}/api/_seed-house`, { method: 'GET' });
+        const body = await response.json();
+        console.log('[seed_house] startup result:', body?.message ?? body);
+    }
+    catch (err) {
+        console.warn('[seed_house] startup seed call failed (will retry on next boot):', err);
+    }
 });

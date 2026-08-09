@@ -17,6 +17,7 @@
 const DB_NAME = 'buildtrack-images';
 const STORE   = 'images';
 const DB_VERSION = 1;
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -90,6 +91,10 @@ export async function resolveFileUrl(url: string): Promise<string | null> {
   if (url.startsWith('idb://')) {
     const key = url.slice('idb://'.length);
     return loadImage(key); // may be null if IDB was cleared
+  }
+
+  if (url.startsWith('/')) {
+    return `${API_BASE}${url}`;
   }
 
   // data URL or HTTP(S) URL — pass through

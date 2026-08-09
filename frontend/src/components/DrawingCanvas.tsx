@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';
 import { Stage, Layer, Image as KonvaImage, Circle, Line, Group, Text } from 'react-konva';
 import Konva from 'konva';
+// Ensure Konva filter is available
+import 'konva/lib/filters/Invert';
 import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../AppContext';
@@ -339,7 +341,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   const [renameValue, setRenameValue] = useState('');
   const [autoCalibrating, setAutoCalibrating] = useState(false);
   const [calibPanelOpen, setCalibPanelOpen] = useState(true);
-  const [highContrast, setHighContrast] = useState(false);
+  const [highContrast, setHighContrast] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const imageNodeRef = useRef<Konva.Image | null>(null);
@@ -675,24 +677,9 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
 
   const cancelRename = useCallback(() => setRenamingCode(null), []);
 
-  // ── Apply / remove Konva filter cache when highContrast toggles ──
-  // The ref callback on KonvaImage only fires on mount/unmount, NOT on prop changes.
-  // We need a separate effect that reacts to the highContrast flag.
-  useEffect(() => {
-    const node = imageNodeRef.current;
-    if (!node) return;
-    if (highContrast) {
-      // cache() rasterises the node so Konva can apply pixel-level filters (Invert, Contrast).
-      setTimeout(() => {
-        node.cache();
-        node.getLayer()?.batchDraw();
-      }, 60);
-    } else {
-      // clearCache() removes the off-screen canvas so the original image renders normally.
-      node.clearCache();
-      node.getLayer()?.batchDraw();
-    }
-  }, [highContrast]);
+  // ── High contrast: CSS filter on the stageContainerRef wrapper div ──
+  // This inverts the entire Konva canvas (image + grid) without any CORS issues.
+  const stageContainerRef = useRef<HTMLDivElement>(null);
 
   // ── Compute per-element status (highest-priority active task wins) ──
   // Tasks are indexed by their canvas element ID (Column_A1, Beam_A1_B1).
@@ -757,11 +744,6 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
             }
           : {
               backgroundColor: '#000000',
-              backgroundImage: `
-                linear-gradient(rgba(0,255,255,0.06) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,255,255,0.06) 1px, transparent 1px)
-              `,
-              backgroundSize: '40px 40px, 40px 40px',
             }
       }
       // Re-focus the canvas container when the mouse enters so that scroll
@@ -769,6 +751,16 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
       tabIndex={-1}
       onMouseEnter={() => containerRef.current?.focus({ preventScroll: true })}
     >
+      {/* ── Konva Stage — CSS filter on wrapper inverts the whole canvas safely ── */}
+      <div
+        ref={stageContainerRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          filter: highContrast ? 'invert(1) contrast(1.15) brightness(0.95)' : 'none',
+          transition: 'filter 0.2s ease',
+        }}
+      >
       <Stage
         ref={stageRef}
         width={size.width}
@@ -789,8 +781,6 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               width={image.naturalWidth || image.width}
               height={image.naturalHeight || image.height}
               listening={false}
-              filters={highContrast ? [Konva.Filters.Invert, Konva.Filters.Contrast] : []}
-              contrast={highContrast ? 15 : 0}
               ref={(node) => { imageNodeRef.current = node; }}
             />
           )}
@@ -841,6 +831,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
           })}
         </Layer>
       </Stage>
+      </div>{/* end stageContainerRef — CSS invert filter boundary */}
 
       {/* ── Calibration side-panel (right edge, non-overlapping) ── */}
       {calibrating && (
@@ -1004,6 +995,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
             color: highContrast ? '#bae6fd' : '#cbd5e1',
             border: '1px solid rgba(148,163,184,0.2)',
           }}
+          title={highContrast ? 'Disable high contrast mode' : 'Enable high contrast mode'}
         >
           {highContrast ? 'High Contrast On' : 'High Contrast Off'}
         </button>

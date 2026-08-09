@@ -5,11 +5,13 @@ import toast from 'react-hot-toast';
 import { ProjectsAPI } from '../api';
 import { PROJECT_STATUS_COLORS, PROJECT_STATUS_OPTIONS, type Project } from '../types';
 import ProjectFormModal from '../components/ProjectFormModal';
+import { useApp } from '../AppContext';
 
 type SortKey = 'name' | 'createdAt' | 'updatedAt';
 
 export default function Projects() {
   const navigate = useNavigate();
+  const { setActiveProjectId, setCurrentDrawingId, drawings } = useApp();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -138,7 +140,15 @@ export default function Projects() {
             {projects.map((p) => (
               <tr
                 key={p.id}
-                onClick={() => navigate(`/projects/${p.id}`)}
+                onClick={() => {
+                  // Set this as the active project in global state
+                  setActiveProjectId(p.id);
+                  // Switch to the first drawing of this project (if any)
+                  const firstDrawing = drawings.find((d) => d.projectId === p.id);
+                  if (firstDrawing) setCurrentDrawingId(firstDrawing.id);
+                  // Navigate to the drawing canvas view
+                  navigate('/');
+                }}
                 className={`border-t border-zinc-800 hover:bg-zinc-800/60 cursor-pointer transition-colors ${p.archived ? 'opacity-60' : ''}`}
               >
                 <td className="px-4 py-3 text-slate-400 font-mono text-xs">{p.code || '—'}</td>

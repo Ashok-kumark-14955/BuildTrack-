@@ -1,4 +1,4 @@
-import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileImage,
@@ -114,10 +114,8 @@ function ProgressRing({ pct, size = 52 }: { pct: number; size?: number }) {
 }
 
 export default function Sidebar() {
-  const { tasks, drawings, projects, milestones, refreshProjects, currentDrawingId, setCurrentDrawingId, deleteDrawing } = useApp();
+  const { tasks, drawings, projects, milestones, refreshProjects, currentDrawingId, setCurrentDrawingId, deleteDrawing, activeProjectId } = useApp();
   const navigate = useNavigate();
-  const location = useLocation();
-  const params = useParams<{ id?: string }>();
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1');
   const [drawingFilter, setDrawingFilter] = useState('');
@@ -127,15 +125,14 @@ export default function Sidebar() {
     localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
   }, [collapsed]);
 
-  // Resolve the "selected" project: prefer the :id route param (e.g. on
-  // /projects/:id), then the currently open drawing's project, falling back
-  // to the first project — previously this was hardcoded to projects[0],
-  // so the sidebar card never reflected the project the user navigated to.
+  // Resolve the "active" project:
+  // 1. activeProjectId from context (set when user clicks a project row)
+  // 2. the project of the currently-open drawing
+  // 3. fallback to first project
   const currentDrawing = useMemo(() => drawings.find((d) => d.id === currentDrawingId), [drawings, currentDrawingId]);
-  const routeProjectId = location.pathname.startsWith('/projects/') ? params.id : undefined;
   const activeProject = useMemo(() => {
-    if (routeProjectId) {
-      const match = projects.find((p) => p.id === routeProjectId);
+    if (activeProjectId) {
+      const match = projects.find((p) => p.id === activeProjectId);
       if (match) return match;
     }
     if (currentDrawing?.projectId) {
@@ -143,7 +140,7 @@ export default function Sidebar() {
       if (match) return match;
     }
     return projects[0];
-  }, [projects, routeProjectId, currentDrawing]);
+  }, [projects, activeProjectId, currentDrawing]);
 
   // Scope stats to the active project's drawings only — `tasks` and `drawings`
   // are fetched globally across all projects, so mixing in other projects'
@@ -178,9 +175,17 @@ export default function Sidebar() {
     navigate('/');
   };
 
+  // Only show drawings that belong to the active project
+  const activeProjectDrawings = useMemo(
+    () => activeProject
+      ? drawings.filter((d) => d.projectId === activeProject.id)
+      : drawings,
+    [drawings, activeProject]
+  );
+
   const filteredDrawings = useMemo(
-    () => drawings.filter((d) => d.name.toLowerCase().includes(drawingFilter.trim().toLowerCase())),
-    [drawings, drawingFilter]
+    () => activeProjectDrawings.filter((d) => d.name.toLowerCase().includes(drawingFilter.trim().toLowerCase())),
+    [activeProjectDrawings, drawingFilter]
   );
 
   // Per-drawing task counts
@@ -258,13 +263,9 @@ export default function Sidebar() {
               <ProgressRing pct={stats.pct} size={52} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => activeProject && navigate(`/projects/${activeProject.id}`)}
-                    disabled={!activeProject}
-                    className="text-[13px] font-extrabold text-white truncate hover:text-pink-200 transition-colors disabled:cursor-default text-left"
-                  >
+                  <span className="text-[13px] font-extrabold text-white truncate">
                     {activeProject?.name ?? 'No Project'}
-                  </button>
+                  </span>
                 </div>
                 <div className="text-[9.5px] font-semibold mt-0.5" style={{ color: '#e88aa5' }}>
                   {activeProject?.code ? `Code: ${activeProject.code}` : 'Set up a project'}
@@ -341,7 +342,7 @@ export default function Sidebar() {
           </div>
         )}
         {navItems.map(({ to, label, icon: Icon, accent, accentBg, accentBorder }) => {
-          const badge = to === '/' ? drawings.length : to === '/tasks' ? stats.total : null;
+          const badge = to === '/' ? activeProjectDrawings.length : to === '/tasks' ? stats.total : null;
           return (
             <NavLink key={to} to={to} end={to === '/'} title={collapsed ? label : undefined} className="block">
               {({ isActive }) => (

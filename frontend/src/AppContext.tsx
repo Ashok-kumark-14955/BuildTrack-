@@ -10,6 +10,8 @@ interface AppState {
   activity: ActivityItem[];
   currentDrawingId: string | null;
   selectedElementId: string | null;
+  activeProjectId: string | null;
+  setActiveProjectId: (id: string | null) => void;
   setCurrentDrawingId: (id: string | null) => void;
   setSelectedElementId: (id: string | null) => void;
   refreshDrawings: () => Promise<void>;
@@ -45,6 +47,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentDrawingId, setCurrentDrawingId] = useState<string | null>(null);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [focusElementRequest, setFocusElementRequest] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
   const refreshDrawings = useCallback(async () => {
     const list = await DrawingsAPI.list();
@@ -193,6 +196,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     activity,
     currentDrawingId,
     selectedElementId,
+    activeProjectId,
+    setActiveProjectId,
     setCurrentDrawingId,
     setSelectedElementId,
     refreshDrawings,
@@ -226,6 +231,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     focusElementRequest, requestFocusElement,
     patchDrawingColumnPositions, resetDrawingColumnPositions,
     patchDrawingColumnLabel, patchDrawingElementTypeLabel,
+    activeProjectId,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

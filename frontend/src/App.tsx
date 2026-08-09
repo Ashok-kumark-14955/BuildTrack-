@@ -5,7 +5,6 @@ import DrawingPage from './pages/DrawingPage';
 import Dashboard from './pages/Dashboard';
 import TaskList from './pages/TaskList';
 import Projects from './pages/Projects';
-import ProjectDetail from './pages/ProjectDetail';
 import { AppProvider } from './AppContext';
 
 export default function App() {
@@ -28,7 +27,6 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/tasks" element={<TaskList />} />
             <Route path="/projects" element={<Projects />} />
-            <Route path="/projects/:id" element={<ProjectDetail />} />
           </Routes>
         </div>
       </div>

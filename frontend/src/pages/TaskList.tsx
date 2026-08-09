@@ -267,6 +267,9 @@ export default function TaskList() {
           <h1 className="font-display text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Building2 size={20} className="text-rose-500" />
             Project Hierarchy
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full ml-1" style={{ background: 'rgba(190,24,93,0.15)', color: '#fb7185', border: '1px solid rgba(190,24,93,0.3)' }}>
+              Task Management Module
+            </span>
           </h1>
           <p className="text-sm text-rose-300/60 mt-0.5">
             {projects[0]?.name ?? 'Project'} · {milestones.length} milestones · {drawings.length} drawings · {totalFiltered} tasks
