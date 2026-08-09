@@ -745,8 +745,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     const ih = image.naturalHeight || image.height || 1;
     const cellW = iw / currentDrawing.gridCols;
     const cellH = ih / currentDrawing.gridRows;
-    // Adjusted: was 0.09 → 0.055 → 0.03 → 0.04 → now 0.055
-    return Math.max(4, Math.min(cellW, cellH) * 0.055);
+    // Adjusted: was 0.09 → 0.055 → 0.03 → 0.04 → 0.055 → now 0.07
+    return Math.max(4, Math.min(cellW, cellH) * 0.07);
   }, [currentDrawing, image]);
 
   const beamThickness = useMemo(() => Math.max(2, hotspotRadius * 0.22), [hotspotRadius]);
