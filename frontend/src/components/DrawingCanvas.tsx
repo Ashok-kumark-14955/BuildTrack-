@@ -3,7 +3,7 @@ import { Stage, Layer, Image as KonvaImage, Circle, Line, Group, Text } from 're
 import Konva from 'konva';
 // Ensure Konva filter is available
 import 'konva/lib/filters/Invert';
-import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp, Trash2, Link, Unlink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../AppContext';
 import { DrawingsAPI, drawingFileProxyUrl } from '../api';
@@ -229,7 +229,7 @@ const ColumnHotspot = memo(function ColumnHotspot({
         text={label}
         width={r * 4}
         offsetX={r * 0.5}
-        y={-(r + Math.max(30, r * 2.4))}
+        y={-(r + Math.max(12, r * 1.2))}
         align="center"
         fontSize={Math.max(15, r * 1.35)}
         fontStyle="bold"
@@ -560,7 +560,14 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     resetDrawingColumnPositions,
     patchDrawingColumnLabel,
     deleteDrawingNode,
+    deleteDrawingBeam,
+    addCustomBeam,
+    removeCustomBeam,
   } = useApp();
+
+  // ── Join mode: user clicks two nodes to connect them with a custom beam ──
+  const [joinMode, setJoinMode] = useState(false);
+  const [joinFirst, setJoinFirst] = useState<string | null>(null); // grid code of first picked node
 
   // hoveredElementId is local — it changes on every mouse-move and should NOT
   // live in the global context (that would cause every context consumer to re-render).
@@ -691,10 +698,12 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   }, [columnElements]);
 
   // ── Beams: derived automatically by connecting adjacent columns — no separate storage needed ──
+  // Beams listed in currentDrawing.deletedBeams are filtered out entirely.
   const beamElements = useMemo(() => {
     if (!currentDrawing || columnElements.length === 0) return [];
     const cols = currentDrawing.gridCols;
     const rows = currentDrawing.gridRows;
+    const deleted = new Set(currentDrawing.deletedBeams ?? []);
     const byCode = new Map(columnElements.map((c) => [c.code, c]));
     const beams: { id: string; x1: number; y1: number; x2: number; y2: number }[] = [];
     for (let row = 0; row < rows; row++) {
@@ -705,12 +714,14 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
         if (col < cols - 1) {
           const rightCode = gridLabel(col + 1, row);
           const right = byCode.get(rightCode);
-          if (right) beams.push({ id: `Beam_${code}_${rightCode}`, x1: p.x, y1: p.y, x2: right.x, y2: right.y });
+          const id = `Beam_${code}_${rightCode}`;
+          if (right && !deleted.has(id)) beams.push({ id, x1: p.x, y1: p.y, x2: right.x, y2: right.y });
         }
         if (row < rows - 1) {
           const belowCode = gridLabel(col, row + 1);
           const below = byCode.get(belowCode);
-          if (below) beams.push({ id: `Beam_${code}_${belowCode}`, x1: p.x, y1: p.y, x2: below.x, y2: below.y });
+          const id = `Beam_${code}_${belowCode}`;
+          if (below && !deleted.has(id)) beams.push({ id, x1: p.x, y1: p.y, x2: below.x, y2: below.y });
         }
       }
     }
@@ -734,11 +745,20 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     const ih = image.naturalHeight || image.height || 1;
     const cellW = iw / currentDrawing.gridCols;
     const cellH = ih / currentDrawing.gridRows;
-    // Reduced: was 0.16, now 0.09 for smaller circles
-    return Math.max(5, Math.min(cellW, cellH) * 0.09);
+    // Adjusted: was 0.09 → 0.055 → 0.03 → 0.04 → now 0.055
+    return Math.max(4, Math.min(cellW, cellH) * 0.055);
   }, [currentDrawing, image]);
 
   const beamThickness = useMemo(() => Math.max(2, hotspotRadius * 0.22), [hotspotRadius]);
+
+  // ── The custom (user-joined) beam currently selected, if any ──
+  const selectedCustomBeam = useMemo(() => {
+    if (!selectedElementId?.startsWith('CustomBeam_') || !currentDrawing) return null;
+    return (currentDrawing.customBeams ?? []).find(
+      (b) => `CustomBeam_${b.from}_${b.to}` === selectedElementId
+    ) ?? null;
+  }, [selectedElementId, currentDrawing]);
+
   const activeElementMeta = useMemo(() => {
     if (!selectedElementId) return null;
     if (selectedElementId.startsWith('Column_')) {
@@ -747,12 +767,16 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
       const label = currentDrawing?.columnLabels?.[col.code] || col.code;
       return { kind: 'Column', label, subtitle: `Grid ${col.code}` };
     }
+    if (selectedElementId.startsWith('CustomBeam_')) {
+      if (!selectedCustomBeam) return null;
+      return { kind: 'Custom beam', label: `${selectedCustomBeam.from} ↔ ${selectedCustomBeam.to}`, subtitle: 'Manually joined beam' };
+    }
     if (selectedElementId.startsWith('Beam_')) {
       const beam = selectedElementId.replace('Beam_', '').replaceAll('_', ' → ');
       return { kind: 'Beam', label: beam, subtitle: 'Structural span' };
     }
     return null;
-  }, [selectedElementId, columnElements, currentDrawing]);
+  }, [selectedElementId, columnElements, currentDrawing, selectedCustomBeam]);
 
   // ── Focus an element from an EXTERNAL request ONLY (e.g. Task List "Locate" button) ──
   // Direct taps on the canvas (handleSelect) never set focusElementRequest,
@@ -794,8 +818,33 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   // ── Stable hotspot handlers (kept identity-stable so memoized hotspots don't re-render on pan/zoom) ──
   // NOTE: tapping a grid only selects it — no zoom or pan. Use the Task List "locate" button for focus zoom.
   const handleSelect = useCallback((id: string) => {
+    // In join mode, clicking a column picks it as the first or second endpoint
+    if (joinMode && id.startsWith('Column_') && currentDrawing) {
+      const code = id.replace('Column_', '');
+      if (!joinFirst) {
+        // First click — remember first node
+        setJoinFirst(code);
+        setSelectedElementId(id);
+        toast(`Join: now click the second node`, { icon: '🔗', id: 'join-hint', duration: 4000 });
+      } else if (code !== joinFirst) {
+        // Second click — create beam
+        const from = joinFirst;
+        setJoinFirst(null);
+        setSelectedElementId(null);
+        toast.dismiss('join-hint');
+        addCustomBeam(currentDrawing.id, from, code).then(() => {
+          toast.success(`Joined ${from} → ${code}`, { icon: '🔗', duration: 2000 });
+        });
+      } else {
+        // Clicked same node twice — cancel
+        setJoinFirst(null);
+        setSelectedElementId(null);
+        toast('Join cancelled', { icon: '✕', duration: 1500 });
+      }
+      return;
+    }
     setSelectedElementId(id);
-  }, [setSelectedElementId]);
+  }, [joinMode, joinFirst, currentDrawing, addCustomBeam, setSelectedElementId]);
   const handleHover = useCallback((id: string | null) => setHoveredElementId(id), [setHoveredElementId]);
   const handleBackgroundClick = useCallback(() => setSelectedElementId(null), [setSelectedElementId]);
 
@@ -887,6 +936,24 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     toast.success(`Node ${code} removed`, { icon: '🗑️', duration: 2000 });
   }, [currentDrawing, selectedElementId, setSelectedElementId, deleteDrawingNode]);
 
+  // ── Delete the selected auto-derived (structural) beam ──
+  const handleDeleteSelectedBeam = useCallback(async () => {
+    if (!currentDrawing || !selectedElementId?.startsWith('Beam_')) return;
+    const beamId = selectedElementId;
+    setSelectedElementId(null);
+    await deleteDrawingBeam(currentDrawing.id, beamId);
+    toast.success('Beam removed', { icon: '🗑️', duration: 2000 });
+  }, [currentDrawing, selectedElementId, setSelectedElementId, deleteDrawingBeam]);
+
+  // ── Delete the selected custom (joined) beam ──
+  const handleDeleteSelectedCustomBeam = useCallback(async () => {
+    if (!currentDrawing || !selectedCustomBeam) return;
+    const { from, to } = selectedCustomBeam;
+    setSelectedElementId(null);
+    await removeCustomBeam(currentDrawing.id, from, to);
+    toast.success(`Beam ${from} ↔ ${to} removed`, { icon: '🗑️', duration: 2000 });
+  }, [currentDrawing, selectedCustomBeam, setSelectedElementId, removeCustomBeam]);
+
   // ── Restore all deleted nodes ──
   const handleRestoreAllNodes = useCallback(async () => {
     if (!currentDrawing) return;
@@ -897,6 +964,17 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     }
     toast.success(`Restored ${deleted.length} node(s)`, { icon: '♻️', duration: 2000 });
   }, [currentDrawing, deleteDrawingNode]);
+
+  // ── Restore all deleted beams ──
+  const handleRestoreAllBeams = useCallback(async () => {
+    if (!currentDrawing) return;
+    const deleted = currentDrawing.deletedBeams ?? [];
+    if (deleted.length === 0) { toast('No deleted beams to restore', { icon: 'ℹ️' }); return; }
+    for (const beamId of deleted) {
+      await deleteDrawingBeam(currentDrawing.id, beamId, true);
+    }
+    toast.success(`Restored ${deleted.length} beam(s)`, { icon: '♻️', duration: 2000 });
+  }, [currentDrawing, deleteDrawingBeam]);
 
   const columnElementsRef = useRef(columnElements);
   useEffect(() => { columnElementsRef.current = columnElements; }, [columnElements]);
@@ -933,6 +1011,22 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [calibrating, selectedElementId, handleReposition, currentDrawing, deleteDrawingNode, setSelectedElementId]);
+
+  // ── Delete key: remove a selected beam — custom or auto-derived (works outside calibration mode too) ──
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.key !== 'Delete' && e.key !== 'Backspace') || e.ctrlKey || e.metaKey) return;
+      if (selectedCustomBeam) {
+        e.preventDefault();
+        handleDeleteSelectedCustomBeam();
+      } else if (selectedElementId?.startsWith('Beam_')) {
+        e.preventDefault();
+        handleDeleteSelectedBeam();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedCustomBeam, handleDeleteSelectedCustomBeam, selectedElementId, handleDeleteSelectedBeam]);
 
   // ── Grid segment handles: per-cell-edge draggable lines ──────────────────────
   // One handle per CELL EDGE:
@@ -1060,7 +1154,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   }, [currentDrawing, image, columnElements, patchDrawingColumnPositions]);
 
   const handleSegmentDragEnd = useCallback((
-    axis: 'h' | 'v', codeA: string, codeB: string
+    _axis: 'h' | 'v', codeA: string, codeB: string
   ) => {
     if (!currentDrawing || !image) return;
     const pB = columnElements.find((c) => c.code === codeB);
@@ -1185,6 +1279,10 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
           transition: 'filter 0.2s ease',
         }}
       >
+      {/* Konva's shadow-caching path draws into an internal canvas sized off the
+          Stage — mounting it before the ResizeObserver reports a real size (still
+          0×0 on first paint) makes it try to drawImage a 0×0 canvas and throw. */}
+      {size.width > 0 && size.height > 0 && (
       <Stage
         ref={stageRef}
         width={size.width}
@@ -1225,6 +1323,77 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               onHover={handleHover}
             />
           ))}
+
+          {/* ── Custom beams: user-drawn connections between any two nodes ── */}
+          {showBeams && image && (() => {
+            const byCode = new Map(columnElements.map((c) => [c.code, c]));
+            return (currentDrawing.customBeams ?? []).map((cb) => {
+              const pA = byCode.get(cb.from);
+              const pB = byCode.get(cb.to);
+              if (!pA || !pB) return null;
+              const cbId = `CustomBeam_${cb.from}_${cb.to}`;
+              const isSelected = selectedElementId === cbId;
+              const cbStatus = statusByElement[cbId] ?? 'No Task';
+              const cbColor = cbStatus === 'No Task' ? '#334155' : (STATUS_COLORS[cbStatus] ?? STATUS_COLORS['No Task']);
+              return (
+                <Group key={cbId} listening={calibrating ? false : true}
+                  onClick={(e) => { e.cancelBubble = true; setSelectedElementId(cbId); }}
+                  onTap={(e) => { e.cancelBubble = true; setSelectedElementId(cbId); }}
+                  onMouseEnter={(e) => {
+                    const stage = e.target.getStage();
+                    if (stage) stage.container().style.cursor = 'pointer';
+                  }}
+                  onMouseLeave={(e) => {
+                    const stage = e.target.getStage();
+                    if (stage) stage.container().style.cursor = 'default';
+                  }}
+                >
+                  {/* Selection ring */}
+                  {isSelected && (
+                    <Line
+                      points={[pA.x, pA.y, pB.x, pB.y]}
+                      stroke="#f87171"
+                      strokeWidth={(beamThickness + 7) / scale}
+                      opacity={0.45}
+                      lineCap="round"
+                      listening={false}
+                    />
+                  )}
+                  {/* Glow backdrop — tinted by task status, same as auto-derived beams */}
+                  <Line
+                    points={[pA.x, pA.y, pB.x, pB.y]}
+                    stroke={cbColor}
+                    strokeWidth={(beamThickness + 4) / scale}
+                    opacity={0.25}
+                    lineCap="round"
+                    listening={false}
+                  />
+                  {/* Main custom beam line */}
+                  <Line
+                    points={[pA.x, pA.y, pB.x, pB.y]}
+                    stroke={cbColor}
+                    strokeWidth={(beamThickness + 1) / scale * scale}
+                    opacity={0.9}
+                    lineCap="round"
+                    shadowColor={cbColor}
+                    shadowBlur={8}
+                    shadowOpacity={0.5}
+                    hitStrokeWidth={Math.max(18, (beamThickness + 1) / scale * 4)}
+                  />
+                  {/* Midpoint label */}
+                  <Text
+                    x={(pA.x + pB.x) / 2 + 4 / scale}
+                    y={(pA.y + pB.y) / 2 - 10 / scale}
+                    text={`${cb.from}↔${cb.to}`}
+                    fontSize={9 / scale}
+                    fill={isSelected ? '#fecaca' : cbColor}
+                    fontStyle="bold"
+                    listening={false}
+                  />
+                </Group>
+              );
+            });
+          })()}
 
           {/* ── Per-segment grid boundary handles (calibration mode) ── */}
           {/* Each handle covers exactly ONE cell edge and only moves that edge's two nodes */}
@@ -1275,6 +1444,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
           })}
         </Layer>
       </Stage>
+      )}
       </div>{/* end stageContainerRef — CSS invert filter boundary */}
 
       {/* ── Calibration side-panel (right edge, non-overlapping) ── */}
@@ -1407,6 +1577,132 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
 
             <div className="h-px my-0.5" style={{ background: 'rgba(245,158,11,0.15)' }} />
 
+            {/* ── Join two nodes with a custom beam ── */}
+            <button
+              onClick={() => {
+                if (!joinMode) {
+                  setJoinMode(true);
+                  setJoinFirst(null);
+                  toast('Join mode: click two nodes to connect', { icon: '🔗', id: 'join-hint', duration: 6000 });
+                } else {
+                  setJoinMode(false);
+                  setJoinFirst(null);
+                  toast.dismiss('join-hint');
+                  toast('Join mode cancelled', { icon: '✕', duration: 1500 });
+                }
+              }}
+              title="Connect two nodes with a custom beam"
+              className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{
+                background: joinMode ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.08)',
+                borderColor: joinMode ? 'rgba(139,92,246,0.6)' : 'rgba(139,92,246,0.3)',
+                color: joinMode ? '#c4b5fd' : 'rgba(167,139,250,0.7)',
+              }}
+            >
+              <Link size={10} />
+              {joinMode ? (joinFirst ? `→ Pick 2nd (from ${joinFirst})` : '→ Pick 1st node') : 'Join nodes'}
+            </button>
+
+            {/* ── Unjoin: remove a custom beam connecting the selected node ── */}
+            {(() => {
+              if (!selectedElementId?.startsWith('Column_')) return null;
+              const code = selectedElementId.replace('Column_', '');
+              const connected = (currentDrawing.customBeams ?? []).filter(
+                (b) => b.from === code || b.to === code
+              );
+              if (connected.length === 0) return null;
+              return (
+                <button
+                  onClick={() => {
+                    if (!currentDrawing) return;
+                    connected.forEach((b) => removeCustomBeam(currentDrawing.id, b.from, b.to));
+                    toast.success(`Removed ${connected.length} custom beam(s) from ${code}`, { icon: '🔓', duration: 2000 });
+                  }}
+                  title={`Remove all custom beams connected to ${code}`}
+                  className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+                  style={{
+                    background: 'rgba(245,158,11,0.08)',
+                    borderColor: 'rgba(245,158,11,0.3)',
+                    color: 'rgba(251,191,36,0.8)',
+                  }}
+                >
+                  <Unlink size={10} />
+                  Unjoin {code} ({connected.length})
+                </button>
+              );
+            })()}
+
+            {/* ── Clear all custom beams ── */}
+            {(currentDrawing.customBeams?.length ?? 0) > 0 && (
+              <button
+                onClick={() => {
+                  if (!currentDrawing) return;
+                  (currentDrawing.customBeams ?? []).forEach((b) => removeCustomBeam(currentDrawing.id, b.from, b.to));
+                  toast.success('All custom beams removed', { icon: '🔓', duration: 2000 });
+                }}
+                title="Remove all custom beams"
+                className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+                style={{
+                  background: 'rgba(245,158,11,0.06)',
+                  borderColor: 'rgba(245,158,11,0.2)',
+                  color: 'rgba(251,191,36,0.6)',
+                }}
+              >
+                <Unlink size={10} />
+                Clear all beams ({currentDrawing.customBeams!.length})
+              </button>
+            )}
+
+            <div className="h-px my-0.5" style={{ background: 'rgba(245,158,11,0.15)' }} />
+
+            {/* ── Delete selected node ── */}
+            <button
+              onClick={handleDeleteSelectedNode}
+              title="Remove the selected grid node (Delete key also works)"
+              disabled={!selectedElementId?.startsWith('Column_')}
+              className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{
+                background: selectedElementId?.startsWith('Column_') ? 'rgba(239,68,68,0.14)' : 'rgba(239,68,68,0.04)',
+                borderColor: selectedElementId?.startsWith('Column_') ? 'rgba(239,68,68,0.45)' : 'rgba(239,68,68,0.15)',
+                color: selectedElementId?.startsWith('Column_') ? 'rgba(252,165,165,0.95)' : 'rgba(252,165,165,0.35)',
+                cursor: selectedElementId?.startsWith('Column_') ? 'pointer' : 'not-allowed',
+              }}
+            >
+              <Trash2 size={10} />
+              Delete node
+              {selectedElementId?.startsWith('Column_') && (
+                <span className="ml-auto text-[9px] opacity-60">Del</span>
+              )}
+            </button>
+
+            {/* ── Restore deleted nodes ── */}
+            {(currentDrawing.deletedNodes?.length ?? 0) > 0 && (
+              <button
+                onClick={handleRestoreAllNodes}
+                title="Restore all deleted nodes"
+                className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+                style={{ background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.25)', color: 'rgba(134,239,172,0.85)' }}
+              >
+                <span>♻</span>
+                Restore {currentDrawing.deletedNodes!.length} node{currentDrawing.deletedNodes!.length !== 1 ? 's' : ''}
+              </button>
+            )}
+
+            {/* ── Restore deleted beams ── */}
+            {(currentDrawing.deletedBeams?.length ?? 0) > 0 && (
+              <button
+                onClick={handleRestoreAllBeams}
+                title="Restore all deleted beams"
+                className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+                style={{ background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.25)', color: 'rgba(134,239,172,0.85)' }}
+              >
+                <span>♻</span>
+                Restore {currentDrawing.deletedBeams!.length} beam{currentDrawing.deletedBeams!.length !== 1 ? 's' : ''}
+              </button>
+            )}
+
+            <div className="h-px my-0.5" style={{ background: 'rgba(245,158,11,0.15)' }} />
+
             {/* Reset All */}
             <button
               onClick={handleResetCalibration}
@@ -1494,6 +1790,30 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
           <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-sky-300/80">Selected</div>
           <div className="mt-1 text-sm font-bold text-white">{activeElementMeta.kind}: {activeElementMeta.label}</div>
           <div className="text-xs text-slate-300 mt-0.5">{activeElementMeta.subtitle}</div>
+          {selectedCustomBeam && (
+            <button
+              onClick={handleDeleteSelectedCustomBeam}
+              title="Remove this joined beam (Delete key also works)"
+              className="mt-2 w-full flex items-center justify-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{ background: 'rgba(239,68,68,0.14)', borderColor: 'rgba(239,68,68,0.45)', color: 'rgba(252,165,165,0.95)' }}
+            >
+              <Trash2 size={10} />
+              Delete beam
+              <span className="ml-auto text-[9px] opacity-60">Del</span>
+            </button>
+          )}
+          {selectedElementId?.startsWith('Beam_') && (
+            <button
+              onClick={handleDeleteSelectedBeam}
+              title="Remove this structural beam (Delete key also works)"
+              className="mt-2 w-full flex items-center justify-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{ background: 'rgba(239,68,68,0.14)', borderColor: 'rgba(239,68,68,0.45)', color: 'rgba(252,165,165,0.95)' }}
+            >
+              <Trash2 size={10} />
+              Delete beam
+              <span className="ml-auto text-[9px] opacity-60">Del</span>
+            </button>
+          )}
         </div>
       )}
 
