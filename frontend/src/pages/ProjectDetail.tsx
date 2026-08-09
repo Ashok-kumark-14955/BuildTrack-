@@ -55,7 +55,7 @@ export default function ProjectDetail() {
           sortDir: sortAsc ? 'asc' : 'desc',
         }),
       ]);
-      setProject(p);
+      setProject(p ?? null);
       setTasks(t);
     } catch {
       toast.error('Failed to load project');

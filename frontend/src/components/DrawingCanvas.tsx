@@ -3,7 +3,7 @@ import { Stage, Layer, Image as KonvaImage, Circle, Line, Group, Text } from 're
 import Konva from 'konva';
 // Ensure Konva filter is available
 import 'konva/lib/filters/Invert';
-import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../AppContext';
 import { DrawingsAPI, drawingFileProxyUrl } from '../api';
@@ -16,79 +16,67 @@ import { detectColumnPositions } from '../utils/autoCalibrate';
 // attempts the fallback (e.g. proxy URL fails → try direct Stratus URL).
 function useImage(url: string | undefined, fallbackUrl?: string | undefined) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
+
   useEffect(() => {
     if (!url) { setImg(null); return; }
     let cancelled = false;
 
-    async function tryLoad(src: string, isFallback = false): Promise<void> {
-      console.log(`[useImage] ${isFallback ? 'fallback' : 'primary'} load attempt — src prefix=`, src.slice(0, 100));
-
-      return new Promise((resolve) => {
+    /**
+     * Try to load `src` as an HTMLImageElement. Resolves with `true` on success,
+     * `false` on error. Never rejects.
+     *
+     * ⚠️  Do NOT set crossOrigin for pre-signed S3/Stratus URLs or data: URLs.
+     *    Adding crossOrigin sends an Origin header which most S3 presigned-URL
+     *    policies reject (CORS preflight fails → image.onerror fires → blank canvas).
+     *    For same-origin URLs (e.g. /uploads/…) CORS is not needed either.
+     */
+    const loadSrc = (src: string): Promise<boolean> =>
+      new Promise((resolve) => {
         const image = new window.Image();
-
-        // ⚠️  Do NOT set crossOrigin for pre-signed S3/Stratus URLs or data: URLs.
-        //    Adding crossOrigin sends an Origin header which most S3 presigned-URL
-        //    policies reject (CORS preflight fails → image.onerror fires → black screen).
-        //    For same-origin URLs (e.g. /uploads/…) CORS is not needed either.
-        //    So we never set crossOrigin here; the only thing that needed it was
-        //    canvas.toDataURL() after Konva.Filters, which we handle by caching
-        //    the image node directly in Konva (which bypasses the taint check).
-
         image.onload = () => {
-          if (cancelled) { resolve(); return; }
-          console.log('[useImage] onload fired — naturalWidth=', image.naturalWidth, 'naturalHeight=', image.naturalHeight);
-          // decode() ensures paint-ready state but may throw on certain CORS
-          // configurations. We always resolve with the image regardless.
+          if (cancelled) { resolve(false); return; }
           const finish = () => {
-            if (cancelled) { resolve(); return; }
-            console.log('[useImage] setImg called');
+            if (cancelled) { resolve(false); return; }
             setImg(image);
-            resolve();
+            resolve(true);
           };
           if (typeof image.decode === 'function') {
-            image.decode().then(finish).catch((e) => {
-              console.warn('[useImage] decode() threw (non-fatal):', e?.message);
-              finish();
-            });
+            image.decode().then(finish).catch(() => finish());
           } else {
             finish();
           }
         };
-
         image.onerror = () => {
-          if (cancelled) { resolve(); return; }
-          console.error('[useImage] LOAD FAILED — src=', src.slice(0, 120));
-          resolve(); // resolve so the outer flow can try fallback
+          if (!cancelled) console.error('[useImage] LOAD FAILED — src=', src.slice(0, 120));
+          resolve(false);
         };
-
         image.src = src;
       });
-    }
 
     (async () => {
       // Resolve idb:// → data URL before creating the Image element
       const src = await resolveFileUrl(url);
-      console.log('[useImage] url=', url?.slice(0, 80), '| resolved src prefix=', src?.slice(0, 80));
-      if (cancelled || !src) {
-        console.warn('[useImage] src is null/empty or cancelled — skipping load');
-        return;
-      }
+      if (cancelled || !src) return;
 
-      await tryLoad(src, false);
+      // Use a LOCAL boolean to track success — never read the React `img` state
+      // here; inside an async closure it always has the stale initial value (null).
+      // Using stale state caused the fallback to fire even after a successful primary
+      // load, replacing the good image with a broken expired-Stratus-URL response.
+      const ok = await loadSrc(src);
+      if (ok || !fallbackUrl || cancelled) return;
 
-      // If image is still null after primary attempt, try the fallback (direct fileUrl)
-      if (!img && !cancelled && fallbackUrl) {
-        const fallbackSrc = await resolveFileUrl(fallbackUrl);
-        if (fallbackSrc && !cancelled) {
-          console.warn('[useImage] primary failed — trying fallback URL');
-          await tryLoad(fallbackSrc, true);
-        }
+      // Primary failed — try fallback (e.g. direct Stratus signed URL when proxy is down)
+      const fallbackSrc = await resolveFileUrl(fallbackUrl);
+      if (fallbackSrc && !cancelled) {
+        console.warn('[useImage] primary failed — trying fallback URL');
+        await loadSrc(fallbackSrc);
       }
     })();
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, fallbackUrl]);
+
   return img;
 }
 
@@ -267,6 +255,236 @@ const ColumnHotspot = memo(function ColumnHotspot({
   );
 });
 
+// ─── Grid segment drag handle (per-cell boundary) ───────────────────────────
+// Each handle sits on the midpoint of ONE cell edge (e.g. the right edge of B2).
+// Dragging it moves ONLY the x (for horizontal) or y (for vertical) of the two
+// nodes bounding that specific cell edge — all other nodes are untouched.
+//
+// Visual design:
+//  • The handle line spans only the cell height/width (not the full row/column).
+//  • A grab arrow/diamond appears at the midpoint on hover.
+//  • Dragging shows a live amber line + ghost position of both endpoints.
+//  • A small label (e.g. "B↔C | row 2") appears while dragging for clarity.
+
+interface SegmentHandleProps {
+  /** 'h' = vertical divider between left and right columns in same row (drag left/right)
+   *  'v' = horizontal divider between upper and lower rows in same col (drag up/down) */
+  axis: 'h' | 'v';
+  /** The two grid codes this boundary sits between, e.g. 'B2' and 'C2' */
+  codeA: string;
+  codeB: string;
+  /** Position of codeA node (image px) */
+  xA: number;
+  yA: number;
+  /** Position of codeB node (image px) */
+  xB: number;
+  yB: number;
+  /**
+   * For 'h' handles: the y-span of the cell (from the row above to the row below).
+   * For 'v' handles: the x-span of the cell (from the col to the left to the col to the right).
+   * Used to draw a handle line that exactly covers the cell edge.
+   */
+  cellSpanStart: number; // image px — start of perpendicular span
+  cellSpanEnd: number;   // image px — end of perpendicular span
+  scale: number;
+  onDragMove: (axis: 'h' | 'v', codeA: string, codeB: string, delta: number) => void;
+  onDragEnd: (axis: 'h' | 'v', codeA: string, codeB: string) => void;
+}
+
+const HANDLE_HIT_WIDTH = 18; // hit area in screen px
+
+const GridSegmentHandle = memo(function GridSegmentHandle({
+  axis, codeA, codeB,
+  xA, yA, xB, yB,
+  cellSpanStart, cellSpanEnd,
+  scale, onDragMove, onDragEnd,
+}: SegmentHandleProps) {
+  const dragStartRef = useRef<{ nodeX: number; nodeY: number } | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  // Midpoint of the two bounding nodes
+  const mx = (xA + xB) / 2;
+  const my = (yA + yB) / 2;
+
+  // The handle line is drawn perpendicular to the drag axis,
+  // spanning exactly the cell edge (cellSpanStart → cellSpanEnd).
+  // axis='h' → vertical line at x=mx, spanning y from cellSpanStart to cellSpanEnd.
+  // axis='v' → horizontal line at y=my, spanning x from cellSpanStart to cellSpanEnd.
+  const linePoints = axis === 'h'
+    ? [mx, cellSpanStart, mx, cellSpanEnd]
+    : [cellSpanStart, my, cellSpanEnd, my];
+
+  const strokeW = (hovered || dragging ? 2.8 : 1.6) / scale;
+  const hitW = HANDLE_HIT_WIDTH / scale;
+
+  // Invisible hit-area line (same geometry but thick)
+  const hitPoints = axis === 'h'
+    ? [mx, cellSpanStart, mx, cellSpanEnd]
+    : [cellSpanStart, my, cellSpanEnd, my];
+
+  // Arrow indicator size
+  const arrowSize = 7 / scale;
+
+  return (
+    <Group
+      draggable
+      onDragStart={(e) => {
+        e.cancelBubble = true;
+        const stage = e.target.getStage();
+        if (stage) stage.draggable(false);
+        dragStartRef.current = { nodeX: e.target.x(), nodeY: e.target.y() };
+        setDragging(true);
+      }}
+      onDragMove={(e) => {
+        e.cancelBubble = true;
+        const node = e.target;
+        if (!dragStartRef.current) return;
+        if (axis === 'h') {
+          // Only horizontal drag (left/right)
+          const delta = node.x() - dragStartRef.current.nodeX;
+          // Reset node position — we drive positions via state, not Konva transform
+          node.x(dragStartRef.current.nodeX);
+          node.y(dragStartRef.current.nodeY);
+          onDragMove('h', codeA, codeB, delta);
+          dragStartRef.current.nodeX += delta;
+        } else {
+          // Only vertical drag (up/down)
+          const delta = node.y() - dragStartRef.current.nodeY;
+          node.x(dragStartRef.current.nodeX);
+          node.y(dragStartRef.current.nodeY);
+          onDragMove('v', codeA, codeB, delta);
+          dragStartRef.current.nodeY += delta;
+        }
+      }}
+      onDragEnd={(e) => {
+        e.cancelBubble = true;
+        const stage = e.target.getStage();
+        if (stage) stage.draggable(false);
+        e.target.x(0);
+        e.target.y(0);
+        dragStartRef.current = null;
+        setDragging(false);
+        onDragEnd(axis, codeA, codeB);
+      }}
+      onMouseEnter={(e) => {
+        setHovered(true);
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = axis === 'h' ? 'ew-resize' : 'ns-resize';
+      }}
+      onMouseLeave={(e) => {
+        setHovered(false);
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = 'default';
+      }}
+    >
+      {/* Invisible thick hit area */}
+      <Line
+        points={hitPoints}
+        stroke="transparent"
+        strokeWidth={hitW}
+        listening={true}
+      />
+
+      {/* Cell edge — subtle dashed when idle, solid amber when active */}
+      <Line
+        points={linePoints}
+        stroke={
+          dragging
+            ? '#f59e0b'
+            : hovered
+              ? '#fbbf24'
+              : 'rgba(34,211,238,0.5)'
+        }
+        strokeWidth={strokeW}
+        dash={dragging || hovered ? undefined : [5 / scale, 4 / scale]}
+        shadowColor={hovered || dragging ? '#f59e0b' : '#22d3ee'}
+        shadowBlur={hovered || dragging ? 10 : 3}
+        shadowOpacity={hovered || dragging ? 0.75 : 0.25}
+        listening={false}
+      />
+
+      {/* Midpoint grab indicator — double-headed arrow */}
+      {(hovered || dragging) && (() => {
+        const color = dragging ? '#f59e0b' : '#fbbf24';
+        const as = arrowSize;
+        // For 'h' axis: ← → arrows along x at (mx, my)
+        // For 'v' axis: ↑ ↓ arrows along y at (mx, my)
+        const arrowPoints = axis === 'h'
+          ? [
+              // left arrow head
+              mx - as, my,  mx - as * 0.4, my - as * 0.55,
+              mx - as, my,  mx - as * 0.4, my + as * 0.55,
+              mx - as, my,
+              // right arrow head
+              mx + as, my,  mx + as * 0.4, my - as * 0.55,
+              mx + as, my,  mx + as * 0.4, my + as * 0.55,
+              mx + as, my,
+            ]
+          : [
+              // up arrow head
+              mx, my - as,  mx - as * 0.55, my - as * 0.4,
+              mx, my - as,  mx + as * 0.55, my - as * 0.4,
+              mx, my - as,
+              // down arrow head
+              mx, my + as,  mx - as * 0.55, my + as * 0.4,
+              mx, my + as,  mx + as * 0.55, my + as * 0.4,
+              mx, my + as,
+            ];
+        return (
+          <>
+            {/* Center circle */}
+            <Line
+              points={arrowPoints}
+              stroke={color}
+              strokeWidth={1.5 / scale}
+              listening={false}
+            />
+            {/* Connecting shaft between the two arrow heads */}
+            <Line
+              points={axis === 'h' ? [mx - as * 0.9, my, mx + as * 0.9, my] : [mx, my - as * 0.9, mx, my + as * 0.9]}
+              stroke={color}
+              strokeWidth={1.2 / scale}
+              listening={false}
+            />
+            {/* Filled center dot */}
+            <Line
+              points={[
+                mx - 3 / scale, my,
+                mx, my - 3 / scale,
+                mx + 3 / scale, my,
+                mx, my + 3 / scale,
+                mx - 3 / scale, my,
+              ]}
+              closed
+              fill={color}
+              stroke="rgba(255,255,255,0.7)"
+              strokeWidth={0.7 / scale}
+              opacity={0.95}
+              listening={false}
+            />
+            {/* Label: "B↔C row2" while dragging */}
+            {dragging && (
+              <Text
+                text={axis === 'h' ? `${codeA}↔${codeB}` : `${codeA}↕${codeB}`}
+                x={mx + 6 / scale}
+                y={my - 8 / scale}
+                fontSize={10 / scale}
+                fontStyle="bold"
+                fill="#fbbf24"
+                shadowColor="black"
+                shadowBlur={4 / scale}
+                shadowOpacity={0.8}
+                listening={false}
+              />
+            )}
+          </>
+        );
+      })()}
+    </Group>
+  );
+});
+
 // ─── A single beam: an independent clickable line hotspot ───────────────────
 interface BeamProps {
   id: string;
@@ -341,6 +559,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     patchDrawingColumnPositions,
     resetDrawingColumnPositions,
     patchDrawingColumnLabel,
+    deleteDrawingNode,
   } = useApp();
 
   // hoveredElementId is local — it changes on every mouse-move and should NOT
@@ -435,17 +654,20 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   }, [image, size.width, size.height]);
 
   // ── Column positions: persisted override, else evenly spaced across the image ──
+  // Nodes listed in currentDrawing.deletedNodes are filtered out entirely.
   const columnElements = useMemo(() => {
     if (!currentDrawing || !image) return [];
     const cols = currentDrawing.gridCols;
     const rows = currentDrawing.gridRows;
     const overrides = currentDrawing.columnPositions || {};
+    const deleted = new Set(currentDrawing.deletedNodes ?? []);
     const iw = image.naturalWidth || image.width || 1;
     const ih = image.naturalHeight || image.height || 1;
     const points: { id: string; code: string; x: number; y: number; row: number; col: number }[] = [];
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const code = gridLabel(col, row);
+        if (deleted.has(code)) continue; // skip deleted nodes
         const override = overrides[code];
         const fx = override ? override.x : cols > 1 ? col / (cols - 1) : 0.5;
         const fy = override ? override.y : rows > 1 ? row / (rows - 1) : 0.5;
@@ -653,11 +875,47 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onSnapshotReady]);
 
+  // ── Delete selected node ──
+  const handleDeleteSelectedNode = useCallback(async () => {
+    if (!currentDrawing || !selectedElementId?.startsWith('Column_')) {
+      toast('Select a column node first', { icon: '👆' });
+      return;
+    }
+    const code = selectedElementId.replace('Column_', '');
+    setSelectedElementId(null);
+    await deleteDrawingNode(currentDrawing.id, code);
+    toast.success(`Node ${code} removed`, { icon: '🗑️', duration: 2000 });
+  }, [currentDrawing, selectedElementId, setSelectedElementId, deleteDrawingNode]);
+
+  // ── Restore all deleted nodes ──
+  const handleRestoreAllNodes = useCallback(async () => {
+    if (!currentDrawing) return;
+    const deleted = currentDrawing.deletedNodes ?? [];
+    if (deleted.length === 0) { toast('No deleted nodes to restore', { icon: 'ℹ️' }); return; }
+    for (const code of deleted) {
+      await deleteDrawingNode(currentDrawing.id, code, true);
+    }
+    toast.success(`Restored ${deleted.length} node(s)`, { icon: '♻️', duration: 2000 });
+  }, [currentDrawing, deleteDrawingNode]);
+
   const columnElementsRef = useRef(columnElements);
   useEffect(() => { columnElementsRef.current = columnElements; }, [columnElements]);
   useEffect(() => {
     if (!calibrating) return;
     const onKeyDown = (e: KeyboardEvent) => {
+      // Delete key: remove selected node
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !e.ctrlKey && !e.metaKey) {
+        const selectedId = selectedElementId;
+        if (selectedId?.startsWith('Column_') && currentDrawing) {
+          e.preventDefault();
+          const code = selectedId.replace('Column_', '');
+          setSelectedElementId(null);
+          deleteDrawingNode(currentDrawing.id, code).then(() => {
+            toast.success(`Node ${code} removed`, { icon: '🗑️', duration: 2000 });
+          });
+          return;
+        }
+      }
       if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
       const selectedId = selectedElementId;
       if (!selectedId || !selectedId.startsWith('Column_')) return;
@@ -674,7 +932,149 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [calibrating, selectedElementId, handleReposition]);
+  }, [calibrating, selectedElementId, handleReposition, currentDrawing, deleteDrawingNode, setSelectedElementId]);
+
+  // ── Grid segment handles: per-cell-edge draggable lines ──────────────────────
+  // One handle per CELL EDGE:
+  //   axis='h': the vertical boundary between col and col+1 in the same row.
+  //             Dragging left/right moves ONLY those two adjacent nodes' x-coords
+  //             for that specific row — other rows' x-positions are untouched.
+  //   axis='v': the horizontal boundary between row and row+1 in the same col.
+  //             Dragging up/down moves ONLY those two adjacent nodes' y-coords
+  //             for that specific column — other columns' y-positions are untouched.
+  //
+  // The handle line spans exactly the cell edge:
+  //   - 'h' handle at boundary between col c and col c+1 in row r:
+  //       the line is VERTICAL at x=midX, from y of row above (r-1 or top of cell)
+  //       to y of row below (r+1 or bottom of cell).
+  //   - 'v' handle at boundary between row r and row r+1 in col c:
+  //       the line is HORIZONTAL at y=midY, from x of col to left (c-1 or left of cell)
+  //       to x of col to right (c+1 or right of cell).
+  const segmentHandles = useMemo(() => {
+    if (!currentDrawing || !image || columnElements.length === 0) return [];
+    const byCode = new Map(columnElements.map((c) => [c.code, c]));
+    const cols = currentDrawing.gridCols;
+    const rows = currentDrawing.gridRows;
+
+    const handles: {
+      id: string;
+      axis: 'h' | 'v';
+      codeA: string;
+      codeB: string;
+      xA: number; yA: number;
+      xB: number; yB: number;
+      cellSpanStart: number;
+      cellSpanEnd: number;
+    }[] = [];
+
+    // ── Horizontal boundaries: between col c and col c+1 within the SAME row ──
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols - 1; col++) {
+        const codeA = gridLabel(col, row);       // left node
+        const codeB = gridLabel(col + 1, row);   // right node
+        const pA = byCode.get(codeA);
+        const pB = byCode.get(codeB);
+        if (!pA || !pB) continue;
+
+        // Perpendicular (y) span = from the row above to the row below,
+        // limited to the actual cell extent so each handle only covers its own cell.
+        const yAbove = row > 0
+          ? ((byCode.get(gridLabel(col, row - 1))?.y ?? pA.y) + pA.y) / 2
+          : pA.y - Math.abs(pA.y - (byCode.get(gridLabel(col, row + 1))?.y ?? pA.y)) / 2;
+        const yBelow = row < rows - 1
+          ? ((byCode.get(gridLabel(col, row + 1))?.y ?? pA.y) + pA.y) / 2
+          : pA.y + Math.abs(pA.y - (byCode.get(gridLabel(col, row - 1))?.y ?? pA.y)) / 2;
+
+        handles.push({
+          id: `seg-h-${codeA}-${codeB}`,
+          axis: 'h',
+          codeA, codeB,
+          xA: pA.x, yA: pA.y,
+          xB: pB.x, yB: pB.y,
+          cellSpanStart: Math.min(yAbove, yBelow),
+          cellSpanEnd: Math.max(yAbove, yBelow),
+        });
+      }
+    }
+
+    // ── Vertical boundaries: between row r and row r+1 within the SAME column ──
+    for (let row = 0; row < rows - 1; row++) {
+      for (let col = 0; col < cols; col++) {
+        const codeA = gridLabel(col, row);       // top node
+        const codeB = gridLabel(col, row + 1);   // bottom node
+        const pA = byCode.get(codeA);
+        const pB = byCode.get(codeB);
+        if (!pA || !pB) continue;
+
+        // Perpendicular (x) span = from the col to the left to the col to the right,
+        // limited to the actual cell extent.
+        const xLeft = col > 0
+          ? ((byCode.get(gridLabel(col - 1, row))?.x ?? pA.x) + pA.x) / 2
+          : pA.x - Math.abs(pA.x - (byCode.get(gridLabel(col + 1, row))?.x ?? pA.x)) / 2;
+        const xRight = col < cols - 1
+          ? ((byCode.get(gridLabel(col + 1, row))?.x ?? pA.x) + pA.x) / 2
+          : pA.x + Math.abs(pA.x - (byCode.get(gridLabel(col - 1, row))?.x ?? pA.x)) / 2;
+
+        handles.push({
+          id: `seg-v-${codeA}-${codeB}`,
+          axis: 'v',
+          codeA, codeB,
+          xA: pA.x, yA: pA.y,
+          xB: pB.x, yB: pB.y,
+          cellSpanStart: Math.min(xLeft, xRight),
+          cellSpanEnd: Math.max(xLeft, xRight),
+        });
+      }
+    }
+    return handles;
+  }, [currentDrawing, image, columnElements]);
+
+  // Live accumulated delta state for smooth real-time preview while dragging
+  // We track it in a ref (not state) to avoid re-rendering the whole canvas on every pixel
+  const segDeltaRef = useRef<{ axis: 'h' | 'v'; codeA: string; codeB: string; delta: number } | null>(null);
+
+  const handleSegmentDragMove = useCallback((
+    axis: 'h' | 'v', codeA: string, codeB: string, delta: number
+  ) => {
+    if (!currentDrawing || !image) return;
+    segDeltaRef.current = { axis, codeA, codeB, delta };
+
+    const iw = image.naturalWidth || image.width || 1;
+    const ih = image.naturalHeight || image.height || 1;
+
+    // Live-update only the two endpoint columns
+    const pA = columnElements.find((c) => c.code === codeA);
+    const pB = columnElements.find((c) => c.code === codeB);
+    if (!pA || !pB) return;
+
+    if (axis === 'h') {
+      // Move the boundary: split the delta — codeA column right-edge moves right, codeB left-edge moves left
+      // But actually we want: drag boundary = shift codeB.x by delta (and codeA stays).
+      // This way A stays fixed and B moves — matching the user intent.
+      const newBx = Math.min(1, Math.max(0, (pB.x + delta) / iw));
+      patchDrawingColumnPositions(currentDrawing.id, codeB, newBx, pB.y / ih);
+    } else {
+      const newBy = Math.min(1, Math.max(0, (pB.y + delta) / ih));
+      patchDrawingColumnPositions(currentDrawing.id, codeB, pB.x / iw, newBy);
+    }
+  }, [currentDrawing, image, columnElements, patchDrawingColumnPositions]);
+
+  const handleSegmentDragEnd = useCallback((
+    axis: 'h' | 'v', codeA: string, codeB: string
+  ) => {
+    if (!currentDrawing || !image) return;
+    const pB = columnElements.find((c) => c.code === codeB);
+    if (!pB) return;
+    const iw = image.naturalWidth || image.width || 1;
+    const ih = image.naturalHeight || image.height || 1;
+    const x = pB.x / iw;
+    const y = pB.y / ih;
+    segDeltaRef.current = null;
+    DrawingsAPI.update(currentDrawing.id, {
+      columnPositions: { [codeB]: { x, y } },
+    }).catch(() => {/* best-effort */});
+    toast.success(`Grid boundary ${codeA}↔${codeB} adjusted`, { id: `seg-${codeA}-${codeB}`, duration: 1200, icon: '↔' });
+  }, [currentDrawing, image, columnElements]);
 
   // ── Column rename ──
   const openRename = useCallback((code: string) => {
@@ -826,6 +1226,26 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
             />
           ))}
 
+          {/* ── Per-segment grid boundary handles (calibration mode) ── */}
+          {/* Each handle covers exactly ONE cell edge and only moves that edge's two nodes */}
+          {calibrating && showGrid && image && segmentHandles.map((h) => (
+            <GridSegmentHandle
+              key={h.id}
+              axis={h.axis}
+              codeA={h.codeA}
+              codeB={h.codeB}
+              xA={h.xA}
+              yA={h.yA}
+              xB={h.xB}
+              yB={h.yB}
+              cellSpanStart={h.cellSpanStart}
+              cellSpanEnd={h.cellSpanEnd}
+              scale={scale}
+              onDragMove={handleSegmentDragMove}
+              onDragEnd={handleSegmentDragEnd}
+            />
+          ))}
+
           {showGrid && image && columnElements.map(({ id, code, x, y, row, col }) => {
             const label = currentDrawing.columnLabels?.[code] || code;
             const sameRowYs = (snapTargets.byRow.get(row) ?? []).filter((v) => v !== y);
@@ -895,7 +1315,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
           {calibPanelOpen && <>
           {/* Hint */}
           <p className="text-[10px] leading-snug px-3 pb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            Drag circles onto columns. Arrow keys nudge 1px (Shift=10px).
+            Drag <span style={{ color: 'rgba(34,211,238,0.8)' }}>cyan lines</span> to resize individual grid sections. Drag <span style={{ color: 'rgba(251,191,36,0.8)' }}>circles</span> to reposition nodes. Arrow keys nudge 1px (Shift=10px).
           </p>
 
           {/* Tools */}

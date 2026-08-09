@@ -1,0 +1,489 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100" font-family="Arial,Helvetica,sans-serif">
+  <defs>
+    <filter id="sd" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="1.5" dy="1.5" stdDeviation="2.5" flood-opacity="0.22"/>
+    </filter>
+    <!-- Wall hatch pattern -->
+    <pattern id="wallhatch" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="8" height="8" fill="#e0ddd8"/>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#c8c8c8" stroke-width="1.2"/>
+    </pattern>
+    <!-- Tile pattern for floors -->
+    <pattern id="tile600" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+      <rect width="24" height="24" fill="none" stroke="#ccd4cc" stroke-width="0.5"/>
+    </pattern>
+    <pattern id="woodfloor" x="0" y="0" width="20" height="80" patternUnits="userSpaceOnUse">
+      <rect width="20" height="80" fill="none" stroke="#c8a87a" stroke-width="0.6"/>
+      <line x1="10" y1="0" x2="10" y2="80" stroke="#c8a87a" stroke-width="0.4"/>
+    </pattern>
+    <marker id="arro" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L7,3 z" fill="#2c3e50"/>
+    </marker>
+    <marker id="arrl" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto">
+      <path d="M7,0 L7,6 L0,3 z" fill="#2c3e50"/>
+    </marker>
+  </defs>
+
+  <!-- ── Background ── -->
+  <rect width="1800" height="1100" fill="#f8f9fa"/>
+
+  <!-- ── Sheet border ── -->
+  <rect x="10" y="10" width="1780" height="1080" fill="none" stroke="#1a1a2e" stroke-width="2"/>
+  <rect x="15" y="15" width="1770" height="1070" fill="none" stroke="#1a1a2e" stroke-width="0.8"/>
+
+  <!-- ── Drawing title (top) ── -->
+  <text x="900" y="52" font-size="26" fill="#1a1a2e" text-anchor="middle" font-weight="900" letter-spacing="2">GROUND FLOOR PLAN</text>
+  <text x="900" y="74" font-size="13" fill="#5a6a80" text-anchor="middle" letter-spacing="1">HOUSE BUILDING PROJECT   |   Drawing No: HBP-GF-002   |   Scale 1:50   |   Sheet 1 of 1</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       ROOM FLOOR FILLS
+  ════════════════════════════════════════════════════════ -->
+
+  <!-- Living / Dining -->
+  <rect x="148" y="98" width="282" height="542" fill="url(#tile600)" opacity="0.7"/>
+  <rect x="148" y="98" width="282" height="542" fill="#e8f5e9" opacity="0.55"/>
+
+  <!-- Master Bedroom -->
+  <rect x="432.5" y="98" width="265" height="542" fill="url(#woodfloor)" opacity="0.6"/>
+  <rect x="432.5" y="98" width="265" height="542" fill="#ede7f6" opacity="0.5"/>
+
+  <!-- Bathroom 1 -->
+  <rect x="702.5" y="98" width="255" height="542" fill="#e1f5fe" opacity="0.7"/>
+
+  <!-- Bedroom 2 -->
+  <rect x="962.5" y="98" width="245" height="542" fill="url(#woodfloor)" opacity="0.5"/>
+  <rect x="962.5" y="98" width="245" height="542" fill="#fff3e0" opacity="0.45"/>
+
+  <!-- Garage -->
+  <rect x="1212.5" y="98" width="199.5" height="542" fill="#f3e5f5" opacity="0.6"/>
+
+  <!-- Kitchen -->
+  <rect x="432.5" y="642.5" width="525" height="259.5" fill="#fffde7" opacity="0.75"/>
+
+  <!-- Utility / Laundry -->
+  <rect x="962.5" y="642.5" width="245" height="259.5" fill="#e8eaf6" opacity="0.65"/>
+
+  <!-- Corridor (left lower) -->
+  <rect x="148" y="642.5" width="282" height="259.5" fill="#fce4ec" opacity="0.5"/>
+
+  <!-- Store -->
+  <rect x="1212.5" y="642.5" width="199.5" height="259.5" fill="#e0f2f1" opacity="0.65"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       WALLS (drawn as thick filled rectangles / lines)
+  ════════════════════════════════════════════════════════ -->
+
+  <!-- Outer walls – hatched fill to simulate masonry -->
+  <!-- TOP wall -->
+  <rect x="140" y="90" width="1280" height="8" fill="url(#wallhatch)" stroke="#1a1a2e" stroke-width="1.5"/>
+  <!-- BOTTOM wall -->
+  <rect x="140" y="902" width="1280" height="8" fill="url(#wallhatch)" stroke="#1a1a2e" stroke-width="1.5"/>
+  <!-- LEFT wall -->
+  <rect x="140" y="90" width="8" height="820" fill="url(#wallhatch)" stroke="#1a1a2e" stroke-width="1.5"/>
+  <!-- RIGHT wall -->
+  <rect x="1412" y="90" width="8" height="820" fill="url(#wallhatch)" stroke="#1a1a2e" stroke-width="1.5"/>
+
+  <!-- Outer wall outlines (bold) -->
+  <rect x="140" y="90" width="1280" height="820" fill="none" stroke="#1a1a2e" stroke-width="8" stroke-linejoin="miter"/>
+
+  <!-- Interior vertical walls -->
+  <line x1="430" y1="98" x2="430" y2="902" stroke="#1a1a2e" stroke-width="5"/>
+  <line x1="700" y1="98" x2="700" y2="640" stroke="#1a1a2e" stroke-width="5"/>
+  <line x1="960" y1="98" x2="960" y2="902" stroke="#1a1a2e" stroke-width="5"/>
+  <line x1="1210" y1="98" x2="1210" y2="902" stroke="#1a1a2e" stroke-width="5"/>
+
+  <!-- Interior horizontal wall -->
+  <line x1="148" y1="640" x2="1412" y2="640" stroke="#1a1a2e" stroke-width="5"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       DOOR SYMBOLS (swing arcs + opening gap in wall)
+  ════════════════════════════════════════════════════════ -->
+
+  <!-- Main entrance door (left wall, lower section) -->
+  <rect x="138" y="720" width="12" height="80" fill="#f8f9fa" stroke="none"/>
+  <line x1="140" y1="720" x2="140" y2="800" stroke="#1a1a2e" stroke-width="1.5" stroke-dasharray="3,3"/>
+  <line x1="148" y1="720" x2="148" y2="800" stroke="#1a1a2e" stroke-width="1.8"/>
+  <path d="M 148 720 A 80,80 0 0,0 228 800" fill="none" stroke="#1a1a2e" stroke-width="1.4" stroke-dasharray="5,4"/>
+
+  <!-- Bedroom door (v1 wall) -->
+  <rect x="427" y="128" width="11" height="80" fill="#f8f9fa" stroke="none"/>
+  <line x1="430" y1="128" x2="430" y2="208" stroke="#1a1a2e" stroke-width="1.5" stroke-dasharray="3,3"/>
+  <line x1="432.5" y1="128" x2="432.5" y2="208" stroke="#1a1a2e" stroke-width="1.8"/>
+  <path d="M 432.5 128 A 80,80 0 0,1 512.5 208" fill="none" stroke="#1a1a2e" stroke-width="1.4" stroke-dasharray="5,4"/>
+
+  <!-- Bathroom door (v2 wall) -->
+  <rect x="697" y="138" width="11" height="70" fill="#f8f9fa" stroke="none"/>
+  <path d="M 702.5 138 A 70,70 0 0,1 772.5 208" fill="none" stroke="#1a1a2e" stroke-width="1.4" stroke-dasharray="5,4"/>
+  <line x1="702.5" y1="138" x2="702.5" y2="208" stroke="#1a1a2e" stroke-width="1.8"/>
+
+  <!-- Bedroom2 door (v3 wall) -->
+  <rect x="957" y="128" width="11" height="80" fill="#f8f9fa" stroke="none"/>
+  <path d="M 962.5 128 A 80,80 0 0,1 1042.5 208" fill="none" stroke="#1a1a2e" stroke-width="1.4" stroke-dasharray="5,4"/>
+  <line x1="962.5" y1="128" x2="962.5" y2="208" stroke="#1a1a2e" stroke-width="1.8"/>
+
+  <!-- Garage door (top wall – roller) -->
+  <rect x="1232.5" y="88" width="159.5" height="12" fill="#b0c4de" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1322.25" y="97" font-size="10" fill="#1a1a2e" text-anchor="middle" font-weight="bold">ROLLER SHUTTER</text>
+
+  <!-- Kitchen door (h1 wall) -->
+  <rect x="472.5" y="637" width="70" height="11" fill="#f8f9fa" stroke="none"/>
+  <path d="M 472.5 642.5 A 70,70 0 0,0 542.5 572.5" fill="none" stroke="#1a1a2e" stroke-width="1.4" stroke-dasharray="5,4"/>
+  <line x1="472.5" y1="642.5" x2="542.5" y2="642.5" stroke="#1a1a2e" stroke-width="1.8"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       WINDOW SYMBOLS (triple-line in-wall)
+  ════════════════════════════════════════════════════════ -->
+
+  <!-- Windows on left wall (Living) -->
+  <rect x="138" y="198" width="12" height="120" fill="white" stroke="#1a1a2e" stroke-width="1.5"/>
+  <line x1="140" y1="198" x2="140" y2="318" stroke="#60c8ff" stroke-width="3"/>
+  <line x1="148" y1="198" x2="148" y2="318" stroke="#60c8ff" stroke-width="3"/>
+  <line x1="144" y1="198" x2="144" y2="318" stroke="#60c8ff" stroke-width="1.5"/>
+
+  <rect x="138" y="368" width="12" height="120" fill="white" stroke="#1a1a2e" stroke-width="1.5"/>
+  <line x1="140" y1="368" x2="140" y2="488" stroke="#60c8ff" stroke-width="3"/>
+  <line x1="148" y1="368" x2="148" y2="488" stroke="#60c8ff" stroke-width="3"/>
+  <line x1="144" y1="368" x2="144" y2="488" stroke="#60c8ff" stroke-width="1.5"/>
+
+  <!-- Window on top wall (Master Bedroom) -->
+  <rect x="462.5" y="88" width="150" height="12" fill="white" stroke="#1a1a2e" stroke-width="1.5"/>
+  <line x1="462.5" y1="90" x2="612.5" y2="90" stroke="#60c8ff" stroke-width="3"/>
+  <line x1="462.5" y1="98" x2="612.5" y2="98" stroke="#60c8ff" stroke-width="3"/>
+  <line x1="462.5" y1="94" x2="612.5" y2="94" stroke="#60c8ff" stroke-width="1.5"/>
+
+  <!-- Window on top wall (Bedroom 2) -->
+  <rect x="992.5" y="88" width="130" height="12" fill="white" stroke="#1a1a2e" stroke-width="1.5"/>
+  <line x1="992.5" y1="90" x2="1122.5" y2="90" stroke="#60c8ff" stroke-width="3"/>
+  <line x1="992.5" y1="98" x2="1122.5" y2="98" stroke="#60c8ff" stroke-width="3"/>
+  <line x1="992.5" y1="94" x2="1122.5" y2="94" stroke="#60c8ff" stroke-width="1.5"/>
+
+  <!-- Window on right wall (Garage) -->
+  <rect x="1410" y="218" width="12" height="100" fill="white" stroke="#1a1a2e" stroke-width="1.5"/>
+  <line x1="1412" y1="218" x2="1412" y2="318" stroke="#60c8ff" stroke-width="3"/>
+  <line x1="1420" y1="218" x2="1420" y2="318" stroke="#60c8ff" stroke-width="3"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STRUCTURAL COLUMNS (solid square at intersections)
+  ════════════════════════════════════════════════════════ -->
+
+  <rect x="126" y="76" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="130" y="80" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="416" y="76" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="420" y="80" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="686" y="76" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="690" y="80" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="946" y="76" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="950" y="80" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="1196" y="76" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="1200" y="80" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="1406" y="76" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="1410" y="80" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="126" y="626" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="130" y="630" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="416" y="626" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="420" y="630" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="946" y="626" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="950" y="630" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="1196" y="626" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="1200" y="630" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="1406" y="626" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="1410" y="630" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="126" y="896" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="130" y="900" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="416" y="896" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="420" y="900" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="686" y="896" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="690" y="900" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="946" y="896" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="950" y="900" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="1196" y="896" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="1200" y="900" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+  <rect x="1406" y="896" width="28" height="28" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+     <rect x="1410" y="900" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       FURNITURE (simplified CAD symbols)
+  ════════════════════════════════════════════════════════ -->
+
+  <!-- Sofa in Living (L-shape) -->
+  <rect x="168" y="138" width="180" height="70" rx="12" fill="#b0bec5" stroke="#1a1a2e" stroke-width="1.5" opacity="0.7"/>
+  <rect x="168" y="138" width="30" height="70" rx="8" fill="#90a4ae" stroke="#1a1a2e" stroke-width="1" opacity="0.7"/>
+  <rect x="318" y="138" width="30" height="70" rx="8" fill="#90a4ae" stroke="#1a1a2e" stroke-width="1" opacity="0.7"/>
+  <text x="258" y="180" font-size="11" fill="#37474f" text-anchor="middle">3-SEATER SOFA</text>
+
+  <!-- Coffee table -->
+  <rect x="208" y="228" width="100" height="60" rx="5" fill="#eceff1" stroke="#1a1a2e" stroke-width="1.5" opacity="0.75"/>
+  <text x="258" y="263" font-size="10" fill="#37474f" text-anchor="middle">COFFEE TBL</text>
+
+  <!-- Dining table + chairs -->
+  <rect x="178" y="378" width="200" height="120" rx="6" fill="#d7ccc8" stroke="#1a1a2e" stroke-width="1.5" opacity="0.8"/>
+  <text x="278" y="443" font-size="11" fill="#37474f" text-anchor="middle">DINING TABLE</text>
+  <!-- Chairs around table -->
+  <rect x="198" y="363" width="35" height="18" rx="4" fill="#bcaaa4" stroke="#1a1a2e" stroke-width="1" opacity="0.8"/>
+  <rect x="258" y="363" width="35" height="18" rx="4" fill="#bcaaa4" stroke="#1a1a2e" stroke-width="1" opacity="0.8"/>
+  <rect x="313" y="363" width="35" height="18" rx="4" fill="#bcaaa4" stroke="#1a1a2e" stroke-width="1" opacity="0.8"/>
+  <rect x="198" y="496" width="35" height="18" rx="4" fill="#bcaaa4" stroke="#1a1a2e" stroke-width="1" opacity="0.8"/>
+  <rect x="313" y="496" width="35" height="18" rx="4" fill="#bcaaa4" stroke="#1a1a2e" stroke-width="1" opacity="0.8"/>
+
+  <!-- Master Bedroom – Bed -->
+  <rect x="452.5" y="128" width="220" height="180" rx="8" fill="#ce93d8" stroke="#1a1a2e" stroke-width="1.5" opacity="0.55"/>
+  <rect x="452.5" y="128" width="220" height="50" rx="8" fill="#ab47bc" stroke="#1a1a2e" stroke-width="1" opacity="0.65"/>
+  <text x="562.5" y="233" font-size="12" fill="#4a148c" text-anchor="middle" font-weight="bold">QUEEN BED</text>
+  <text x="562.5" y="250" font-size="11" fill="#4a148c" text-anchor="middle">1500×2000mm</text>
+
+  <!-- Master Wardrobe -->
+  <rect x="452.5" y="560" width="220" height="55" rx="3" fill="#d7ccc8" stroke="#1a1a2e" stroke-width="1.5"/>
+  <line x1="562.5" y1="560" x2="562.5" y2="615" stroke="#1a1a2e" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="562.5" y="593" font-size="11" fill="#37474f" text-anchor="middle">BUILT-IN WARDROBE</text>
+
+  <!-- Bathroom 1 – WC + Basin + Shower -->
+  <ellipse cx="762.5" cy="178" rx="28" ry="38" fill="white" stroke="#1a1a2e" stroke-width="1.8"/>
+  <ellipse cx="762.5" cy="158" rx="20" ry="14" fill="#bbdefb" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="762.5" y="223" font-size="10" fill="#1a2744" text-anchor="middle">WC</text>
+
+  <ellipse cx="762.5" cy="318" rx="30" ry="20" fill="white" stroke="#1a1a2e" stroke-width="1.8"/>
+  <circle cx="762.5" cy="318" r="6" fill="none" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="762.5" y="354" font-size="10" fill="#1a2744" text-anchor="middle">BASIN</text>
+
+  <rect x="732.5" y="428" width="70" height="70" rx="35" fill="#e1f5fe" stroke="#1a1a2e" stroke-width="1.8"/>
+  <circle cx="767.5" cy="463" r="12" fill="none" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="767.5" y="518" font-size="10" fill="#1a2744" text-anchor="middle">SHOWER</text>
+
+  <!-- Bedroom 2 – Bed -->
+  <rect x="982.5" y="128" width="200" height="160" rx="8" fill="#ffe0b2" stroke="#1a1a2e" stroke-width="1.5" opacity="0.6"/>
+  <rect x="982.5" y="128" width="200" height="45" rx="8" fill="#ffb74d" stroke="#1a1a2e" stroke-width="1" opacity="0.7"/>
+  <text x="1082.5" y="223" font-size="12" fill="#e65100" text-anchor="middle" font-weight="bold">DOUBLE BED</text>
+  <text x="1082.5" y="240" font-size="11" fill="#e65100" text-anchor="middle">1400×2000mm</text>
+
+  <!-- Bedroom 2 – Wardrobe -->
+  <rect x="982.5" y="565" width="200" height="50" rx="3" fill="#d7ccc8" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1082.5" y="596" font-size="11" fill="#37474f" text-anchor="middle">WARDROBE</text>
+
+  <!-- Garage – Car outline -->
+  <rect x="1237.5" y="158" width="340" height="180" rx="18" fill="none" stroke="#1a1a2e" stroke-width="2" stroke-dasharray="8,5" opacity="0.5"/>
+  <text x="1407.5" y="253" font-size="15" fill="#4a148c" text-anchor="middle" font-weight="bold">GARAGE</text>
+  <text x="1407.5" y="273" font-size="11" fill="#5e35b1" text-anchor="middle">1 Car Parking</text>
+
+  <!-- Kitchen – cabinets + sink -->
+  <rect x="442.5" y="652.5" width="505" height="55" rx="3" fill="#fff9c4" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="695" y="684.5" font-size="11" fill="#37474f" text-anchor="middle">KITCHEN COUNTER</text>
+  <!-- Sink -->
+  <rect x="552.5" y="657.5" width="60" height="40" rx="4" fill="white" stroke="#1a1a2e" stroke-width="1.5"/>
+  <circle cx="582.5" cy="677.5" r="5" fill="#1a1a2e" opacity="0.5"/>
+  <text x="582.5" y="730.5" font-size="10" fill="#37474f" text-anchor="middle">KITCHEN SINK</text>
+
+  <!-- Utility / Washing machine -->
+  <rect x="987.5" y="662.5" width="70" height="70" rx="8" fill="white" stroke="#1a1a2e" stroke-width="1.8"/>
+  <circle cx="1022.5" cy="697.5" r="25" fill="none" stroke="#1a1a2e" stroke-width="1.5"/>
+  <circle cx="1022.5" cy="697.5" r="10" fill="none" stroke="#1a1a2e" stroke-width="1"/>
+  <text x="1022.5" y="752.5" font-size="10" fill="#37474f" text-anchor="middle">W/M</text>
+
+  <!-- Store – Shelves -->
+  <rect x="1232.5" y="662.5" width="160" height="30" rx="3" fill="#d0f0e8" stroke="#1a1a2e" stroke-width="1.5"/>
+  <rect x="1232.5" y="702.5" width="160" height="30" rx="3" fill="#d0f0e8" stroke="#1a1a2e" stroke-width="1.5"/>
+  <rect x="1232.5" y="742.5" width="160" height="30" rx="3" fill="#d0f0e8" stroke="#1a1a2e" stroke-width="1.5"/>
+  <text x="1312.5" y="812.5" font-size="11" fill="#37474f" text-anchor="middle">STORAGE SHELVES</text>
+
+  <!-- Staircase in corridor (schematic) -->
+  <rect x="168" y="662.5" width="90" height="28" fill="none" stroke="#1a1a2e" stroke-width="1.2" opacity="0.5"/>
+  <rect x="168" y="692.5" width="90" height="28" fill="none" stroke="#1a1a2e" stroke-width="1.2" opacity="0.5"/>
+  <rect x="168" y="722.5" width="90" height="28" fill="none" stroke="#1a1a2e" stroke-width="1.2" opacity="0.5"/>
+  <rect x="168" y="752.5" width="90" height="28" fill="none" stroke="#1a1a2e" stroke-width="1.2" opacity="0.5"/>
+  <rect x="168" y="782.5" width="90" height="28" fill="none" stroke="#1a1a2e" stroke-width="1.2" opacity="0.5"/>
+  <rect x="168" y="812.5" width="90" height="28" fill="none" stroke="#1a1a2e" stroke-width="1.2" opacity="0.5"/>
+  <rect x="168" y="842.5" width="90" height="28" fill="none" stroke="#1a1a2e" stroke-width="1.2" opacity="0.5"/>
+  <rect x="168" y="872.5" width="90" height="28" fill="none" stroke="#1a1a2e" stroke-width="1.2" opacity="0.5"/>
+  <text x="213" y="922.5" font-size="10" fill="#1a2744" text-anchor="middle">STAIRCASE UP</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       ROOM LABELS (large, centred, semi-transparent)
+  ════════════════════════════════════════════════════════ -->
+
+  <text x="289" y="268" font-size="20" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.18">LIVING</text>
+  <text x="289" y="292" font-size="20" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.18">&amp; DINING</text>
+  <text x="289" y="313" font-size="13" fill="#2e7d32" text-anchor="middle" opacity="0.6">28.5 m²</text>
+
+  <text x="565" y="378" font-size="17" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.2">MASTER</text>
+  <text x="565" y="398" font-size="17" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.2">BEDROOM</text>
+  <text x="565" y="418" font-size="13" fill="#4527a0" text-anchor="middle" opacity="0.6">18.0 m²</text>
+
+  <text x="830" y="558" font-size="15" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.2">BATHROOM 1</text>
+  <text x="830" y="578" font-size="12" fill="#01579b" text-anchor="middle" opacity="0.6">5.5 m²</text>
+
+  <text x="1085" y="378" font-size="17" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.2">BEDROOM 2</text>
+  <text x="1085" y="398" font-size="13" fill="#e65100" text-anchor="middle" opacity="0.6">16.0 m²</text>
+
+  <text x="1315" y="428" font-size="18" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.18">GARAGE</text>
+  <text x="1315" y="448" font-size="13" fill="#6a1b9a" text-anchor="middle" opacity="0.6">22.0 m²</text>
+
+  <text x="695" y="787.5" font-size="17" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.22">KITCHEN</text>
+  <text x="695" y="807.5" font-size="12" fill="#f57f17" text-anchor="middle" opacity="0.6">12.0 m²</text>
+
+  <text x="1085" y="787.5" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.22">UTILITY</text>
+  <text x="1085" y="807.5" font-size="11" fill="#283593" text-anchor="middle" opacity="0.6">6.0 m²</text>
+
+  <text x="1315" y="787.5" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.22">STORE</text>
+  <text x="1315" y="807.5" font-size="11" fill="#00695c" text-anchor="middle" opacity="0.6">5.5 m²</text>
+
+  <text x="289" y="772.5" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="900" opacity="0.22">CORRIDOR</text>
+  <text x="289" y="792.5" font-size="11" fill="#880e4f" text-anchor="middle" opacity="0.6">8.0 m²</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       GRID REFERENCE BUBBLES (top and left margin)
+  ════════════════════════════════════════════════════════ -->
+
+  <!-- Column refs: A B C D E F -->
+  <circle cx="140" cy="60" r="16" fill="#3a3aaa" stroke="white" stroke-width="2"/>
+    <text x="140" y="65" font-size="14" fill="white" text-anchor="middle" font-weight="bold">A</text>
+    <line x1="140" y1="76" x2="140" y2="920" stroke="#3a3aaa" stroke-width="1.2" stroke-dasharray="5,6" opacity="0.3"/>
+  <circle cx="430" cy="60" r="16" fill="#3a3aaa" stroke="white" stroke-width="2"/>
+    <text x="430" y="65" font-size="14" fill="white" text-anchor="middle" font-weight="bold">B</text>
+    <line x1="430" y1="76" x2="430" y2="920" stroke="#3a3aaa" stroke-width="1.2" stroke-dasharray="5,6" opacity="0.3"/>
+  <circle cx="700" cy="60" r="16" fill="#3a3aaa" stroke="white" stroke-width="2"/>
+    <text x="700" y="65" font-size="14" fill="white" text-anchor="middle" font-weight="bold">C</text>
+    <line x1="700" y1="76" x2="700" y2="920" stroke="#3a3aaa" stroke-width="1.2" stroke-dasharray="5,6" opacity="0.3"/>
+  <circle cx="960" cy="60" r="16" fill="#3a3aaa" stroke="white" stroke-width="2"/>
+    <text x="960" y="65" font-size="14" fill="white" text-anchor="middle" font-weight="bold">D</text>
+    <line x1="960" y1="76" x2="960" y2="920" stroke="#3a3aaa" stroke-width="1.2" stroke-dasharray="5,6" opacity="0.3"/>
+  <circle cx="1210" cy="60" r="16" fill="#3a3aaa" stroke="white" stroke-width="2"/>
+    <text x="1210" y="65" font-size="14" fill="white" text-anchor="middle" font-weight="bold">E</text>
+    <line x1="1210" y1="76" x2="1210" y2="920" stroke="#3a3aaa" stroke-width="1.2" stroke-dasharray="5,6" opacity="0.3"/>
+  <circle cx="1420" cy="60" r="16" fill="#3a3aaa" stroke="white" stroke-width="2"/>
+    <text x="1420" y="65" font-size="14" fill="white" text-anchor="middle" font-weight="bold">F</text>
+    <line x1="1420" y1="76" x2="1420" y2="920" stroke="#3a3aaa" stroke-width="1.2" stroke-dasharray="5,6" opacity="0.3"/>
+
+  <!-- Row refs: 1 2 3 -->
+  <circle cx="85" cy="90" r="16" fill="#3a3aaa" stroke="white" stroke-width="2"/>
+    <text x="85" y="95" font-size="14" fill="white" text-anchor="middle" font-weight="bold">1</text>
+    <line x1="101" y1="90" x2="1430" y2="90" stroke="#3a3aaa" stroke-width="1.2" stroke-dasharray="5,6" opacity="0.3"/>
+  <circle cx="85" cy="640" r="16" fill="#3a3aaa" stroke="white" stroke-width="2"/>
+    <text x="85" y="645" font-size="14" fill="white" text-anchor="middle" font-weight="bold">2</text>
+    <line x1="101" y1="640" x2="1430" y2="640" stroke="#3a3aaa" stroke-width="1.2" stroke-dasharray="5,6" opacity="0.3"/>
+  <circle cx="85" cy="910" r="16" fill="#3a3aaa" stroke="white" stroke-width="2"/>
+    <text x="85" y="915" font-size="14" fill="white" text-anchor="middle" font-weight="bold">3</text>
+    <line x1="101" y1="910" x2="1430" y2="910" stroke="#3a3aaa" stroke-width="1.2" stroke-dasharray="5,6" opacity="0.3"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       DIMENSION LINES
+  ════════════════════════════════════════════════════════ -->
+
+  <!-- Overall width -->
+  <line x1="140" y1="54" x2="1420" y2="54" stroke="#2c3e50" stroke-width="1.5" marker-start="url(#arrl)" marker-end="url(#arro)"/>
+  <line x1="140" y1="62" x2="140" y2="44" stroke="#2c3e50" stroke-width="1.2"/>
+  <line x1="1420" y1="62" x2="1420" y2="44" stroke="#2c3e50" stroke-width="1.2"/>
+  <text x="780" y="42" font-size="13" fill="#2c3e50" text-anchor="middle" font-weight="bold">12 800 mm</text>
+
+  <!-- Bay widths (top) -->
+  <line x1="140" y1="74" x2="430" y2="74" stroke="#2c3e50" stroke-width="1.2" marker-start="url(#arrl)" marker-end="url(#arro)" opacity="0.7"/>
+     <text x="285" y="70" font-size="10" fill="#2c3e50" text-anchor="middle">2900</text>
+  <line x1="430" y1="74" x2="700" y2="74" stroke="#2c3e50" stroke-width="1.2" marker-start="url(#arrl)" marker-end="url(#arro)" opacity="0.7"/>
+     <text x="565" y="70" font-size="10" fill="#2c3e50" text-anchor="middle">2700</text>
+  <line x1="700" y1="74" x2="960" y2="74" stroke="#2c3e50" stroke-width="1.2" marker-start="url(#arrl)" marker-end="url(#arro)" opacity="0.7"/>
+     <text x="830" y="70" font-size="10" fill="#2c3e50" text-anchor="middle">2600</text>
+  <line x1="960" y1="74" x2="1210" y2="74" stroke="#2c3e50" stroke-width="1.2" marker-start="url(#arrl)" marker-end="url(#arro)" opacity="0.7"/>
+     <text x="1085" y="70" font-size="10" fill="#2c3e50" text-anchor="middle">2500</text>
+  <line x1="1210" y1="74" x2="1420" y2="74" stroke="#2c3e50" stroke-width="1.2" marker-start="url(#arrl)" marker-end="url(#arro)" opacity="0.7"/>
+     <text x="1315" y="70" font-size="10" fill="#2c3e50" text-anchor="middle">2100</text>
+
+  <!-- Overall height (right side) -->
+  <line x1="1456" y1="90" x2="1456" y2="910" stroke="#2c3e50" stroke-width="1.5" marker-start="url(#arrl)" marker-end="url(#arro)"/>
+  <line x1="1448" y1="90" x2="1466" y2="90" stroke="#2c3e50" stroke-width="1.2"/>
+  <line x1="1448" y1="910" x2="1466" y2="910" stroke="#2c3e50" stroke-width="1.2"/>
+  <text x="1480" y="500" font-size="13" fill="#2c3e50" text-anchor="middle" font-weight="bold" transform="rotate(-90,1480,500)">8 200 mm</text>
+
+  <!-- Bay heights (right) -->
+  <line x1="1436" y1="90" x2="1436" y2="640" stroke="#2c3e50" stroke-width="1.2" marker-start="url(#arrl)" marker-end="url(#arro)" opacity="0.7"/>
+     <text x="1446" y="365" font-size="10" fill="#2c3e50" text-anchor="middle" transform="rotate(-90,1446,365)">5500</text>
+  <line x1="1436" y1="640" x2="1436" y2="910" stroke="#2c3e50" stroke-width="1.2" marker-start="url(#arrl)" marker-end="url(#arro)" opacity="0.7"/>
+     <text x="1446" y="775" font-size="10" fill="#2c3e50" text-anchor="middle" transform="rotate(-90,1446,775)">2700</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LEGEND (right panel)
+  ════════════════════════════════════════════════════════ -->
+
+  <rect x="1500" y="90" width="320" height="560" rx="10" fill="white" stroke="#d0d8e0" stroke-width="1.8" filter="url(#sd)"/>
+  <rect x="1500" y="90" width="320" height="40" rx="10" fill="#1a1a2e"/>
+  <text x="1660" y="116" font-size="14" fill="white" text-anchor="middle" font-weight="bold">ROOM SCHEDULE</text>
+
+  <rect x="1515" y="140" width="22" height="16" fill="#e8f5e9" stroke="#1a1a2e" stroke-width="1.2"/>
+     <text x="1545" y="152" font-size="12" fill="#1a2744" font-weight="bold">Living / Dining</text>
+     <text x="1545" y="167" font-size="11" fill="#5a6a80">28.5 m²</text>
+  <rect x="1515" y="192" width="22" height="16" fill="#ede7f6" stroke="#1a1a2e" stroke-width="1.2"/>
+     <text x="1545" y="204" font-size="12" fill="#1a2744" font-weight="bold">Master Bedroom</text>
+     <text x="1545" y="219" font-size="11" fill="#5a6a80">18.0 m²</text>
+  <rect x="1515" y="244" width="22" height="16" fill="#e1f5fe" stroke="#1a1a2e" stroke-width="1.2"/>
+     <text x="1545" y="256" font-size="12" fill="#1a2744" font-weight="bold">Bathroom 1</text>
+     <text x="1545" y="271" font-size="11" fill="#5a6a80">5.5 m²</text>
+  <rect x="1515" y="296" width="22" height="16" fill="#fff3e0" stroke="#1a1a2e" stroke-width="1.2"/>
+     <text x="1545" y="308" font-size="12" fill="#1a2744" font-weight="bold">Bedroom 2</text>
+     <text x="1545" y="323" font-size="11" fill="#5a6a80">16.0 m²</text>
+  <rect x="1515" y="348" width="22" height="16" fill="#f3e5f5" stroke="#1a1a2e" stroke-width="1.2"/>
+     <text x="1545" y="360" font-size="12" fill="#1a2744" font-weight="bold">Garage</text>
+     <text x="1545" y="375" font-size="11" fill="#5a6a80">22.0 m²</text>
+  <rect x="1515" y="400" width="22" height="16" fill="#fffde7" stroke="#1a1a2e" stroke-width="1.2"/>
+     <text x="1545" y="412" font-size="12" fill="#1a2744" font-weight="bold">Kitchen</text>
+     <text x="1545" y="427" font-size="11" fill="#5a6a80">12.0 m²</text>
+  <rect x="1515" y="452" width="22" height="16" fill="#e8eaf6" stroke="#1a1a2e" stroke-width="1.2"/>
+     <text x="1545" y="464" font-size="12" fill="#1a2744" font-weight="bold">Utility / Laundry</text>
+     <text x="1545" y="479" font-size="11" fill="#5a6a80">6.0 m²</text>
+  <rect x="1515" y="504" width="22" height="16" fill="#fce4ec" stroke="#1a1a2e" stroke-width="1.2"/>
+     <text x="1545" y="516" font-size="12" fill="#1a2744" font-weight="bold">Corridor / Stair</text>
+     <text x="1545" y="531" font-size="11" fill="#5a6a80">8.0 m²</text>
+  <rect x="1515" y="556" width="22" height="16" fill="#e0f2f1" stroke="#1a1a2e" stroke-width="1.2"/>
+     <text x="1545" y="568" font-size="12" fill="#1a2744" font-weight="bold">Store</text>
+     <text x="1545" y="583" font-size="11" fill="#5a6a80">5.5 m²</text>
+
+  <line x1="1510" y1="620" x2="1810" y2="620" stroke="#d0d8e0" stroke-width="1"/>
+
+  <!-- Symbol legend -->
+  <text x="1520" y="638" font-size="12" fill="#1a1a2e" font-weight="bold">SYMBOLS</text>
+  <!-- Window -->
+  <line x1="1520" y1="654" x2="1550" y2="654" stroke="#60c8ff" stroke-width="4"/>
+  <text x="1560" y="658" font-size="11" fill="#37474f">Window (glazed)</text>
+  <!-- Column -->
+  <rect x="1520" y="668" width="18" height="18" fill="#1a1a2e"/>
+  <text x="1546" y="681" font-size="11" fill="#37474f">RCC Column 300×300</text>
+  <!-- Door -->
+  <path d="M 1520 702 A 20,20 0 0,1 1540 722" fill="none" stroke="#1a1a2e" stroke-width="1.4" stroke-dasharray="4,3"/>
+  <line x1="1520" y1="702" x2="1520" y2="722" stroke="#1a1a2e" stroke-width="1.8"/>
+  <text x="1552" y="715" font-size="11" fill="#37474f">Door swing</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       NORTH ARROW + SCALE BAR
+  ════════════════════════════════════════════════════════ -->
+
+  <g transform="translate(1660,810)">
+    <circle cx="0" cy="0" r="28" fill="white" stroke="#1a1a2e" stroke-width="2"/>
+    <polygon points="0,-22 7,10 0,5 -7,10" fill="#1a1a2e"/>
+    <polygon points="0,-22 -7,10 0,5 7,10" fill="#9eb1c8"/>
+    <text x="0" y="-26" font-size="13" fill="#1a1a2e" text-anchor="middle" font-weight="bold">N</text>
+  </g>
+
+  <!-- Scale bar -->
+  <g transform="translate(1520,840)">
+    <rect x="0" y="0" width="50" height="12" fill="#1a1a2e"/>
+    <rect x="50" y="0" width="50" height="12" fill="white" stroke="#1a1a2e" stroke-width="1.5"/>
+    <rect x="100" y="0" width="50" height="12" fill="#1a1a2e"/>
+    <text x="0" y="26" font-size="11" fill="#1a1a2e">0</text>
+    <text x="48" y="26" font-size="11" fill="#1a1a2e">5m</text>
+    <text x="98" y="26" font-size="11" fill="#1a1a2e">10m</text>
+    <text x="75" y="-4" font-size="11" fill="#5a6a80" text-anchor="middle">Scale 1:50</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TITLE BLOCK (bottom strip)
+  ════════════════════════════════════════════════════════ -->
+
+  <rect x="10" y="1022" width="1780" height="68" fill="#1a1a2e"/>
+  <line x1="10" y1="1022" x2="1790" y2="1022" stroke="#4a6a90" stroke-width="1"/>
+  <!-- Left: Project info -->
+  <text x="30" y="1045" font-size="17" fill="white" font-weight="900">GROUND FLOOR PLAN</text>
+  <text x="30" y="1067" font-size="12" fill="#a0c0e0">Drawing No: HBP-GF-002  |  House Building Project  |  Scale 1:50  |  Date: 09 Aug 2026</text>
+  <!-- Centre: client -->
+  <text x="900" y="1045" font-size="13" fill="#d0e4f8" text-anchor="middle" font-weight="bold">CLIENT: HOUSE BUILDING PROJECT</text>
+  <text x="900" y="1066" font-size="11" fill="#8ab0cc" text-anchor="middle">Drawn by: Arch. Division  |  Checked by: Structural Eng.  |  Approved by: Project Manager</text>
+  <!-- Right: logo/company -->
+  <text x="1770" y="1045" font-size="13" fill="#d0e4f8" text-anchor="end" font-weight="bold">BUILDTRACK</text>
+  <text x="1770" y="1066" font-size="11" fill="#8ab0cc" text-anchor="end">Construction Management Platform</text>
+
+</svg>

@@ -11,6 +11,7 @@ import geocodeRouter from './routes/geocode';
 import mcpRouter from './routes/mcp';
 import { sendManualCliqReport } from './cliqReport';
 import { seedHouseProject } from './seed_house';
+import { seedSteelProject } from './seed_steel';
 
 const app = express();
 const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
@@ -73,6 +74,19 @@ app.get('/api/_seed-house', async (req, res) => {
   }
 });
 
+// ── Permanent sample data: Industrial Steel Structure Project ──────────────
+// Also idempotent; safe to call repeatedly to ensure the live BuildTrack site
+// contains the full calibrated steel drawing package.
+app.get('/api/_seed-steel', async (req, res) => {
+  try {
+    await seedSteelProject(req);
+    res.json({ ok: true, message: 'Industrial Steel Structure Project seed complete (or already existed).' });
+  } catch (err: any) {
+    console.error('[seed_steel] error', err);
+    res.status(500).json({ ok: false, error: String(err?.message ?? err) });
+  }
+});
+
 app.listen(PORT, async () => {
   console.log(`Backend running on http://localhost:${PORT}`);
   // Trigger house project seed via internal HTTP call so Catalyst SDK
@@ -84,5 +98,13 @@ app.listen(PORT, async () => {
     console.log('[seed_house] startup result:', body?.message ?? body);
   } catch (err) {
     console.warn('[seed_house] startup seed call failed (will retry on next boot):', err);
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/api/_seed-steel`, { method: 'GET' });
+    const body = await response.json() as any;
+    console.log('[seed_steel] startup result:', body?.message ?? body);
+  } catch (err) {
+    console.warn('[seed_steel] startup seed call failed (will retry on next boot):', err);
   }
 });

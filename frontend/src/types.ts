@@ -21,6 +21,8 @@ export interface Drawing {
   gridCols: number;
   gridRows: number;
   columnPositions: Record<string, ColumnPosition>;
+  /** Grid codes that have been individually deleted (hidden) by the user */
+  deletedNodes: string[];
   /** Custom display labels keyed by default gridCode (e.g. "A1" → "P1") */
   columnLabels: Record<string, string>;
   /** Custom type labels for structural elements (e.g. "column" → "Anchor Bolt", "beam" → "Rafter") */

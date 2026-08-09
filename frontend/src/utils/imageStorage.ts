@@ -14,24 +14,13 @@
  *   await resolveFileUrl('/uploads/...');   // passes through unchanged
  */
 
-const DB_NAME = 'buildtrack-images';
-const STORE   = 'images';
-const DB_VERSION = 1;
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+// Use the same DB connection as browserDb.ts (single source of truth for the
+// schema) so this file can't drift to a stale DB_VERSION and trigger a
+// VersionError once browserDb.ts upgrades the shared database.
+import { openBuildTrackDb } from './browserDb';
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = (e.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE); // key-path is the explicit key we supply
-      }
-    };
-    req.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result);
-    req.onerror   = (e) => reject((e.target as IDBOpenDBRequest).error);
-  });
-}
+const STORE = 'images';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
 /** Convert a File/Blob to a base64 data URL. */
 export function fileToDataUrl(file: File | Blob): Promise<string> {
@@ -45,7 +34,7 @@ export function fileToDataUrl(file: File | Blob): Promise<string> {
 
 /** Persist a data URL under the given key in IndexedDB. */
 export async function saveImage(key: string, dataUrl: string): Promise<void> {
-  const db = await openDb();
+  const db = await openBuildTrackDb();
   return new Promise((resolve, reject) => {
     const tx    = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
@@ -57,7 +46,7 @@ export async function saveImage(key: string, dataUrl: string): Promise<void> {
 
 /** Retrieve a previously-saved data URL. Returns null if not found. */
 export async function loadImage(key: string): Promise<string | null> {
-  const db = await openDb();
+  const db = await openBuildTrackDb();
   return new Promise((resolve, reject) => {
     const tx    = db.transaction(STORE, 'readonly');
     const store = tx.objectStore(STORE);
@@ -69,7 +58,7 @@ export async function loadImage(key: string): Promise<string | null> {
 
 /** Delete a stored image (e.g. when the drawing is deleted). */
 export async function deleteImage(key: string): Promise<void> {
-  const db = await openDb();
+  const db = await openBuildTrackDb();
   return new Promise((resolve, reject) => {
     const tx    = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);

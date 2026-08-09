@@ -2,7 +2,7 @@
  * Steel Structure Building – Comprehensive Seed
  * -----------------------------------------------
  * Project  : Apex Steel Industrial Complex – Phase 1
- * Drawings : 4 (Foundation Plan, Column Erection, Beam Erection, Rafter Erection)
+ * Drawings : 5 (Foundation Plan, Column Erection, Beam Erection, Rafter Erection, Roof Sheet Layout)
  * Milestones: 5 (one per phase of construction)
  * Tasks    : ~12 per drawing, each with realistic attributes
  *
@@ -16,13 +16,14 @@
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
-import db from './db';
+import type { Request } from 'express';
+import * as db from './db';
 
 // ─── Upload dir ────────────────────────────────────────────────────────────
 const uploadDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-const now = new Date().toISOString();
+const PROJECT_NAME = 'Apex Steel Industrial Complex – Phase 1';
 
 // ─── Column position calibration helper ────────────────────────────────────
 // Each drawing's SVG lays its grid out at a known originX/originY with fixed
@@ -33,6 +34,8 @@ const now = new Date().toISOString();
 // requiring manual calibration.
 const SVG_WIDTH = 1700;
 const SVG_HEIGHT = 950;
+let roofSheetPointMap: Record<string, { x: number; y: number }> = {};
+
 function computeColumnPositions(
   cols: string[],
   rows: number[],
@@ -53,11 +56,36 @@ function computeColumnPositions(
   return positions;
 }
 
+function computeGridPositions(
+  cols: string[],
+  rows: number[],
+  points: Record<string, { x: number; y: number }>
+): Record<string, { x: number; y: number }> {
+  const positions: Record<string, { x: number; y: number }> = {};
+  for (const row of rows) {
+    for (const col of cols) {
+      const code = `${col}${row}`;
+      const point = points[code];
+      if (point) {
+        positions[code] = {
+          x: point.x / SVG_WIDTH,
+          y: point.y / SVG_HEIGHT,
+        };
+      }
+    }
+  }
+  return positions;
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function writeSvg(content: string): string {
   const fileName = `${uuid()}.svg`;
   fs.writeFileSync(path.join(uploadDir, fileName), content);
   return `/uploads/${fileName}`;
+}
+
+function writeSvgDataUrl(content: string): string {
+  return `data:image/svg+xml;base64,${Buffer.from(content).toString('base64')}`;
 }
 
 // ─── SVG Generators ─────────────────────────────────────────────────────────
@@ -174,6 +202,126 @@ function foundationPlanSvg(): string {
   <polygon points="80,870 90,840 100,870" fill="#333"/>
   <text x="90" y="895" font-size="14" fill="#333" font-family="sans-serif" text-anchor="middle" font-weight="bold">N</text>
 </svg>`;
+}
+
+/** DRAWING 5 – Roof Sheet Layout Plan */
+function roofSheetLayoutSvg(): string {
+  const cols = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const rows = [1, 2, 3, 4, 5];
+  const originX = 210, originY = 180, spacingX = 200, spacingY = 135;
+  const eaveLeft = originX - 40;
+  const eaveRight = originX + (cols.length - 1) * spacingX + 40;
+  const eaveTop = originY;
+  const eaveBottom = originY + (rows.length - 1) * spacingY;
+  const ridgeX = (eaveLeft + eaveRight) / 2;
+
+  const vLines = cols.map((_, i) => {
+    const x = originX + i * spacingX;
+    return `<line x1="${x}" y1="${eaveTop - 60}" x2="${x}" y2="${eaveBottom + 60}" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="8 5"/>`;
+  }).join('');
+  const hLines = rows.map((_, i) => {
+    const y = originY + i * spacingY;
+    return `<line x1="${eaveLeft - 40}" y1="${y}" x2="${eaveRight + 40}" y2="${y}" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="8 5"/>`;
+  }).join('');
+
+  const roofOutline = `
+    <polygon points="${eaveLeft},${eaveTop} ${ridgeX},${eaveTop - 55} ${eaveRight},${eaveTop} ${eaveRight},${eaveBottom} ${ridgeX},${eaveBottom + 55} ${eaveLeft},${eaveBottom}"
+      fill="#f8fafc" stroke="#0f172a" stroke-width="3"/>
+    <line x1="${ridgeX}" y1="${eaveTop - 55}" x2="${ridgeX}" y2="${eaveBottom + 55}" stroke="#7c2d12" stroke-width="4" stroke-dasharray="14 6"/>
+    <text x="${ridgeX + 14}" y="${(eaveTop + eaveBottom) / 2}" font-size="12" fill="#7c2d12" font-family="sans-serif" font-weight="bold">RIDGE RL +18.450</text>`;
+
+  const sheetLines: string[] = [];
+  const sheetLabels: string[] = [];
+  let sheetIndex = 1;
+  for (let x = eaveLeft + 28; x < ridgeX - 18; x += 56) {
+    sheetLines.push(`<line x1="${x}" y1="${eaveTop + 6}" x2="${x}" y2="${eaveBottom - 6}" stroke="#2563eb" stroke-width="1.2"/>`);
+    sheetLabels.push(`<text x="${x + 8}" y="${eaveTop + 24}" font-size="9" fill="#1d4ed8" font-family="sans-serif">S${sheetIndex++}</text>`);
+  }
+  for (let x = ridgeX + 18; x < eaveRight - 18; x += 56) {
+    sheetLines.push(`<line x1="${x}" y1="${eaveTop + 6}" x2="${x}" y2="${eaveBottom - 6}" stroke="#2563eb" stroke-width="1.2"/>`);
+    sheetLabels.push(`<text x="${x + 8}" y="${eaveTop + 24}" font-size="9" fill="#1d4ed8" font-family="sans-serif">S${sheetIndex++}</text>`);
+  }
+
+  const lapLines = rows.slice(0, -1).map((_, i) => {
+    const y = originY + i * spacingY + spacingY / 2;
+    return `<line x1="${eaveLeft + 8}" y1="${y}" x2="${eaveRight - 8}" y2="${y}" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="7 5"/>
+      <text x="${eaveRight + 14}" y="${y + 4}" font-size="10" fill="#c2410c" font-family="sans-serif">End lap 200</text>`;
+  }).join('');
+
+  const fixingPoints: string[] = [];
+  const pointMap: Record<string, { x: number; y: number }> = {};
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < cols.length; c++) {
+      const x = originX + c * spacingX;
+      const y = originY + r * spacingY;
+      fixingPoints.push(`<circle cx="${x}" cy="${y}" r="8" fill="#ffffff" stroke="#0f172a" stroke-width="2"/>
+        <circle cx="${x}" cy="${y}" r="2.5" fill="#0f172a"/>
+        <text x="${x + 10}" y="${y - 10}" font-size="10" fill="#0f172a" font-family="sans-serif" font-weight="bold">${cols[c]}${rows[r]}</text>`);
+      pointMap[`${cols[c]}${rows[r]}`] = { x, y };
+    }
+  }
+
+  const colLabels = cols.map((c, i) => `<circle cx="${originX + i * spacingX}" cy="${eaveTop - 85}" r="18" fill="#fff" stroke="#0f172a" stroke-width="2"/>
+    <text x="${originX + i * spacingX}" y="${eaveTop - 79}" font-size="16" fill="#0f172a" font-family="sans-serif" text-anchor="middle" font-weight="bold">${c}</text>`).join('');
+  const rowLabels = rows.map((n, i) => `<circle cx="${eaveLeft - 85}" cy="${originY + i * spacingY}" r="18" fill="#fff" stroke="#0f172a" stroke-width="2"/>
+    <text x="${eaveLeft - 85}" y="${originY + i * spacingY + 6}" font-size="16" fill="#0f172a" font-family="sans-serif" text-anchor="middle" font-weight="bold">${n}</text>`).join('');
+
+  const dims = `
+    <line x1="${originX}" y1="${eaveBottom + 90}" x2="${originX + spacingX}" y2="${eaveBottom + 90}" stroke="#111827" stroke-width="1.4"/>
+    <text x="${originX + spacingX / 2}" y="${eaveBottom + 82}" font-size="12" fill="#111827" font-family="sans-serif" text-anchor="middle">7500</text>
+    <line x1="${eaveRight + 70}" y1="${originY}" x2="${eaveRight + 70}" y2="${originY + spacingY}" stroke="#111827" stroke-width="1.4"/>
+    <text x="${eaveRight + 84}" y="${originY + spacingY / 2}" font-size="12" fill="#111827" font-family="sans-serif">6000</text>
+    <line x1="${eaveLeft}" y1="${eaveTop - 110}" x2="${ridgeX}" y2="${eaveTop - 110}" stroke="#111827" stroke-width="1.4"/>
+    <text x="${(eaveLeft + ridgeX) / 2}" y="${eaveTop - 118}" font-size="12" fill="#111827" font-family="sans-serif" text-anchor="middle">Roof slope run 9500</text>`;
+
+  const notes = `
+    <text x="1310" y="395" font-size="11" fill="#333" font-family="sans-serif">SHEET / FIXING NOTES:</text>
+    <text x="1310" y="415" font-size="10" fill="#333" font-family="sans-serif">1. 0.58 BMT IBR Zincalume roof sheeting.</text>
+    <text x="1310" y="433" font-size="10" fill="#333" font-family="sans-serif">2. Side lap: 1.5 corrugation minimum.</text>
+    <text x="1310" y="451" font-size="10" fill="#333" font-family="sans-serif">3. End lap: 200mm with butyl tape seal.</text>
+    <text x="1310" y="469" font-size="10" fill="#333" font-family="sans-serif">4. Crest fixing with 14g-65 screws @ each purlin.</text>
+    <text x="1310" y="487" font-size="10" fill="#333" font-family="sans-serif">5. Ridge cap overlap 150mm min.</text>`;
+
+  roofSheetPointMap = pointMap;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="950" viewBox="0 0 1700 950">
+  <rect width="1700" height="950" fill="#f8fafc"/>
+  <rect x="20" y="20" width="1660" height="910" fill="none" stroke="#0f172a" stroke-width="3"/>
+  <rect x="1300" y="20" width="380" height="910" fill="none" stroke="#0f172a" stroke-width="2"/>
+  <text x="1490" y="55" font-size="18" fill="#0f172a" font-family="sans-serif" font-weight="bold" text-anchor="middle">PROJECT</text>
+  <text x="1490" y="75" font-size="13" fill="#333" font-family="sans-serif" text-anchor="middle">APEX STEEL INDUSTRIAL COMPLEX</text>
+  <line x1="1300" y1="90" x2="1680" y2="90" stroke="#0f172a" stroke-width="1"/>
+  <text x="1490" y="115" font-size="15" fill="#0f172a" font-family="sans-serif" font-weight="bold" text-anchor="middle">DRAWING TITLE</text>
+  <text x="1490" y="135" font-size="13" fill="#333" font-family="sans-serif" text-anchor="middle">ROOF SHEET LAYOUT</text>
+  <line x1="1300" y1="150" x2="1680" y2="150" stroke="#0f172a" stroke-width="1"/>
+  <text x="1310" y="175" font-size="12" fill="#333" font-family="sans-serif">Drawing No: STR-RSL-005</text>
+  <text x="1310" y="195" font-size="12" fill="#333" font-family="sans-serif">Scale: 1:100</text>
+  <text x="1310" y="215" font-size="12" fill="#333" font-family="sans-serif">Rev: 00</text>
+  <text x="1310" y="235" font-size="12" fill="#333" font-family="sans-serif">Date: 2026-05-16</text>
+  <line x1="1300" y1="250" x2="1680" y2="250" stroke="#0f172a" stroke-width="1"/>
+  <text x="1310" y="275" font-size="12" fill="#333" font-family="sans-serif">LEGEND:</text>
+  <line x1="1315" y1="290" x2="1355" y2="290" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="1365" y="295" font-size="11" fill="#333" font-family="sans-serif">Sheet rib line</text>
+  <line x1="1315" y1="318" x2="1355" y2="318" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="1365" y="323" font-size="11" fill="#333" font-family="sans-serif">End lap line</text>
+  <circle cx="1335" cy="348" r="8" fill="#fff" stroke="#0f172a" stroke-width="2"/>
+  <circle cx="1335" cy="348" r="2.5" fill="#0f172a"/>
+  <text x="1365" y="353" font-size="11" fill="#333" font-family="sans-serif">Grid fixing / support point</text>
+  ${notes}
+  <text x="640" y="60" font-size="26" fill="#0f172a" font-family="sans-serif" font-weight="bold" text-anchor="middle">ROOF SHEET LAYOUT PLAN – ROOF LEVEL</text>
+  ${vLines}
+  ${hLines}
+  ${roofOutline}
+  ${sheetLines.join('')}
+  ${sheetLabels.join('')}
+  ${lapLines}
+  ${fixingPoints.join('')}
+  ${colLabels}
+  ${rowLabels}
+  ${dims}
+  <polygon points="80,870 90,840 100,870" fill="#0f172a"/>
+  <text x="90" y="898" font-size="14" fill="#0f172a" font-family="sans-serif" text-anchor="middle" font-weight="bold">N</text>
+ </svg>`;
 }
 
 /** DRAWING 2 – Steel Column Erection Plan */
@@ -540,11 +688,26 @@ function rafterErectionSvg(): string {
 </svg>`;
 }
 
-// ─── Data: Project ──────────────────────────────────────────────────────────
-const projectId = uuid();
-const projectNow = now;
+const roofSheetGridPositions = () => computeGridPositions(
+  ['A', 'B', 'C', 'D', 'E', 'F'],
+  [1, 2, 3, 4, 5],
+  roofSheetPointMap
+);
 
-db.prepare(
+
+export async function seedSteelProject(req: Request): Promise<void> {
+  const existing = await db.get(req, `SELECT id FROM projects WHERE name = ?`, [PROJECT_NAME]);
+  if (existing) return;
+
+  const now = new Date().toISOString();
+  const projectId = uuid();
+  const projectNow = now;
+  const localDb = db.default;
+
+
+// ─── Data: Project ──────────────────────────────────────────────────────────
+
+localDb.prepare(
   `INSERT INTO projects (id, name, code, description, startDate, endDate, status, managerName, createdAt, updatedAt)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).run(
@@ -569,7 +732,7 @@ const milestoneIds = {
   m5: uuid(),
 };
 
-const insertMilestone = db.prepare(
+const insertMilestone = localDb.prepare(
   `INSERT INTO milestones (id, projectId, name, description, dueDate, status, createdAt, updatedAt)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 );
@@ -600,7 +763,7 @@ insertMilestone.run(milestoneIds.m5, projectId,
   '2026-12-15', 'Pending', projectNow, projectNow);
 
 // ─── Helpers to insert tasks ─────────────────────────────────────────────────
-const insertTask = db.prepare(
+const insertTask = localDb.prepare(
   `INSERT INTO tasks
      (id, drawingId, milestoneId, gridCode, name, description, category,
       priority, assignedTo, startDate, dueDate, status, progress,
@@ -608,11 +771,11 @@ const insertTask = db.prepare(
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 );
 
-const insertActivity = db.prepare(
+const insertActivity = localDb.prepare(
   'INSERT INTO activity (id, taskId, drawingId, message, createdAt) VALUES (?, ?, ?, ?, ?)'
 );
 
-const insertProjectTask = db.prepare(
+const insertProjectTask = localDb.prepare(
   `INSERT INTO project_tasks
      (id, projectId, name, description, priority, status, assignee, dueDate,
       estimatedHours, tags, createdAt, updatedAt)
@@ -621,12 +784,12 @@ const insertProjectTask = db.prepare(
 
 // ─── Drawing 1: Basement Foundation Plan ─────────────────────────────────────
 const foundDrawingId = uuid();
-db.prepare(
+localDb.prepare(
   `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).run(foundDrawingId, projectId, milestoneIds.m2,
   'STR-FND-001 Basement Foundation Plan',
-  writeSvg(foundationPlanSvg()),
+  writeSvgDataUrl(foundationPlanSvg()),
   'image', 6, 5,
   JSON.stringify(computeColumnPositions(['A','B','C','D','E','F'], [1,2,3,4,5], 200, 180, 220, 140)),
   projectNow);
@@ -666,12 +829,12 @@ insertActivity.run(uuid(), null, foundDrawingId, 'STR-FND-001 Basement Foundatio
 
 // ─── Drawing 2: Steel Column Erection Plan ────────────────────────────────────
 const colDrawingId = uuid();
-db.prepare(
+localDb.prepare(
   `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).run(colDrawingId, projectId, milestoneIds.m3,
   'STR-COL-002 Steel Column Erection Plan',
-  writeSvg(columnErectionSvg()),
+  writeSvgDataUrl(columnErectionSvg()),
   'image', 6, 5,
   JSON.stringify(computeColumnPositions(['A','B','C','D','E','F'], [1,2,3,4,5], 200, 190, 220, 140)),
   projectNow);
@@ -704,12 +867,12 @@ insertActivity.run(uuid(), null, colDrawingId, 'STR-COL-002 Steel Column Erectio
 
 // ─── Drawing 3: Steel Beam Erection Plan ──────────────────────────────────────
 const beamDrawingId = uuid();
-db.prepare(
+localDb.prepare(
   `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).run(beamDrawingId, projectId, milestoneIds.m4,
   'STR-BEA-003 Steel Beam Erection Plan',
-  writeSvg(beamErectionSvg()),
+  writeSvgDataUrl(beamErectionSvg()),
   'image', 6, 5,
   JSON.stringify(computeColumnPositions(['A','B','C','D','E','F'], [1,2,3,4,5], 200, 190, 220, 140)),
   projectNow);
@@ -739,12 +902,12 @@ insertActivity.run(uuid(), null, beamDrawingId, 'STR-BEA-003 Steel Beam Erection
 
 // ─── Drawing 4: Steel Rafter Erection Plan ─────────────────────────────────────
 const rafterDrawingId = uuid();
-db.prepare(
+localDb.prepare(
   `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).run(rafterDrawingId, projectId, milestoneIds.m5,
   'STR-RAF-004 Steel Rafter Erection Plan',
-  writeSvg(rafterErectionSvg()),
+  writeSvgDataUrl(rafterErectionSvg()),
   'image', 6, 5,
   JSON.stringify(computeColumnPositions(['A','B','C','D','E','F'], [1,2,3,4,5], 200, 200, 220, 130)),
   projectNow);
@@ -772,6 +935,42 @@ for (const t of rafterTasks) {
 }
 insertActivity.run(uuid(), null, rafterDrawingId, 'STR-RAF-004 Steel Rafter Erection Plan uploaded and tasks assigned', projectNow);
 
+// ─── Drawing 5: Roof Sheet Layout ─────────────────────────────────────────────
+const roofSheetDrawingId = uuid();
+const roofSheetSvg = roofSheetLayoutSvg();
+localDb.prepare(
+  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+).run(roofSheetDrawingId, projectId, milestoneIds.m5,
+  'STR-RSL-005 Roof Sheet Layout',
+  writeSvgDataUrl(roofSheetSvg),
+  'image', 6, 5,
+  JSON.stringify(roofSheetGridPositions()),
+  projectNow);
+
+const roofSheetTasks: TaskDef[] = [
+  { col:'A', row:1, name:'RSL-A1 Roof Sheet Setting Out', desc:'Set out first roof sheet run from grid A1 with survey control, check square to ridge and eaves before fixing.', category:'Survey', priority:'Critical', engineer:'Pradeep Nair', start:'2026-12-02', due:'2026-12-03', status:'Assigned', progress:0, elementType:'cladding', elementId:'RSL-A1', milestoneId: milestoneIds.m5 },
+  { col:'B', row:1, name:'RSL-B1 Ridge Cap Starter Installation', desc:'Install starter ridge cap and butyl tape seal at B1 zone, maintain 150mm overlap and straight alignment.', category:'Finishing', priority:'High', engineer:'Pradeep Nair', start:'2026-12-03', due:'2026-12-04', status:'Assigned', progress:0, elementType:'ridge_cap', elementId:'RC-B1', milestoneId: milestoneIds.m5 },
+  { col:'C', row:2, name:'RSL-C2 Sheet Run Fixing', desc:'Fix IBR roof sheets along C2 run with 14g-65 crest screws at each purlin support, verify washer compression.', category:'Finishing', priority:'High', engineer:'Nilesh Kumar', start:'2026-12-04', due:'2026-12-06', status:'Assigned', progress:0, elementType:'cladding', elementId:'SHT-C2', milestoneId: milestoneIds.m5 },
+  { col:'D', row:2, name:'RSL-D2 Side Lap Sealant Application', desc:'Apply continuous butyl sealant to side laps at D2 row, ensure minimum 1.5 corrugation overlap.', category:'Finishing', priority:'Medium', engineer:'Pradeep Nair', start:'2026-12-05', due:'2026-12-06', status:'Assigned', progress:0, elementType:'cladding', elementId:'LAP-D2', milestoneId: milestoneIds.m5 },
+  { col:'E', row:3, name:'RSL-E3 End Lap Stitch Screws', desc:'Install stitch screws at 450 c/c across end laps in E3 sheet band, inspect alignment and bite.', category:'Finishing', priority:'Medium', engineer:'Sonal Shah', start:'2026-12-06', due:'2026-12-07', status:'Assigned', progress:0, elementType:'cladding', elementId:'ELS-E3', milestoneId: milestoneIds.m5 },
+  { col:'F', row:3, name:'RSL-F3 Translucent Sheet Panel Fixing', desc:'Fix translucent daylight roof sheet panel at F3 bay with compatible fasteners and thermal expansion clearance.', category:'Finishing', priority:'High', engineer:'Pradeep Nair', start:'2026-12-07', due:'2026-12-08', status:'Assigned', progress:0, elementType:'skylight', elementId:'TLS-F3', milestoneId: milestoneIds.m5 },
+  { col:'A', row:4, name:'RSL-A4 Eaves Closure Flashing', desc:'Install eaves closure and bird-proof flashing at A4 line, secure beneath sheet profile without distortion.', category:'Finishing', priority:'Medium', engineer:'Nilesh Kumar', start:'2026-12-08', due:'2026-12-09', status:'Assigned', progress:0, elementType:'flashing', elementId:'EFL-A4', milestoneId: milestoneIds.m5 },
+  { col:'B', row:4, name:'RSL-B4 Fastener Torque Inspection', desc:'Inspect crest fastener seating and torque at B4 zone, replace damaged neoprene washers and record QA check.', category:'Quality', priority:'High', engineer:'Sonal Shah', start:'2026-12-09', due:'2026-12-10', status:'Assigned', progress:0, elementType:'fastener', elementId:'FTQ-B4', milestoneId: milestoneIds.m5 },
+  { col:'C', row:4, name:'RSL-C4 Roof Penetration Flashing', desc:'Flash around mechanical roof penetration at C4 with EPDM boot and sealant, ensure watertight termination.', category:'Finishing', priority:'High', engineer:'Pradeep Nair', start:'2026-12-09', due:'2026-12-10', status:'Assigned', progress:0, elementType:'flashing', elementId:'RPF-C4', milestoneId: milestoneIds.m5 },
+  { col:'D', row:5, name:'RSL-D5 Sheet Alignment Survey', desc:'Carry out final sheet alignment survey at D5 and verify cover widths against approved shop drawing.', category:'Survey', priority:'Medium', engineer:'Sonal Shah', start:'2026-12-10', due:'2026-12-11', status:'Assigned', progress:0, elementType:'cladding', elementId:'ALS-D5', milestoneId: milestoneIds.m5 },
+  { col:'E', row:5, name:'RSL-E5 Water Tightness Hose Test', desc:'Perform hose test over E5 roof sheet laps and ridge zone, inspect underside for leakage and issue punch list.', category:'Quality', priority:'Critical', engineer:'Sonal Shah', start:'2026-12-11', due:'2026-12-12', status:'Assigned', progress:0, elementType:'cladding', elementId:'WTT-E5', milestoneId: milestoneIds.m5 },
+  { col:'F', row:5, name:'RSL-F5 Roof Sheet Layout As-Built', desc:'Submit as-built roof sheet layout marking installed sheet runs, skylights, flashings, and completed QA records.', category:'Documentation', priority:'High', engineer:'Pradeep Nair', start:'2026-12-13', due:'2026-12-15', status:'Assigned', progress:0, elementType:'cladding', elementId:'ABL-F5', milestoneId: milestoneIds.m5 },
+];
+
+for (const t of roofSheetTasks) {
+  const taskId = uuid();
+  const gridCode = `${t.col}${t.row}`;
+  insertTask.run(taskId, roofSheetDrawingId, t.milestoneId, gridCode, t.name, t.desc, t.category, t.priority, t.engineer, t.start, t.due, t.status, t.progress, t.elementType, t.elementId, projectNow, projectNow);
+  insertActivity.run(uuid(), taskId, roofSheetDrawingId, `Task "${t.name}" created – status: ${t.status}`, projectNow);
+}
+insertActivity.run(uuid(), null, roofSheetDrawingId, 'STR-RSL-005 Roof Sheet Layout uploaded and tasks assigned', projectNow);
+
 // ─── Project-level Tasks (high-level schedule) ─────────────────────────────
 const projectLevelTasks = [
   { name:'Procurement – Structural Steel', desc:'Issue purchase order for all S355 steel sections; ensure mill certs and CMR compliance.', priority:'Critical', status:'In Progress', assignee:'Rajesh Nair', due:'2026-06-01', hours:120, tags:'Procurement,Steel' },
@@ -795,7 +994,4 @@ for (const pt of projectLevelTasks) {
   );
 }
 
-console.log('✅ Steel structure seed complete!');
-console.log(`   Project ID : ${projectId}`);
-console.log(`   Drawings   : ${foundDrawingId}, ${colDrawingId}, ${beamDrawingId}, ${rafterDrawingId}`);
-console.log(`   Milestones : ${Object.values(milestoneIds).join(', ')}`);
+}

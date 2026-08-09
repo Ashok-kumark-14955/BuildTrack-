@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DrawingsAPI, TasksAPI, ActivityAPI, ProjectsAPI, MilestonesAPI } from './api';
 import type { ActivityItem, Drawing, Milestone, Project, Task } from './types';
+import { ensureSampleData } from './utils/seedData';
 
 interface AppState {
   projects: Project[];
@@ -34,6 +35,8 @@ interface AppState {
   resetDrawingColumnPositions: (drawingId: string) => Promise<void>;
   patchDrawingColumnLabel: (drawingId: string, code: string, label: string) => Promise<void>;
   patchDrawingElementTypeLabel: (drawingId: string, elementType: string, label: string) => Promise<void>;
+  /** Mark a single grid node as deleted (hidden). Pass restore=true to un-delete. */
+  deleteDrawingNode: (drawingId: string, code: string, restore?: boolean) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -52,24 +55,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshDrawings = useCallback(async () => {
     const list = await DrawingsAPI.list();
     setDrawings(list);
-    // Only auto-select the first drawing when there is no current selection at all
-    if (!currentDrawingId && list.length > 0) setCurrentDrawingId(list[0].id);
+    // Only auto-select the first drawing when there is no current selection at all.
+    // Also sync activeProjectId so the sidebar shows the correct project's drawings.
+    if (!currentDrawingId && list.length > 0) {
+      setCurrentDrawingId(list[0].id);
+      setActiveProjectId((prev) => prev ?? list[0].projectId ?? null);
+    }
     return list; // allow callers to act on the fresh list
   }, [currentDrawingId]);
 
-  // When activeProjectId changes, fetch the latest drawings and immediately
-  // switch currentDrawingId to the first drawing that belongs to that project.
-  // We re-fetch here so that newly-uploaded drawings for this project are
-  // always visible even if the in-memory list is stale.
+  // When activeProjectId changes, fetch the latest drawings and auto-select the
+  // first drawing for that project — but ONLY when the user explicitly switched
+  // projects (not on initial app load). We track the previous value to detect
+  // the difference: null → someId is initialisation; someId → otherId is a switch.
+  const prevActiveProjectId = useRef<string | null>(null);
   useEffect(() => {
-    if (!activeProjectId) return;
+    if (!activeProjectId) {
+      prevActiveProjectId.current = null;
+      return;
+    }
+    if (prevActiveProjectId.current === activeProjectId) return;
+
+    const wasUserSwitch = prevActiveProjectId.current !== null;
+    prevActiveProjectId.current = activeProjectId;
+
     DrawingsAPI.list().then((list) => {
       setDrawings(list);
-      const projectDrawings = list.filter((d) => d.projectId === activeProjectId);
-      if (projectDrawings.length > 0) {
-        setCurrentDrawingId(projectDrawings[0].id);
-      } else {
-        setCurrentDrawingId(null);
+      // Only auto-jump to first drawing when user explicitly chose a project,
+      // not on the silent initial-load auto-selection.
+      if (wasUserSwitch) {
+        const projectDrawings = list.filter((d) => d.projectId === activeProjectId);
+        if (projectDrawings.length > 0) {
+          setCurrentDrawingId(projectDrawings[0].id);
+        } else {
+          setCurrentDrawingId(null);
+        }
       }
     }).catch(() => {});
   }, [activeProjectId]);
@@ -80,8 +100,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDrawings((prev) =>
       prev.map((d) => {
         if (d.id !== drawingId) return d;
-        const updated = { ...d, columnPositions: { ...d.columnPositions, [code]: { x, y } } };
-        return updated;
+        return { ...d, columnPositions: { ...d.columnPositions, [code]: { x, y } } };
       })
     );
   }, []);
@@ -107,16 +126,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /** Set a custom display label for a column (e.g. "A1" → "P1"). Persists to backend. */
   const patchDrawingColumnLabel = useCallback(async (drawingId: string, code: string, label: string) => {
-    // Optimistic local update
     setDrawings((prev) =>
       prev.map((d) => {
         if (d.id !== drawingId) return d;
         const newLabels = { ...(d.columnLabels ?? {}), [code]: label };
-        if (!label) delete newLabels[code]; // empty label = remove override
+        if (!label) delete newLabels[code];
         return { ...d, columnLabels: newLabels };
       })
     );
-    // Persist
     await DrawingsAPI.update(drawingId, { columnLabels: { [code]: label } } as any);
   }, []);
 
@@ -141,11 +158,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    ProjectsAPI.list().then(setProjects).catch(() => {});
-    refreshDrawings();
-    refreshTasks();
-    refreshMilestones();
-    refreshActivity();
+    // Always ensure sample data is present in IndexedDB before loading state.
+    console.log('[AppContext] Starting data initialization...');
+    ensureSampleData().then(() => {
+      console.log('[AppContext] ensureSampleData completed successfully');
+      ProjectsAPI.list().then((p) => { console.log('[AppContext] Projects loaded:', p.length); setProjects(p); }).catch((e) => console.error('[AppContext] Projects load failed:', e));
+      refreshDrawings().then((d) => console.log('[AppContext] Drawings loaded:', d?.length ?? 0));
+      refreshTasks().then(() => console.log('[AppContext] Tasks loaded'));
+      refreshMilestones().then(() => console.log('[AppContext] Milestones loaded'));
+      refreshActivity().then(() => console.log('[AppContext] Activity loaded'));
+    }).catch((err) => {
+      // Even if ensureSampleData fails, still try to load what's in the DB
+      console.error('[AppContext] ensureSampleData FAILED:', err);
+      ProjectsAPI.list().then(setProjects).catch(() => {});
+      refreshDrawings();
+      refreshTasks();
+      refreshMilestones();
+      refreshActivity();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -192,12 +222,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteMilestone = useCallback(async (id: string) => {
     await MilestonesAPI.remove(id);
     setMilestones((prev) => prev.filter((m) => m.id !== id));
-    // Unlink tasks locally
     setTasks((prev) => prev.map((t) => t.milestoneId === id ? { ...t, milestoneId: null } : t));
   }, []);
 
   const requestFocusElement = useCallback((id: string | null) => {
     setFocusElementRequest(id);
+  }, []);
+
+  /** Mark or un-mark a single grid node as deleted. Optimistic local update + backend persist. */
+  const deleteDrawingNode = useCallback(async (drawingId: string, code: string, restore = false) => {
+    setDrawings((prev) =>
+      prev.map((d) => {
+        if (d.id !== drawingId) return d;
+        const existing = d.deletedNodes ?? [];
+        const next = restore
+          ? existing.filter((c) => c !== code)
+          : existing.includes(code) ? existing : [...existing, code];
+        return { ...d, deletedNodes: next };
+      })
+    );
+    // Persist to backend
+    await DrawingsAPI.update(drawingId, { deletedNodes: { [code]: !restore } } as any);
   }, []);
 
   const currentDrawing = useMemo(() => drawings.find((d) => d.id === currentDrawingId), [drawings, currentDrawingId]);
@@ -239,6 +284,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     resetDrawingColumnPositions,
     patchDrawingColumnLabel,
     patchDrawingElementTypeLabel,
+    deleteDrawingNode,
   }), [
     projects, drawings, tasks, milestones, activity,
     currentDrawingId, selectedElementId,
@@ -250,6 +296,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     focusElementRequest, requestFocusElement,
     patchDrawingColumnPositions, resetDrawingColumnPositions,
     patchDrawingColumnLabel, patchDrawingElementTypeLabel,
+    deleteDrawingNode,
     activeProjectId,
   ]);
 

@@ -194,6 +194,37 @@ router.patch('/:id', async (req, res) => {
   res.json(await serializeWithUrl(req, await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id])));
 });
 
+// Replace the file for an existing drawing (used by seeding/update scripts).
+// Accepts multipart/form-data with a "file" field, uploads to Stratus (or
+// stores as base64 in local dev), then patches the drawing's fileUrl in place.
+router.post('/:id/image', upload.single('file'), async (req, res) => {
+  try {
+    const existing: any = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
+    if (!existing) return res.status(404).json({ error: 'Drawing not found' });
+    if (!req.file) return res.status(400).json({ error: 'File is required' });
+
+    let storedFileUrl: string;
+    if (isStratusEnabled()) {
+      const key = await uploadFile(req, req.file.buffer, req.file.mimetype, 'drawings');
+      storedFileUrl = `stratus://${key}`;
+    } else {
+      storedFileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
+
+    await db.run(
+      req,
+      'UPDATE drawings SET fileUrl = ? WHERE id = ?',
+      [storedFileUrl, req.params.id]
+    );
+
+    const row = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
+    res.json(await serializeWithUrl(req, row));
+  } catch (err: any) {
+    console.error('[image-replace] Failed:', err?.message || err);
+    res.status(500).json({ error: err?.message || 'Failed to replace drawing image' });
+  }
+});
+
 // Proxy endpoint: streams the drawing file from Stratus through the backend.
 // This avoids CORS issues since Stratus signed URLs don't include Access-Control-Allow-Origin.
 // The browser loads the image from the same AppSail origin instead of directly from Stratus.

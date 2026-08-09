@@ -1,44 +1,50 @@
-import axios from 'axios';
+/**
+ * api.ts — Browser-only implementation (no backend server required).
+ *
+ * All data is stored in IndexedDB via browserDb.ts.
+ * The same API surface is exported so the rest of the app (AppContext, pages)
+ * does not need any changes.
+ */
+
 import type { Drawing, Task, Comment, Project, ActivityItem, Milestone, ProjectTask, ProjectTaskComment } from './types';
 import { resolveFileUrl as resolveIdb } from './utils/imageStorage';
+import {
+  projectsAll, projectGet, projectCreate, projectUpdate, projectDelete,
+  drawingsAll, drawingGet, drawingUpdate, drawingDelete, drawingUpload,
+  tasksAll, taskGet, taskCreate, taskUpdate, taskDelete,
+  taskCommentsAll, taskCommentCreate, taskCommentDelete,
+  milestonesAll, milestoneGet, milestoneCreate, milestoneUpdate, milestoneDelete,
+  activityAll,
+  projectTasksAll, projectTaskGet, projectTaskCreate, projectTaskUpdate, projectTaskDelete,
+  projectTaskCommentsAll, projectTaskCommentCreate,
+} from './utils/browserDb';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+export { resolveIdb };
 
-export const api = axios.create({ baseURL: `${API_BASE}/api` });
+// ─── File URL helpers ─────────────────────────────────────────────────────────
 
 /**
  * Resolve any stored file URL to something a browser can render:
  *   - "idb://<key>"  → data URL fetched from IndexedDB (async)
  *   - "data:..."     → returned as-is
- *   - "/uploads/..." → prepend API_BASE (legacy paths)
  *   - http(s)://...  → returned as-is
- *
- * This is the ASYNC version. Use `fileUrlSync` only for backwards-compat
- * code that doesn't yet support async display.
  */
 export const fileUrlAsync = (path: string): Promise<string> => {
   if (!path) return Promise.resolve('');
   return resolveIdb(path).then((v) => v ?? '');
 };
 
-/**
- * Synchronous helper for non-idb URLs (legacy /uploads/... or data:/http paths).
- * idb:// URLs are NOT supported here — use fileUrlAsync for those.
- */
-export const fileUrl = (path: string) => {
+/** Sync helper — idb:// URLs are NOT resolved here. */
+export const fileUrl = (path: string): string => {
   if (!path) return '';
-  if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://') || path.startsWith('idb://')) {
-    return path; // caller must use fileUrlAsync to resolve idb://
-  }
-  return `${API_BASE}${path}`;
+  return path; // all URLs are self-contained (data: or idb://)
 };
 
-/**
- * Given a drawing id, return the backend proxy URL that streams the drawing
- * file through the AppSail backend (avoids CORS issues with Stratus).
- */
-export const drawingFileProxyUrl = (drawingId: string) =>
-  `${API_BASE}/api/drawings/${drawingId}/file`;
+/** No-op in browser-only mode — kept for API compatibility. */
+export const drawingFileProxyUrl = (drawingId: string): string =>
+  `idb://drawing-${drawingId}`;
+
+// ─── Projects API ─────────────────────────────────────────────────────────────
 
 export interface ProjectListParams {
   q?: string;
@@ -50,13 +56,25 @@ export interface ProjectListParams {
 }
 
 export const ProjectsAPI = {
-  list: (params?: ProjectListParams) => api.get<Project[]>('/projects', { params }).then((r) => r.data),
-  get: (id: string) => api.get<Project>(`/projects/${id}`).then((r) => r.data),
-  create: (data: Partial<Project>) => api.post<Project>('/projects', data).then((r) => r.data),
-  update: (id: string, data: Partial<Project>) => api.put<Project>(`/projects/${id}`, data).then((r) => r.data),
-  setArchived: (id: string, archived: boolean) => api.patch<Project>(`/projects/${id}/archive`, { archived }).then((r) => r.data),
-  remove: (id: string, force = false) => api.delete(`/projects/${id}`, { params: force ? { force: 'true' } : {} }),
+  list: async (params?: ProjectListParams): Promise<Project[]> => {
+    let rows = await projectsAll();
+    // filter archived unless explicitly requested
+    if (!params?.archived) rows = rows.filter((p) => !p.archived);
+    if (params?.status) rows = rows.filter((p) => p.status === params.status);
+    if (params?.q) {
+      const q = params.q.toLowerCase();
+      rows = rows.filter((p) => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q));
+    }
+    return rows;
+  },
+  get: (id: string): Promise<Project | undefined> => projectGet(id),
+  create: (data: Partial<Project>): Promise<Project> => projectCreate(data),
+  update: (id: string, data: Partial<Project>): Promise<Project> => projectUpdate(id, data),
+  setArchived: (id: string, archived: boolean): Promise<Project> => projectUpdate(id, { archived: archived ? 1 : 0 }),
+  remove: (id: string, _force = false): Promise<void> => projectDelete(id),
 };
+
+// ─── Project Tasks API ────────────────────────────────────────────────────────
 
 export interface ProjectTaskListParams {
   projectId?: string;
@@ -69,67 +87,100 @@ export interface ProjectTaskListParams {
 }
 
 export const ProjectTasksAPI = {
-  list: (params?: ProjectTaskListParams) => api.get<ProjectTask[]>('/project-tasks', { params }).then((r) => r.data),
-  get: (id: string) => api.get<ProjectTask>(`/project-tasks/${id}`).then((r) => r.data),
-  create: (data: Partial<ProjectTask>) => api.post<ProjectTask>('/project-tasks', data).then((r) => r.data),
-  update: (id: string, data: Partial<ProjectTask>) => api.put<ProjectTask>(`/project-tasks/${id}`, data).then((r) => r.data),
-  remove: (id: string) => api.delete(`/project-tasks/${id}`),
-  comments: (id: string) => api.get<ProjectTaskComment[]>(`/project-tasks/${id}/comments`).then((r) => r.data),
-  addComment: (id: string, data: Partial<ProjectTaskComment>) =>
-    api.post<ProjectTaskComment>(`/project-tasks/${id}/comments`, data).then((r) => r.data),
+  list: (params?: ProjectTaskListParams): Promise<ProjectTask[]> =>
+    projectTasksAll(params?.projectId),
+  get: (id: string): Promise<ProjectTask | undefined> => projectTaskGet(id),
+  create: (data: Partial<ProjectTask>): Promise<ProjectTask> => projectTaskCreate(data),
+  update: (id: string, data: Partial<ProjectTask>): Promise<ProjectTask> => projectTaskUpdate(id, data),
+  remove: (id: string): Promise<void> => projectTaskDelete(id),
+  comments: (id: string): Promise<ProjectTaskComment[]> => projectTaskCommentsAll(id),
+  addComment: (id: string, data: Partial<ProjectTaskComment>): Promise<ProjectTaskComment> =>
+    projectTaskCommentCreate(id, data),
 };
+
+// ─── Drawings API ─────────────────────────────────────────────────────────────
 
 export const DrawingsAPI = {
-  list: (projectId?: string) =>
-    api.get<Drawing[]>('/drawings', { params: projectId ? { projectId } : {} }).then((r) => r.data),
-  get: (id: string) => api.get<Drawing>(`/drawings/${id}`).then((r) => r.data),
-  upload: (form: FormData) => api.post<Drawing>('/drawings/upload', form).then((r) => r.data),
-  update: (id: string, data: Partial<Drawing>) => api.patch<Drawing>(`/drawings/${id}`, data).then((r) => r.data),
-  remove: (id: string) => api.delete(`/drawings/${id}`),
+  list: (projectId?: string): Promise<Drawing[]> => drawingsAll(projectId),
+  get: (id: string): Promise<Drawing | undefined> => drawingGet(id),
+  upload: (form: FormData): Promise<Drawing> => drawingUpload(form),
+  update: (id: string, data: Partial<Drawing>): Promise<Drawing> =>
+    drawingUpdate(id, data as Record<string, unknown>),
+  remove: (id: string): Promise<void> => drawingDelete(id),
 };
+
+// ─── Tasks API ────────────────────────────────────────────────────────────────
 
 export const TasksAPI = {
-  list: (drawingId?: string) =>
-    api.get<Task[]>('/tasks', { params: drawingId ? { drawingId } : {} }).then((r) => r.data),
-  get: (id: string) => api.get<Task>(`/tasks/${id}`).then((r) => r.data),
-  create: (data: Partial<Task>) => api.post<Task>('/tasks', data).then((r) => r.data),
-  update: (id: string, data: Partial<Task>) => api.put<Task>(`/tasks/${id}`, data).then((r) => r.data),
-  remove: (id: string) => api.delete(`/tasks/${id}`),
-  comments: (id: string) => api.get<Comment[]>(`/tasks/${id}/comments`).then((r) => r.data),
-  addComment: (id: string, data: Partial<Comment>) =>
-    api.post<Comment>(`/tasks/${id}/comments`, data).then((r) => r.data),
-  addPhotoComment: (id: string, photo: File, data: Partial<Comment>) => {
-    const form = new FormData();
-    form.append('photo', photo);
-    if (data.author) form.append('author', data.author);
-    if (data.message) form.append('message', data.message);
-    return api.post<Comment>(`/tasks/${id}/comments`, form).then((r) => r.data);
+  list: (drawingId?: string): Promise<Task[]> => tasksAll(drawingId),
+  get: (id: string): Promise<Task | undefined> => taskGet(id),
+  create: (data: Partial<Task>): Promise<Task> => taskCreate(data),
+  update: (id: string, data: Partial<Task>): Promise<Task> => taskUpdate(id, data),
+  remove: (id: string): Promise<void> => taskDelete(id),
+  comments: (id: string): Promise<Comment[]> => taskCommentsAll(id),
+  addComment: (id: string, data: Partial<Comment>): Promise<Comment> => taskCommentCreate(id, data),
+  addPhotoComment: async (id: string, photo: File, data: Partial<Comment>): Promise<Comment> => {
+    // Convert photo to data URL and store as part of comment
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(photo);
+    });
+    return taskCommentCreate(id, { ...data, photoUrl: dataUrl });
   },
-  deleteComment: (taskId: string, commentId: string) =>
-    api.delete(`/tasks/${taskId}/comments/${commentId}`),
+  deleteComment: (_taskId: string, commentId: string): Promise<void> => taskCommentDelete(commentId),
 };
+
+// ─── Milestones API ───────────────────────────────────────────────────────────
 
 export const MilestonesAPI = {
-  list: (projectId?: string) =>
-    api.get<Milestone[]>('/milestones', { params: projectId ? { projectId } : {} }).then((r) => r.data),
-  get: (id: string) => api.get<Milestone>(`/milestones/${id}`).then((r) => r.data),
-  tasks: (id: string) => api.get<Task[]>(`/milestones/${id}/tasks`).then((r) => r.data),
-  create: (data: Partial<Milestone>) => api.post<Milestone>('/milestones', data).then((r) => r.data),
-  update: (id: string, data: Partial<Milestone>) => api.put<Milestone>(`/milestones/${id}`, data).then((r) => r.data),
-  remove: (id: string) => api.delete(`/milestones/${id}`),
+  list: (projectId?: string): Promise<Milestone[]> => milestonesAll(projectId),
+  get: (id: string): Promise<Milestone | undefined> => milestoneGet(id),
+  tasks: (id: string): Promise<Task[]> => tasksAll().then((ts) => ts.filter((t) => t.milestoneId === id)),
+  create: (data: Partial<Milestone>): Promise<Milestone> => milestoneCreate(data),
+  update: (id: string, data: Partial<Milestone>): Promise<Milestone> => milestoneUpdate(id, data),
+  remove: (id: string): Promise<void> => milestoneDelete(id),
 };
+
+// ─── Activity API ─────────────────────────────────────────────────────────────
 
 export const ActivityAPI = {
-  list: (drawingId?: string) =>
-    api.get<ActivityItem[]>('/activity', { params: drawingId ? { drawingId } : {} }).then((r) => r.data),
+  list: (_drawingId?: string): Promise<ActivityItem[]> => activityAll(),
 };
+
+// ─── Cliq API (no-op in browser-only mode) ────────────────────────────────────
 
 export const CliqAPI = {
-  sendReport: (taskId: string) =>
-    api.post<{ ok: boolean; message: string }>('/cliq-report', { taskId }).then((r) => r.data),
+  sendReport: async (_taskId: string): Promise<{ ok: boolean; message: string }> => ({
+    ok: false,
+    message: 'Cliq integration is not available in offline mode.',
+  }),
 };
 
+// ─── Geocode API ──────────────────────────────────────────────────────────────
+
 export const GeocodeAPI = {
-  reverse: (lat: number, lng: number) =>
-    api.get<{ displayName: string }>('/geocode/reverse', { params: { lat, lng } }).then((r) => r.data.displayName),
+  reverse: async (lat: number, lng: number): Promise<string> => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const json = await res.json();
+      return (json as { display_name?: string }).display_name ?? `${lat}, ${lng}`;
+    } catch {
+      return `${lat}, ${lng}`;
+    }
+  },
+};
+
+// ─── Legacy axios instance shim (unused but kept for compatibility) ────────────
+// Some deeply-nested code may still import `api` directly. Export a minimal shim.
+export const api = {
+  get: () => Promise.reject(new Error('Direct axios calls are disabled in browser-only mode')),
+  post: () => Promise.reject(new Error('Direct axios calls are disabled in browser-only mode')),
+  put: () => Promise.reject(new Error('Direct axios calls are disabled in browser-only mode')),
+  patch: () => Promise.reject(new Error('Direct axios calls are disabled in browser-only mode')),
+  delete: () => Promise.reject(new Error('Direct axios calls are disabled in browser-only mode')),
 };

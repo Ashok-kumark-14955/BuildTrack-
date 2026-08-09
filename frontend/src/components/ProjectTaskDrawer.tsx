@@ -36,7 +36,8 @@ export default function ProjectTaskDrawer({ projectId, taskId, onClose, onSaved,
 
   useEffect(() => {
     if (!taskId || isNew) { setForm(emptyForm); setComments([]); return; }
-    ProjectTasksAPI.get(taskId).then((t: ProjectTask) => {
+    ProjectTasksAPI.get(taskId).then((t: ProjectTask | undefined) => {
+      if (!t) return;
       setForm({
         name: t.name,
         description: t.description,
