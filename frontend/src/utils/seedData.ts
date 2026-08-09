@@ -18,6 +18,8 @@ import {
   openBuildTrackDb,
   saveDrawingFile,
   loadDrawingFile,
+  drawingGet,
+  drawingUpdate,
 } from './browserDb';
 import type { Project, Drawing, Task, Milestone, ActivityItem, ProjectTask } from '../types';
 
@@ -350,6 +352,283 @@ const STEEL_COLUMN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" h
   <text x="1385" y="973" font-size="11" fill="white" text-anchor="middle">REV: A | DATE: 2026-08-06</text>
 </svg>`;
 
+// All steel-project drawings below share the exact grid metrics of
+// STEEL_COLUMN_SVG (viewBox 1600×1000, columns A–D at x=200/600/1000/1400,
+// rows 1–2 at y=200/550) so a beam/rafter/sheet grid point lands on the same
+// pixel as the real column it connects to — see STEEL_GRID_POSITIONS below.
+
+const STEEL_FOUNDATION_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Arial,Helvetica,sans-serif">
+  <rect width="1600" height="1000" fill="#f4f6f8"/>
+  <rect x="10" y="10" width="1580" height="980" fill="none" stroke="#1a1a2e" stroke-width="2"/>
+  <text x="800" y="48" font-size="24" fill="#1a1a2e" text-anchor="middle" font-weight="900" letter-spacing="2">FOUNDATION PLAN</text>
+  <text x="800" y="68" font-size="12" fill="#5a6a80" text-anchor="middle">STEEL STRUCTURE PROJECT — SCALE 1:50</text>
+  <!-- Grid lines -->
+  <line x1="200" y1="120" x2="200" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="600" y1="120" x2="600" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1000" y1="120" x2="1000" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1400" y1="120" x2="1400" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="200" x2="1480" y2="200" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="550" x2="1480" y2="550" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <!-- Grade beams -->
+  <line x1="170" y1="200" x2="1430" y2="200" stroke="#8B6914" stroke-width="8" stroke-linecap="round"/>
+  <line x1="170" y1="550" x2="1430" y2="550" stroke="#8B6914" stroke-width="8" stroke-linecap="round"/>
+  <line x1="200" y1="170" x2="200" y2="580" stroke="#8B6914" stroke-width="8" stroke-linecap="round"/>
+  <line x1="600" y1="170" x2="600" y2="580" stroke="#8B6914" stroke-width="8" stroke-linecap="round"/>
+  <line x1="1000" y1="170" x2="1000" y2="580" stroke="#8B6914" stroke-width="8" stroke-linecap="round"/>
+  <line x1="1400" y1="170" x2="1400" y2="580" stroke="#8B6914" stroke-width="8" stroke-linecap="round"/>
+  <!-- Footing pads -->
+  <g>
+    <rect x="170" y="170" width="60" height="60" fill="#d4b483" stroke="#5c3d11" stroke-width="2.5"/>
+    <rect x="182" y="182" width="36" height="36" fill="#c8a45a" stroke="#5c3d11" stroke-width="1.5"/>
+    <text x="236" y="196" font-size="11" fill="#1a1a2e" font-weight="700">FP-A1</text>
+  </g>
+  <g>
+    <rect x="570" y="170" width="60" height="60" fill="#d4b483" stroke="#5c3d11" stroke-width="2.5"/>
+    <rect x="582" y="182" width="36" height="36" fill="#c8a45a" stroke="#5c3d11" stroke-width="1.5"/>
+    <text x="636" y="196" font-size="11" fill="#1a1a2e" font-weight="700">FP-B1</text>
+  </g>
+  <g>
+    <rect x="970" y="170" width="60" height="60" fill="#d4b483" stroke="#5c3d11" stroke-width="2.5"/>
+    <rect x="982" y="182" width="36" height="36" fill="#c8a45a" stroke="#5c3d11" stroke-width="1.5"/>
+    <text x="1036" y="196" font-size="11" fill="#1a1a2e" font-weight="700">FP-C1</text>
+  </g>
+  <g>
+    <rect x="1370" y="170" width="60" height="60" fill="#d4b483" stroke="#5c3d11" stroke-width="2.5"/>
+    <rect x="1382" y="182" width="36" height="36" fill="#c8a45a" stroke="#5c3d11" stroke-width="1.5"/>
+    <text x="1330" y="196" font-size="11" fill="#1a1a2e" font-weight="700" text-anchor="end">FP-D1</text>
+  </g>
+  <g>
+    <rect x="170" y="520" width="60" height="60" fill="#d4b483" stroke="#5c3d11" stroke-width="2.5"/>
+    <rect x="182" y="532" width="36" height="36" fill="#c8a45a" stroke="#5c3d11" stroke-width="1.5"/>
+    <text x="236" y="546" font-size="11" fill="#1a1a2e" font-weight="700">FP-A2</text>
+  </g>
+  <g>
+    <rect x="570" y="520" width="60" height="60" fill="#d4b483" stroke="#5c3d11" stroke-width="2.5"/>
+    <rect x="582" y="532" width="36" height="36" fill="#c8a45a" stroke="#5c3d11" stroke-width="1.5"/>
+    <text x="636" y="546" font-size="11" fill="#1a1a2e" font-weight="700">FP-B2</text>
+  </g>
+  <g>
+    <rect x="970" y="520" width="60" height="60" fill="#d4b483" stroke="#5c3d11" stroke-width="2.5"/>
+    <rect x="982" y="532" width="36" height="36" fill="#c8a45a" stroke="#5c3d11" stroke-width="1.5"/>
+    <text x="1036" y="546" font-size="11" fill="#1a1a2e" font-weight="700">FP-C2</text>
+  </g>
+  <g>
+    <rect x="1370" y="520" width="60" height="60" fill="#d4b483" stroke="#5c3d11" stroke-width="2.5"/>
+    <rect x="1382" y="532" width="36" height="36" fill="#c8a45a" stroke="#5c3d11" stroke-width="1.5"/>
+    <text x="1330" y="546" font-size="11" fill="#1a1a2e" font-weight="700" text-anchor="end">FP-D2</text>
+  </g>
+  <!-- Grid labels -->
+  <text x="200" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">A</text>
+  <text x="600" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">B</text>
+  <text x="1000" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">C</text>
+  <text x="1400" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">D</text>
+  <text x="80" y="205" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">1</text>
+  <text x="80" y="555" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">2</text>
+  <!-- Note -->
+  <text x="800" y="760" font-size="14" fill="#1a1a2e" text-anchor="middle">FOOTING: 900×900×450mm ISOLATED PAD | GRADE BEAM: 300×450mm</text>
+  <text x="800" y="780" font-size="12" fill="#5a6a80" text-anchor="middle">CONCRETE: M25 | REINFORCEMENT: Fe 500 TMT BARS | MIN. COVER: 50mm</text>
+  <!-- Title block -->
+  <rect x="1200" y="930" width="370" height="55" fill="#1a1a2e"/>
+  <text x="1385" y="955" font-size="11" fill="white" text-anchor="middle">DWG NO: STR-FND-001</text>
+  <text x="1385" y="973" font-size="11" fill="white" text-anchor="middle">REV: A | DATE: 2026-08-06</text>
+</svg>`;
+
+const STEEL_BEAM_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Arial,Helvetica,sans-serif">
+  <rect width="1600" height="1000" fill="#f0f6f4"/>
+  <rect x="10" y="10" width="1580" height="980" fill="none" stroke="#065f46" stroke-width="2"/>
+  <text x="800" y="48" font-size="24" fill="#065f46" text-anchor="middle" font-weight="900" letter-spacing="2">STEEL BEAM ERECTION PLAN</text>
+  <text x="800" y="68" font-size="12" fill="#5a6a80" text-anchor="middle">STEEL STRUCTURE PROJECT — SCALE 1:50</text>
+  <!-- Grid lines -->
+  <line x1="200" y1="120" x2="200" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="600" y1="120" x2="600" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1000" y1="120" x2="1000" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1400" y1="120" x2="1400" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="200" x2="1480" y2="200" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="550" x2="1480" y2="550" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <!-- Primary beams (row 1 and row 2, spanning A→D) -->
+  <line x1="200" y1="200" x2="1400" y2="200" stroke="#065f46" stroke-width="7" stroke-linecap="round"/>
+  <text x="800" y="188" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">PB1 – ISMB 300 (GRID 1)</text>
+  <line x1="200" y1="550" x2="1400" y2="550" stroke="#065f46" stroke-width="7" stroke-linecap="round"/>
+  <text x="800" y="538" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">PB1 – ISMB 300 (GRID 2)</text>
+  <!-- Secondary beams (columns A–D, spanning row 1→2) -->
+  <line x1="200" y1="200" x2="200" y2="550" stroke="#0284c7" stroke-width="4.5" stroke-linecap="round"/>
+  <text x="150" y="380" font-size="10" fill="#0284c7" text-anchor="middle" transform="rotate(-90 150 380)">SB-A ISMB 200</text>
+  <line x1="600" y1="200" x2="600" y2="550" stroke="#0284c7" stroke-width="4.5" stroke-linecap="round"/>
+  <text x="550" y="380" font-size="10" fill="#0284c7" text-anchor="middle" transform="rotate(-90 550 380)">SB-B ISMB 200</text>
+  <line x1="1000" y1="200" x2="1000" y2="550" stroke="#0284c7" stroke-width="4.5" stroke-linecap="round"/>
+  <text x="950" y="380" font-size="10" fill="#0284c7" text-anchor="middle" transform="rotate(-90 950 380)">SB-C ISMB 200</text>
+  <line x1="1400" y1="200" x2="1400" y2="550" stroke="#0284c7" stroke-width="4.5" stroke-linecap="round"/>
+  <text x="1350" y="380" font-size="10" fill="#0284c7" text-anchor="middle" transform="rotate(-90 1350 380)">SB-D ISMB 200</text>
+  <!-- Column stubs + bolted connections at every node -->
+  <g transform="translate(200,200)"><rect x="-9" y="-9" width="18" height="18" fill="#9ca3af" stroke="#1a1a2e" stroke-width="2"/><circle r="12" fill="none" stroke="#dc2626" stroke-width="1.5"/></g>
+  <g transform="translate(600,200)"><rect x="-9" y="-9" width="18" height="18" fill="#9ca3af" stroke="#1a1a2e" stroke-width="2"/><circle r="12" fill="none" stroke="#dc2626" stroke-width="1.5"/></g>
+  <g transform="translate(1000,200)"><rect x="-9" y="-9" width="18" height="18" fill="#9ca3af" stroke="#1a1a2e" stroke-width="2"/><circle r="12" fill="none" stroke="#dc2626" stroke-width="1.5"/></g>
+  <g transform="translate(1400,200)"><rect x="-9" y="-9" width="18" height="18" fill="#9ca3af" stroke="#1a1a2e" stroke-width="2"/><circle r="12" fill="none" stroke="#dc2626" stroke-width="1.5"/></g>
+  <g transform="translate(200,550)"><rect x="-9" y="-9" width="18" height="18" fill="#9ca3af" stroke="#1a1a2e" stroke-width="2"/><circle r="12" fill="none" stroke="#dc2626" stroke-width="1.5"/></g>
+  <g transform="translate(600,550)"><rect x="-9" y="-9" width="18" height="18" fill="#9ca3af" stroke="#1a1a2e" stroke-width="2"/><circle r="12" fill="none" stroke="#dc2626" stroke-width="1.5"/></g>
+  <g transform="translate(1000,550)"><rect x="-9" y="-9" width="18" height="18" fill="#9ca3af" stroke="#1a1a2e" stroke-width="2"/><circle r="12" fill="none" stroke="#dc2626" stroke-width="1.5"/></g>
+  <g transform="translate(1400,550)"><rect x="-9" y="-9" width="18" height="18" fill="#9ca3af" stroke="#1a1a2e" stroke-width="2"/><circle r="12" fill="none" stroke="#dc2626" stroke-width="1.5"/></g>
+  <!-- Grid labels -->
+  <text x="200" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">A</text>
+  <text x="600" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">B</text>
+  <text x="1000" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">C</text>
+  <text x="1400" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">D</text>
+  <text x="80" y="205" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">1</text>
+  <text x="80" y="555" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">2</text>
+  <!-- Note -->
+  <text x="800" y="760" font-size="14" fill="#1a1a2e" text-anchor="middle">PRIMARY BEAM (PB): ISMB 300 | SECONDARY BEAM (SB): ISMB 200</text>
+  <text x="800" y="780" font-size="12" fill="#5a6a80" text-anchor="middle">CONNECTIONS: BOLTED HSFG, M20 GRADE 8.8 | STEEL GRADE: Fe 415</text>
+  <!-- Title block -->
+  <rect x="1200" y="930" width="370" height="55" fill="#1a1a2e"/>
+  <text x="1385" y="955" font-size="11" fill="white" text-anchor="middle">DWG NO: STR-BEA-003</text>
+  <text x="1385" y="973" font-size="11" fill="white" text-anchor="middle">REV: A | DATE: 2026-08-06</text>
+</svg>`;
+
+const STEEL_RAFTER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Arial,Helvetica,sans-serif">
+  <rect width="1600" height="1000" fill="#faf7ff"/>
+  <rect x="10" y="10" width="1580" height="980" fill="none" stroke="#7c3aed" stroke-width="2"/>
+  <text x="800" y="48" font-size="24" fill="#7c3aed" text-anchor="middle" font-weight="900" letter-spacing="2">STEEL RAFTER / ROOF FRAMING PLAN</text>
+  <text x="800" y="68" font-size="12" fill="#5a6a80" text-anchor="middle">STEEL STRUCTURE PROJECT — SCALE 1:50</text>
+  <!-- Grid lines -->
+  <line x1="200" y1="120" x2="200" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="600" y1="120" x2="600" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1000" y1="120" x2="1000" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1400" y1="120" x2="1400" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="200" x2="1480" y2="200" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="550" x2="1480" y2="550" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <!-- Purlins (parallel to ridge) -->
+  <line x1="180" y1="270" x2="1420" y2="270" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="10,5"/>
+  <line x1="180" y1="310" x2="1420" y2="310" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="10,5"/>
+  <line x1="180" y1="440" x2="1420" y2="440" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="10,5"/>
+  <line x1="180" y1="480" x2="1420" y2="480" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="10,5"/>
+  <text x="1430" y="274" font-size="9" fill="#b45309">PL-1 C150×65×20×2.5</text>
+  <text x="1430" y="484" font-size="9" fill="#b45309">PL-4 C150×65×20×2.5</text>
+  <!-- Rafters: each column bay from eave to ridge -->
+  <line x1="200" y1="200" x2="200" y2="375" stroke="#a855f7" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="200" y1="375" x2="200" y2="550" stroke="#a855f7" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="600" y1="200" x2="600" y2="375" stroke="#a855f7" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="600" y1="375" x2="600" y2="550" stroke="#a855f7" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="1000" y1="200" x2="1000" y2="375" stroke="#a855f7" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="1000" y1="375" x2="1000" y2="550" stroke="#a855f7" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="1400" y1="200" x2="1400" y2="375" stroke="#a855f7" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="1400" y1="375" x2="1400" y2="550" stroke="#a855f7" stroke-width="4.5" stroke-linecap="round"/>
+  <text x="212" y="290" font-size="9" fill="#7c3aed" font-weight="700">RF-A</text>
+  <text x="612" y="290" font-size="9" fill="#7c3aed" font-weight="700">RF-B</text>
+  <text x="1012" y="290" font-size="9" fill="#7c3aed" font-weight="700">RF-C</text>
+  <text x="1412" y="290" font-size="9" fill="#7c3aed" font-weight="700">RF-D</text>
+  <!-- Ridge beam -->
+  <line x1="180" y1="375" x2="1420" y2="375" stroke="#7c3aed" stroke-width="8" stroke-linecap="round"/>
+  <text x="800" y="365" font-size="12" fill="#7c3aed" text-anchor="middle" font-weight="700">RIDGE BEAM RB1 – ISMB 250</text>
+  <!-- Bracing -->
+  <line x1="200" y1="200" x2="600" y2="375" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <line x1="600" y1="200" x2="200" y2="375" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <!-- Slope arrow -->
+  <line x1="120" y1="330" x2="180" y2="290" stroke="#dc2626" stroke-width="2"/>
+  <text x="60" y="345" font-size="12" fill="#dc2626">SLOPE 1:10</text>
+  <!-- Grid labels -->
+  <text x="200" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">A</text>
+  <text x="600" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">B</text>
+  <text x="1000" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">C</text>
+  <text x="1400" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">D</text>
+  <text x="80" y="205" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">1</text>
+  <text x="80" y="555" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">2</text>
+  <!-- Note -->
+  <text x="800" y="760" font-size="14" fill="#1a1a2e" text-anchor="middle">RAFTER (RF): ISMC 200 | RIDGE BEAM (RB): ISMB 250</text>
+  <text x="800" y="780" font-size="12" fill="#5a6a80" text-anchor="middle">PURLIN: C150×65×20×2.5mm @ 1200 c/c | ROOF SLOPE: 1:10</text>
+  <!-- Title block -->
+  <rect x="1200" y="930" width="370" height="55" fill="#1a1a2e"/>
+  <text x="1385" y="955" font-size="11" fill="white" text-anchor="middle">DWG NO: STR-RAF-004</text>
+  <text x="1385" y="973" font-size="11" fill="white" text-anchor="middle">REV: A | DATE: 2026-08-06</text>
+</svg>`;
+
+const STEEL_ROOF_SHEET_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Arial,Helvetica,sans-serif">
+  <rect width="1600" height="1000" fill="#f8fafc"/>
+  <rect x="10" y="10" width="1580" height="980" fill="none" stroke="#0f172a" stroke-width="2"/>
+  <text x="800" y="48" font-size="24" fill="#0f172a" text-anchor="middle" font-weight="900" letter-spacing="2">ROOF SHEET LAYOUT PLAN</text>
+  <text x="800" y="68" font-size="12" fill="#5a6a80" text-anchor="middle">STEEL STRUCTURE PROJECT — SCALE 1:50</text>
+  <!-- Grid lines -->
+  <line x1="200" y1="120" x2="200" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="600" y1="120" x2="600" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1000" y1="120" x2="1000" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1400" y1="120" x2="1400" y2="900" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="200" x2="1480" y2="200" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="550" x2="1480" y2="550" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <!-- Roof outline -->
+  <rect x="170" y="170" width="1260" height="410" fill="#f8fafc" stroke="#0f172a" stroke-width="3"/>
+  <!-- Ridge -->
+  <line x1="170" y1="375" x2="1430" y2="375" stroke="#7c2d12" stroke-width="4" stroke-dasharray="14,6"/>
+  <text x="1440" y="379" font-size="11" fill="#7c2d12" font-weight="700">RIDGE</text>
+  <!-- Sheet rib lines (vertical, run from eave to ridge on each slope) -->
+  <line x1="230" y1="176" x2="230" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="290" y1="176" x2="290" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="350" y1="176" x2="350" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="410" y1="176" x2="410" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="470" y1="176" x2="470" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="530" y1="176" x2="530" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="590" y1="176" x2="590" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="650" y1="176" x2="650" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="710" y1="176" x2="710" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="770" y1="176" x2="770" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="830" y1="176" x2="830" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="890" y1="176" x2="890" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="950" y1="176" x2="950" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1010" y1="176" x2="1010" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1070" y1="176" x2="1070" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1130" y1="176" x2="1130" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1190" y1="176" x2="1190" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1250" y1="176" x2="1250" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1310" y1="176" x2="1310" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1370" y1="176" x2="1370" y2="369" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="230" y1="381" x2="230" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="290" y1="381" x2="290" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="350" y1="381" x2="350" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="410" y1="381" x2="410" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="470" y1="381" x2="470" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="530" y1="381" x2="530" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="590" y1="381" x2="590" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="650" y1="381" x2="650" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="710" y1="381" x2="710" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="770" y1="381" x2="770" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="830" y1="381" x2="830" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="890" y1="381" x2="890" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="950" y1="381" x2="950" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1010" y1="381" x2="1010" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1070" y1="381" x2="1070" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1130" y1="381" x2="1130" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1190" y1="381" x2="1190" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1250" y1="381" x2="1250" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1310" y1="381" x2="1310" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1370" y1="381" x2="1370" y2="574" stroke="#2563eb" stroke-width="1.2"/>
+  <!-- End lap lines -->
+  <line x1="178" y1="280" x2="1422" y2="280" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="7,5"/>
+  <text x="1440" y="284" font-size="9" fill="#c2410c">END LAP 200</text>
+  <line x1="178" y1="470" x2="1422" y2="470" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="7,5"/>
+  <text x="1440" y="474" font-size="9" fill="#c2410c">END LAP 200</text>
+  <!-- Fixing / grid points -->
+  <g transform="translate(200,200)"><circle r="8" fill="#fff" stroke="#0f172a" stroke-width="2"/><circle r="2.5" fill="#0f172a"/><text x="10" y="-10" font-size="10" fill="#0f172a" font-weight="700">A1</text></g>
+  <g transform="translate(600,200)"><circle r="8" fill="#fff" stroke="#0f172a" stroke-width="2"/><circle r="2.5" fill="#0f172a"/><text x="10" y="-10" font-size="10" fill="#0f172a" font-weight="700">B1</text></g>
+  <g transform="translate(1000,200)"><circle r="8" fill="#fff" stroke="#0f172a" stroke-width="2"/><circle r="2.5" fill="#0f172a"/><text x="10" y="-10" font-size="10" fill="#0f172a" font-weight="700">C1</text></g>
+  <g transform="translate(1400,200)"><circle r="8" fill="#fff" stroke="#0f172a" stroke-width="2"/><circle r="2.5" fill="#0f172a"/><text x="-30" y="-10" font-size="10" fill="#0f172a" font-weight="700">D1</text></g>
+  <g transform="translate(200,550)"><circle r="8" fill="#fff" stroke="#0f172a" stroke-width="2"/><circle r="2.5" fill="#0f172a"/><text x="10" y="-10" font-size="10" fill="#0f172a" font-weight="700">A2</text></g>
+  <g transform="translate(600,550)"><circle r="8" fill="#fff" stroke="#0f172a" stroke-width="2"/><circle r="2.5" fill="#0f172a"/><text x="10" y="-10" font-size="10" fill="#0f172a" font-weight="700">B2</text></g>
+  <g transform="translate(1000,550)"><circle r="8" fill="#fff" stroke="#0f172a" stroke-width="2"/><circle r="2.5" fill="#0f172a"/><text x="10" y="-10" font-size="10" fill="#0f172a" font-weight="700">C2</text></g>
+  <g transform="translate(1400,550)"><circle r="8" fill="#fff" stroke="#0f172a" stroke-width="2"/><circle r="2.5" fill="#0f172a"/><text x="-30" y="-10" font-size="10" fill="#0f172a" font-weight="700">D2</text></g>
+  <!-- Grid labels -->
+  <text x="200" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">A</text>
+  <text x="600" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">B</text>
+  <text x="1000" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">C</text>
+  <text x="1400" y="105" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">D</text>
+  <text x="80" y="205" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">1</text>
+  <text x="80" y="555" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">2</text>
+  <!-- Note -->
+  <text x="800" y="760" font-size="14" fill="#1a1a2e" text-anchor="middle">ROOF SHEETING: 0.5mm PROFILED GI SHEET (TRAPEZOIDAL)</text>
+  <text x="800" y="780" font-size="12" fill="#5a6a80" text-anchor="middle">FIXING: SELF-DRILLING SCREWS @ EVERY PURLIN | SIDE LAP: 1.5 CORRUGATION MIN.</text>
+  <!-- Title block -->
+  <rect x="1200" y="930" width="370" height="55" fill="#1a1a2e"/>
+  <text x="1385" y="955" font-size="11" fill="white" text-anchor="middle">DWG NO: STR-RSL-005</text>
+  <text x="1385" y="973" font-size="11" fill="white" text-anchor="middle">REV: A | DATE: 2026-08-06</text>
+</svg>`;
+
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 function svgToDataUrl(svg: string): string {
@@ -365,6 +644,20 @@ const MS1 = 'ms-house-foundation';
 const MS2 = 'ms-house-structure';
 const MS3 = 'ms-steel-columns';
 const MS4 = 'ms-steel-roof';
+const MS5 = 'ms-steel-foundation';
+const MS6 = 'ms-steel-beams';
+
+// Precise calibration for every steel-project drawing: normalized (0–1) grid
+// positions computed from the exact pixel grid (viewBox 1600×1000, columns
+// A–D at x=200/600/1000/1400, rows 1–2 at y=200/550) shared by all five SVGs
+// above, so markers land exactly on the drawn column/beam/rafter nodes
+// instead of falling back to DrawingCanvas's naive edge-to-edge grid.
+const STEEL_GRID_POSITIONS: Record<string, { x: number; y: number }> = {
+  A1: { x: 200 / 1600, y: 200 / 1000 }, B1: { x: 600 / 1600, y: 200 / 1000 },
+  C1: { x: 1000 / 1600, y: 200 / 1000 }, D1: { x: 1400 / 1600, y: 200 / 1000 },
+  A2: { x: 200 / 1600, y: 550 / 1000 }, B2: { x: 600 / 1600, y: 550 / 1000 },
+  C2: { x: 1000 / 1600, y: 550 / 1000 }, D2: { x: 1400 / 1600, y: 550 / 1000 },
+};
 
 // ─── Sample data definitions (fully typed, fixed IDs) ─────────────────────────
 
@@ -411,10 +704,22 @@ const SAMPLE_MILESTONES: Milestone[] = [
     createdAt: '2026-01-10T09:00:00.000Z', updatedAt: '2026-08-01T09:00:00.000Z',
   },
   {
+    id: MS5, projectId: P2, name: 'Foundation Complete',
+    description: 'Isolated footing pads and grade beams cast and cured for all column bases.',
+    dueDate: '2026-04-15', status: 'Completed',
+    createdAt: '2026-02-20T09:00:00.000Z', updatedAt: '2026-04-20T09:00:00.000Z',
+  },
+  {
     id: MS3, projectId: P2, name: 'Column Erection',
     description: 'All steel columns erected, plumbed and grouted.',
     dueDate: '2026-05-31', status: 'Completed',
     createdAt: '2026-02-20T09:00:00.000Z', updatedAt: '2026-06-01T09:00:00.000Z',
+  },
+  {
+    id: MS6, projectId: P2, name: 'Beam Erection',
+    description: 'Primary and secondary beams erected and bolted between all columns.',
+    dueDate: '2026-07-15', status: 'Active',
+    createdAt: '2026-02-20T09:00:00.000Z', updatedAt: '2026-06-15T09:00:00.000Z',
   },
   {
     id: MS4, projectId: P2, name: 'Roof Completion',
@@ -427,6 +732,7 @@ const SAMPLE_MILESTONES: Milestone[] = [
 const SAMPLE_DRAWING_DEFS: Array<{
   id: string; projectId: string; milestoneId: string | null; name: string;
   svg: string; gridCols: number; gridRows: number; createdAt: string;
+  columnPositions?: Record<string, { x: number; y: number }>;
 }> = [
   {
     id: 'drw-gf-001', projectId: P1, milestoneId: MS2,
@@ -452,6 +758,31 @@ const SAMPLE_DRAWING_DEFS: Array<{
     id: 'drw-col-001', projectId: P2, milestoneId: MS3,
     name: 'Steel Column Erection Plan', svg: STEEL_COLUMN_SVG,
     gridCols: 4, gridRows: 2, createdAt: '2026-08-06T08:43:37.000Z',
+    columnPositions: STEEL_GRID_POSITIONS,
+  },
+  {
+    id: 'drw-sfd-001', projectId: P2, milestoneId: MS5,
+    name: 'Foundation Plan', svg: STEEL_FOUNDATION_SVG,
+    gridCols: 4, gridRows: 2, createdAt: '2026-08-09T22:00:00.000Z',
+    columnPositions: STEEL_GRID_POSITIONS,
+  },
+  {
+    id: 'drw-sbe-001', projectId: P2, milestoneId: MS6,
+    name: 'Steel Beam Erection Plan', svg: STEEL_BEAM_SVG,
+    gridCols: 4, gridRows: 2, createdAt: '2026-08-09T22:00:01.000Z',
+    columnPositions: STEEL_GRID_POSITIONS,
+  },
+  {
+    id: 'drw-sra-001', projectId: P2, milestoneId: MS4,
+    name: 'Steel Rafter / Roof Framing Plan', svg: STEEL_RAFTER_SVG,
+    gridCols: 4, gridRows: 2, createdAt: '2026-08-09T22:00:02.000Z',
+    columnPositions: STEEL_GRID_POSITIONS,
+  },
+  {
+    id: 'drw-srs-001', projectId: P2, milestoneId: MS4,
+    name: 'Roof Sheet Layout Plan', svg: STEEL_ROOF_SHEET_SVG,
+    gridCols: 4, gridRows: 2, createdAt: '2026-08-09T22:00:03.000Z',
+    columnPositions: STEEL_GRID_POSITIONS,
   },
 ];
 
@@ -476,6 +807,28 @@ const SAMPLE_TASKS: Task[] = [
   { id: 'task-col-b1', drawingId: 'drw-col-001', milestoneId: MS3, elementType: 'column', elementId: 'B1', gridCode: 'B1', name: 'Column C-B1 Plumbing & Grouting', description: '', category: 'Structural', priority: 'High', assignedTo: 'Steel Team', startDate: '2026-06-01', dueDate: '2026-09-30', status: 'Completed', progress: 100, createdAt: '2026-07-15T08:00:00.000Z', updatedAt: '2026-07-15T08:00:00.000Z' },
   { id: 'task-col-c1', drawingId: 'drw-col-001', milestoneId: MS3, elementType: 'column', elementId: 'C1', gridCode: 'C1', name: 'Column C-C1 Erection', description: '', category: 'Structural', priority: 'High', assignedTo: 'Steel Team', startDate: '2026-06-01', dueDate: '2026-09-30', status: 'In Progress', progress: 70, createdAt: '2026-07-15T08:00:00.000Z', updatedAt: '2026-07-15T08:00:00.000Z' },
   { id: 'task-col-d1', drawingId: 'drw-col-001', milestoneId: MS3, elementType: 'column', elementId: 'D1', gridCode: 'D1', name: 'Column C-D1 QA Check', description: '', category: 'Structural', priority: 'Medium', assignedTo: 'QA Team', startDate: '2026-06-01', dueDate: '2026-09-30', status: 'Assigned', progress: 0, createdAt: '2026-07-15T08:00:00.000Z', updatedAt: '2026-07-15T08:00:00.000Z' },
+  // Steel Foundation Plan tasks
+  { id: 'task-sfd-a1', drawingId: 'drw-sfd-001', milestoneId: MS5, elementType: 'footing', elementId: 'FP-A1', gridCode: 'A1', name: 'Footing FP-A1 Excavation & PCC', description: 'Excavate to founding level, blind with 75mm PCC.', category: 'Civil', priority: 'High', assignedTo: 'Suresh P.', startDate: '2026-03-05', dueDate: '2026-03-15', status: 'Completed', progress: 100, createdAt: '2026-08-09T22:00:00.000Z', updatedAt: '2026-08-09T22:00:00.000Z' },
+  { id: 'task-sfd-b1', drawingId: 'drw-sfd-001', milestoneId: MS5, elementType: 'footing', elementId: 'FP-B1', gridCode: 'B1', name: 'Footing FP-B1 Reinforcement', description: 'Fix footing pad reinforcement cage, verify cover blocks.', category: 'Structural', priority: 'High', assignedTo: 'Ramesh K.', startDate: '2026-03-10', dueDate: '2026-03-18', status: 'Completed', progress: 100, createdAt: '2026-08-09T22:00:00.000Z', updatedAt: '2026-08-09T22:00:00.000Z' },
+  { id: 'task-sfd-c1', drawingId: 'drw-sfd-001', milestoneId: MS5, elementType: 'footing', elementId: 'FP-C1', gridCode: 'C1', name: 'Footing FP-C1 Concreting', description: 'Pour M25 concrete for isolated pad, vibrate and cure.', category: 'Structural', priority: 'Medium', assignedTo: 'Vikram M.', startDate: '2026-03-15', dueDate: '2026-03-22', status: 'Completed', progress: 100, createdAt: '2026-08-09T22:00:00.000Z', updatedAt: '2026-08-09T22:00:00.000Z' },
+  { id: 'task-sfd-d1', drawingId: 'drw-sfd-001', milestoneId: MS5, elementType: 'anchor', elementId: 'HD-D1', gridCode: 'D1', name: 'Anchor Bolt Template Setting — D1', description: 'Position and cast M24 holding-down bolts on template, verify by survey.', category: 'Structural', priority: 'Critical', assignedTo: 'QA Team', startDate: '2026-03-18', dueDate: '2026-03-25', status: 'Completed', progress: 100, createdAt: '2026-08-09T22:00:00.000Z', updatedAt: '2026-08-09T22:00:00.000Z' },
+  { id: 'task-sfd-a2', drawingId: 'drw-sfd-001', milestoneId: MS5, elementType: 'grade_beam', elementId: 'GB-A1-A2', gridCode: 'A2', name: 'Grade Beam GB-A1/A2 Casting', description: 'Cast tie/grade beam 300×450mm between A1 and A2.', category: 'Structural', priority: 'Medium', assignedTo: 'Suresh P.', startDate: '2026-03-22', dueDate: '2026-04-01', status: 'Completed', progress: 100, createdAt: '2026-08-09T22:00:00.000Z', updatedAt: '2026-08-09T22:00:00.000Z' },
+  { id: 'task-sfd-b2', drawingId: 'drw-sfd-001', milestoneId: MS5, elementType: 'footing', elementId: 'FP-B2', gridCode: 'B2', name: 'Footing FP-B2 Backfill & Compaction', description: 'Controlled backfill in 200mm layers, 95% MDD compaction.', category: 'Civil', priority: 'Low', assignedTo: 'Ramesh K.', startDate: '2026-04-01', dueDate: '2026-04-10', status: 'Completed', progress: 100, createdAt: '2026-08-09T22:00:00.000Z', updatedAt: '2026-08-09T22:00:00.000Z' },
+  // Steel Beam Erection Plan tasks
+  { id: 'task-sbe-a1', drawingId: 'drw-sbe-001', milestoneId: MS6, elementType: 'beam', elementId: 'PB1-A1-B1', gridCode: 'A1', name: 'Primary Beam PB1 (A1–B1) Erection', description: 'Crane-lift ISMB 300 primary beam, align and tack bolt.', category: 'Structural', priority: 'High', assignedTo: 'Steel Team', startDate: '2026-05-01', dueDate: '2026-05-10', status: 'Completed', progress: 100, createdAt: '2026-08-09T22:00:01.000Z', updatedAt: '2026-08-09T22:00:01.000Z' },
+  { id: 'task-sbe-b1', drawingId: 'drw-sbe-001', milestoneId: MS6, elementType: 'beam', elementId: 'PB1-B1-C1', gridCode: 'B1', name: 'Primary Beam PB1 (B1–C1) Erection', description: 'Crane-lift ISMB 300 primary beam, align and tack bolt.', category: 'Structural', priority: 'High', assignedTo: 'Steel Team', startDate: '2026-05-05', dueDate: '2026-05-14', status: 'In Progress', progress: 65, createdAt: '2026-08-09T22:00:01.000Z', updatedAt: '2026-08-09T22:00:01.000Z' },
+  { id: 'task-sbe-c1', drawingId: 'drw-sbe-001', milestoneId: MS6, elementType: 'beam', elementId: 'SB-C', gridCode: 'C1', name: 'Secondary Beam SB-C Erection', description: 'Erect ISMB 200 secondary beam between C1 and C2, HSFG bolt.', category: 'Structural', priority: 'Medium', assignedTo: 'Steel Team', startDate: '2026-05-10', dueDate: '2026-05-18', status: 'Assigned', progress: 0, createdAt: '2026-08-09T22:00:01.000Z', updatedAt: '2026-08-09T22:00:01.000Z' },
+  { id: 'task-sbe-d1', drawingId: 'drw-sbe-001', milestoneId: MS6, elementType: 'connection', elementId: 'CONN-D1', gridCode: 'D1', name: 'Bolted Connection Torque Check — D1', description: 'Torque-check M20 HSFG bolts at D1 node, record QA sheet.', category: 'Quality', priority: 'High', assignedTo: 'QA Team', startDate: '2026-05-15', dueDate: '2026-05-20', status: 'Assigned', progress: 0, createdAt: '2026-08-09T22:00:01.000Z', updatedAt: '2026-08-09T22:00:01.000Z' },
+  // Steel Rafter / Roof Framing Plan tasks
+  { id: 'task-sra-a1', drawingId: 'drw-sra-001', milestoneId: MS4, elementType: 'ridge_beam', elementId: 'RB1', gridCode: 'A1', name: 'Ridge Beam RB1 Erection', description: 'Crane-lift ISMB 250 ridge beam A→D, bolt to column apex gussets.', category: 'Structural', priority: 'Critical', assignedTo: 'Steel Team', startDate: '2026-07-01', dueDate: '2026-07-08', status: 'In Progress', progress: 40, createdAt: '2026-08-09T22:00:02.000Z', updatedAt: '2026-08-09T22:00:02.000Z' },
+  { id: 'task-sra-b1', drawingId: 'drw-sra-001', milestoneId: MS4, elementType: 'rafter', elementId: 'RF-B', gridCode: 'B1', name: 'Rafter RF-B Installation', description: 'Install ISMC 200 rafter from B1/B2 eaves to ridge, bolt connections.', category: 'Structural', priority: 'High', assignedTo: 'Steel Team', startDate: '2026-07-05', dueDate: '2026-07-12', status: 'Assigned', progress: 0, createdAt: '2026-08-09T22:00:02.000Z', updatedAt: '2026-08-09T22:00:02.000Z' },
+  { id: 'task-sra-c1', drawingId: 'drw-sra-001', milestoneId: MS4, elementType: 'purlin', elementId: 'PL-1', gridCode: 'C1', name: 'Purlin PL-1 Row Installation', description: 'Bolt C150×65×20×2.5 purlins at 1200 c/c across all rafters.', category: 'Structural', priority: 'Medium', assignedTo: 'Steel Team', startDate: '2026-07-10', dueDate: '2026-07-18', status: 'Assigned', progress: 0, createdAt: '2026-08-09T22:00:02.000Z', updatedAt: '2026-08-09T22:00:02.000Z' },
+  { id: 'task-sra-d1', drawingId: 'drw-sra-001', milestoneId: MS4, elementType: 'bracing', elementId: 'BR-A-B', gridCode: 'D1', name: 'Roof Bracing Installation', description: 'Install diagonal bracing between column bays, tension to remove slack.', category: 'Structural', priority: 'Medium', assignedTo: 'Steel Team', startDate: '2026-07-15', dueDate: '2026-07-22', status: 'Assigned', progress: 0, createdAt: '2026-08-09T22:00:02.000Z', updatedAt: '2026-08-09T22:00:02.000Z' },
+  // Roof Sheet Layout Plan tasks
+  { id: 'task-srs-a1', drawingId: 'drw-srs-001', milestoneId: MS4, elementType: 'cladding', elementId: 'SHT-A1', gridCode: 'A1', name: 'Roof Sheet Setting Out — A1', description: 'Set out first sheet run from A1 with survey control, check square to ridge.', category: 'Survey', priority: 'Critical', assignedTo: 'Pradeep Nair', startDate: '2026-08-20', dueDate: '2026-08-22', status: 'Assigned', progress: 0, createdAt: '2026-08-09T22:00:03.000Z', updatedAt: '2026-08-09T22:00:03.000Z' },
+  { id: 'task-srs-b1', drawingId: 'drw-srs-001', milestoneId: MS4, elementType: 'cladding', elementId: 'SHT-B1', gridCode: 'B1', name: 'Sheet Fixing — B1 Run', description: 'Fix profiled GI sheets with self-drilling screws at every purlin.', category: 'Finishing', priority: 'High', assignedTo: 'Pradeep Nair', startDate: '2026-08-22', dueDate: '2026-08-26', status: 'Assigned', progress: 0, createdAt: '2026-08-09T22:00:03.000Z', updatedAt: '2026-08-09T22:00:03.000Z' },
+  { id: 'task-srs-c1', drawingId: 'drw-srs-001', milestoneId: MS4, elementType: 'ridge_cap', elementId: 'RC-C1', gridCode: 'C1', name: 'Ridge Cap Installation — C1', description: 'Install ridge cap flashing with 150mm min. overlap and sealant.', category: 'Finishing', priority: 'Medium', assignedTo: 'Nilesh Kumar', startDate: '2026-08-27', dueDate: '2026-08-30', status: 'Assigned', progress: 0, createdAt: '2026-08-09T22:00:03.000Z', updatedAt: '2026-08-09T22:00:03.000Z' },
+  { id: 'task-srs-d1', drawingId: 'drw-srs-001', milestoneId: MS4, elementType: 'cladding', elementId: 'WTT-D1', gridCode: 'D1', name: 'Water Tightness Hose Test — D1', description: 'Hose-test roof sheet laps and ridge zone, issue punch list for leaks.', category: 'Quality', priority: 'Critical', assignedTo: 'QA Team', startDate: '2026-09-01', dueDate: '2026-09-03', status: 'Assigned', progress: 0, createdAt: '2026-08-09T22:00:03.000Z', updatedAt: '2026-08-09T22:00:03.000Z' },
 ];
 
 const SAMPLE_PROJECT_TASKS: ProjectTask[] = [
@@ -496,6 +849,10 @@ const SAMPLE_ACTIVITY: ActivityItem[] = [
   { id: 'act-rp-001', taskId: null, drawingId: 'drw-rp-001', message: 'Roof Plan added', createdAt: '2026-08-09T06:07:32.000Z' },
   { id: 'act-el-001', taskId: null, drawingId: 'drw-el-001', message: 'Electrical Layout Plan added', createdAt: '2026-08-09T06:07:35.000Z' },
   { id: 'act-col-001', taskId: null, drawingId: 'drw-col-001', message: 'Steel Column Erection Plan added', createdAt: '2026-08-06T08:43:37.000Z' },
+  { id: 'act-sfd-001', taskId: null, drawingId: 'drw-sfd-001', message: 'Foundation Plan added', createdAt: '2026-08-09T22:00:00.000Z' },
+  { id: 'act-sbe-001', taskId: null, drawingId: 'drw-sbe-001', message: 'Steel Beam Erection Plan added', createdAt: '2026-08-09T22:00:01.000Z' },
+  { id: 'act-sra-001', taskId: null, drawingId: 'drw-sra-001', message: 'Steel Rafter / Roof Framing Plan added', createdAt: '2026-08-09T22:00:02.000Z' },
+  { id: 'act-srs-001', taskId: null, drawingId: 'drw-srs-001', message: 'Roof Sheet Layout Plan added', createdAt: '2026-08-09T22:00:03.000Z' },
   { id: 'act-proj-001', taskId: null, drawingId: null, message: 'Project "House Building Project" created', createdAt: '2026-01-10T08:00:00.000Z' },
   { id: 'act-proj-002', taskId: null, drawingId: null, message: 'Project "Industrial Steel Structure" created', createdAt: '2026-02-20T08:00:00.000Z' },
 ];
@@ -585,7 +942,10 @@ export async function ensureSampleData(): Promise<void> {
         fileType: 'image',
         gridCols: def.gridCols,
         gridRows: def.gridRows,
-        columnPositions: {},
+        columnPositions: def.columnPositions ?? {},
+        deletedNodes: [],
+        customBeams: [],
+        deletedBeams: [],
         columnLabels: {},
         elementTypeLabels: {},
         lat: null,
@@ -595,6 +955,17 @@ export async function ensureSampleData(): Promise<void> {
     }
     await upsertMissing(db, 'drawings', drawingRecords);
     console.log(`[BuildTrack/seedData] ✓ ${drawingRecords.length} drawings`);
+
+    // 3b. One-time calibration backfill for 'Steel Column Erection Plan'.
+    // Early seeds of this drawing shipped with columnPositions: {}, which made
+    // DrawingCanvas fall back to a naive edge-to-edge grid that doesn't match
+    // this SVG's inset column symbols. Only patch it if it still has that
+    // untouched empty default — never overwrite a user's own calibration.
+    const existingSteelCol = await drawingGet('drw-col-001');
+    if (existingSteelCol && Object.keys(existingSteelCol.columnPositions ?? {}).length === 0) {
+      await drawingUpdate('drw-col-001', { columnPositions: STEEL_GRID_POSITIONS });
+      console.log('[BuildTrack/seedData] ✓ backfilled calibration for Steel Column Erection Plan');
+    }
 
     // 4. Upsert tasks
     console.log('[BuildTrack/seedData] Upserting tasks...');

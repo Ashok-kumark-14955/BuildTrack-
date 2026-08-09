@@ -1,0 +1,384 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <marker id="dimArr" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto">
+      <path d="M0,0 L5,2.5 L0,5 Z" fill="#444444"/>
+    </marker>
+    <filter id="sh">
+      <feDropShadow dx="1" dy="1" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- ── BACKGROUND ── -->
+  <rect width="1600" height="1000" fill="#f5f3ee"/>
+
+  <!-- ── DRAWING BORDER ── -->
+  <rect x="20" y="20" width="1560" height="960" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <rect x="24" y="24" width="1552" height="952" fill="none" stroke="#ccc" stroke-width="0.7"/>
+
+  <!-- ── TITLE BLOCK ── -->
+  <rect x="20" y="930" width="1560" height="50" fill="#1a2744"/>
+  <text x="40" y="956" font-family="Arial Black,Arial" font-size="18" fill="white" font-weight="bold">GROUND FLOOR PLAN — House Building Project</text>
+  <text x="40" y="978" font-family="Arial" font-size="12" fill="#a0b4d0">Drawing No: HBP-GF-001   |   Scale: 1:100   |   Date: 09 Aug 2026   |   All Dimensions in mm</text>
+  <text x="1570" y="978" font-family="Arial" font-size="11" fill="#a0b4d0" text-anchor="end">© BuildTrack Construction Management</text>
+
+  <!-- ── GRID LINES & BUBBLES ── -->
+  <circle cx="120" cy="55" r="16" fill="#1a2744"/>
+    <text x="120" y="60" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">A</text>
+    <line x1="120" y1="71" x2="120" y2="780" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="8,5"/><circle cx="390" cy="55" r="16" fill="#1a2744"/>
+    <text x="390" y="60" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">B</text>
+    <line x1="390" y1="71" x2="390" y2="780" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="8,5"/><circle cx="660" cy="55" r="16" fill="#1a2744"/>
+    <text x="660" y="60" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">C</text>
+    <line x1="660" y1="71" x2="660" y2="780" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="8,5"/><circle cx="930" cy="55" r="16" fill="#1a2744"/>
+    <text x="930" y="60" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">D</text>
+    <line x1="930" y1="71" x2="930" y2="780" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="8,5"/><circle cx="1200" cy="55" r="16" fill="#1a2744"/>
+    <text x="1200" y="60" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">E</text>
+    <line x1="1200" y1="71" x2="1200" y2="780" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="8,5"/><circle cx="55" cy="100" r="16" fill="#1a2744"/>
+    <text x="55" y="105" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">1</text>
+    <line x1="71" y1="100" x2="1250" y2="100" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="8,5"/><circle cx="55" cy="310" r="16" fill="#1a2744"/>
+    <text x="55" y="315" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">2</text>
+    <line x1="71" y1="310" x2="1250" y2="310" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="8,5"/><circle cx="55" cy="520" r="16" fill="#1a2744"/>
+    <text x="55" y="525" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">3</text>
+    <line x1="71" y1="520" x2="1250" y2="520" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="8,5"/><circle cx="55" cy="730" r="16" fill="#1a2744"/>
+    <text x="55" y="735" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">4</text>
+    <line x1="71" y1="730" x2="1250" y2="730" stroke="#c8c8c8" stroke-width="1" stroke-dasharray="8,5"/>
+
+  <!-- ══════════════════════════════════════
+       ROOM FILLS
+  ═══════════════════════════════════════ -->
+  <rect x="134" y="114" width="256" height="196" fill="#fff8f0"/>
+  <rect x="404" y="114" width="256" height="196" fill="#fffbf0"/>
+  <rect x="674" y="114" width="256" height="196" fill="#f0f4ff"/>
+  <rect x="944" y="114" width="256" height="196" fill="#fffbf0"/>
+
+  <rect x="134" y="324" width="256" height="196" fill="#fff8f0"/>
+  <rect x="404" y="324" width="256" height="196" fill="#f0fff4"/>
+  <rect x="674" y="324" width="256" height="196" fill="#f0f4ff"/>
+  <rect x="944" y="324" width="256" height="196" fill="#f0f8ff"/>
+
+  <rect x="134" y="534" width="526" height="196" fill="#f0ffe0"/>
+  <rect x="674" y="534" width="256" height="196" fill="#fffbf0"/>
+  <rect x="944" y="534" width="256" height="196" fill="#f5f5f5"/>
+
+  <!-- ══════════════════════════════════════
+       OUTER WALLS (thickness = 14px)
+  ═══════════════════════════════════════ -->
+  <!-- Top wall A1→E1 -->
+  <rect x="120" y="100" width="1080" height="14" fill="#2c2c2c"/>
+  <!-- Bottom wall A4→E4 -->
+  <rect x="120" y="730" width="1080" height="14" fill="#2c2c2c"/>
+  <!-- Left wall A1→A4 -->
+  <rect x="120" y="100" width="14" height="644" fill="#2c2c2c"/>
+  <!-- Right wall E1→E4 -->
+  <rect x="1200" y="100" width="14" height="644" fill="#2c2c2c"/>
+
+  <!-- ══════════════════════════════════════
+       INTERIOR WALLS (thickness = 10px)
+  ═══════════════════════════════════════ -->
+  <!-- Horizontal: row 2 full width -->
+  <rect x="120" y="310" width="1094" height="10" fill="#2c2c2c"/>
+  <!-- Horizontal: row 3 full width -->
+  <rect x="120" y="520" width="1094" height="10" fill="#2c2c2c"/>
+
+  <!-- Vertical: col B full height -->
+  <rect x="390" y="100" width="10" height="644" fill="#2c2c2c"/>
+  <!-- Vertical: col C full height -->
+  <rect x="660" y="100" width="10" height="644" fill="#2c2c2c"/>
+  <!-- Vertical: col D full height -->
+  <rect x="930" y="100" width="10" height="644" fill="#2c2c2c"/>
+
+  <!-- ══════════════════════════════════════
+       WINDOWS
+  ═══════════════════════════════════════ -->
+  <!-- Top wall windows -->
+  <line x1="160" y1="100" x2="250" y2="100" stroke="white" stroke-width="16"/>
+    <rect x="160" y="92" width="90" height="16" fill="white"/>
+    <rect x="160" y="92" width="90" height="16" fill="#7bbfff" opacity="0.35"/>
+    <line x1="160" y1="93" x2="250" y2="93" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="190" y1="93" x2="190" y2="107" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="220" y1="93" x2="220" y2="107" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="160" y1="107" x2="250" y2="107" stroke="#7bbfff" stroke-width="1.5"/>
+  <line x1="430" y1="100" x2="520" y2="100" stroke="white" stroke-width="16"/>
+    <rect x="430" y="92" width="90" height="16" fill="white"/>
+    <rect x="430" y="92" width="90" height="16" fill="#7bbfff" opacity="0.35"/>
+    <line x1="430" y1="93" x2="520" y2="93" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="460" y1="93" x2="460" y2="107" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="490" y1="93" x2="490" y2="107" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="430" y1="107" x2="520" y2="107" stroke="#7bbfff" stroke-width="1.5"/>
+  <line x1="700" y1="100" x2="790" y2="100" stroke="white" stroke-width="16"/>
+    <rect x="700" y="92" width="90" height="16" fill="white"/>
+    <rect x="700" y="92" width="90" height="16" fill="#7bbfff" opacity="0.35"/>
+    <line x1="700" y1="93" x2="790" y2="93" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="730" y1="93" x2="730" y2="107" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="760" y1="93" x2="760" y2="107" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="700" y1="107" x2="790" y2="107" stroke="#7bbfff" stroke-width="1.5"/>
+  <line x1="970" y1="100" x2="1050" y2="100" stroke="white" stroke-width="16"/>
+    <rect x="970" y="92" width="80" height="16" fill="white"/>
+    <rect x="970" y="92" width="80" height="16" fill="#7bbfff" opacity="0.35"/>
+    <line x1="970" y1="93" x2="1050" y2="93" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="996.6666666666666" y1="93" x2="996.6666666666666" y2="107" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="1023.3333333333334" y1="93" x2="1023.3333333333334" y2="107" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="970" y1="107" x2="1050" y2="107" stroke="#7bbfff" stroke-width="1.5"/>
+
+  <!-- Bottom wall windows (verandah side) -->
+  <line x1="160" y1="730" x2="250" y2="730" stroke="white" stroke-width="16"/>
+    <rect x="160" y="722" width="90" height="16" fill="white"/>
+    <rect x="160" y="722" width="90" height="16" fill="#7bbfff" opacity="0.35"/>
+    <line x1="160" y1="723" x2="250" y2="723" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="190" y1="723" x2="190" y2="737" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="220" y1="723" x2="220" y2="737" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="160" y1="737" x2="250" y2="737" stroke="#7bbfff" stroke-width="1.5"/>
+  <line x1="430" y1="730" x2="520" y2="730" stroke="white" stroke-width="16"/>
+    <rect x="430" y="722" width="90" height="16" fill="white"/>
+    <rect x="430" y="722" width="90" height="16" fill="#7bbfff" opacity="0.35"/>
+    <line x1="430" y1="723" x2="520" y2="723" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="460" y1="723" x2="460" y2="737" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="490" y1="723" x2="490" y2="737" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="430" y1="737" x2="520" y2="737" stroke="#7bbfff" stroke-width="1.5"/>
+
+  <!-- Left wall windows -->
+  <line x1="120" y1="160" x2="120" y2="250" stroke="white" stroke-width="16"/>
+    <rect x="112" y="160" width="16" height="90" fill="white"/>
+    <rect x="112" y="160" width="16" height="90" fill="#7bbfff" opacity="0.35"/>
+    <line x1="113" y1="160" x2="113" y2="250" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="113" y1="190" x2="127" y2="190" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="113" y1="220" x2="127" y2="220" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="127" y1="160" x2="127" y2="250" stroke="#7bbfff" stroke-width="1.5"/>
+  <line x1="120" y1="370" x2="120" y2="450" stroke="white" stroke-width="16"/>
+    <rect x="112" y="370" width="16" height="80" fill="white"/>
+    <rect x="112" y="370" width="16" height="80" fill="#7bbfff" opacity="0.35"/>
+    <line x1="113" y1="370" x2="113" y2="450" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="113" y1="396.6666666666667" x2="127" y2="396.6666666666667" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="113" y1="423.3333333333333" x2="127" y2="423.3333333333333" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="127" y1="370" x2="127" y2="450" stroke="#7bbfff" stroke-width="1.5"/>
+
+  <!-- Right wall windows -->
+  <line x1="1200" y1="160" x2="1200" y2="240" stroke="white" stroke-width="16"/>
+    <rect x="1192" y="160" width="16" height="80" fill="white"/>
+    <rect x="1192" y="160" width="16" height="80" fill="#7bbfff" opacity="0.35"/>
+    <line x1="1193" y1="160" x2="1193" y2="240" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="1193" y1="186.66666666666666" x2="1207" y2="186.66666666666666" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="1193" y1="213.33333333333334" x2="1207" y2="213.33333333333334" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="1207" y1="160" x2="1207" y2="240" stroke="#7bbfff" stroke-width="1.5"/>
+  <line x1="1200" y1="370" x2="1200" y2="440" stroke="white" stroke-width="16"/>
+    <rect x="1192" y="370" width="16" height="70" fill="white"/>
+    <rect x="1192" y="370" width="16" height="70" fill="#7bbfff" opacity="0.35"/>
+    <line x1="1193" y1="370" x2="1193" y2="440" stroke="#7bbfff" stroke-width="1.5"/>
+    <line x1="1193" y1="393.3333333333333" x2="1207" y2="393.3333333333333" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="1193" y1="416.6666666666667" x2="1207" y2="416.6666666666667" stroke="#7bbfff" stroke-width="1"/>
+    <line x1="1207" y1="370" x2="1207" y2="440" stroke="#7bbfff" stroke-width="1.5"/>
+
+  <!-- ══════════════════════════════════════
+       DOORS
+  ═══════════════════════════════════════ -->
+  <!-- Main entrance — bottom wall, verandah to living (B strip) -->
+  <line x1="170" y1="730" x2="250" y2="730" stroke="white" stroke-width="16"/>
+    <line x1="170" y1="730" x2="250" y2="730" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="250" y1="730" x2="250" y2="650" stroke="#555555" stroke-width="1.5"/>
+    <path d="M250,730 A80,80 0 0,0 170,650" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/><text x="210" y="724" font-family="Arial" font-size="10" fill="#555" text-anchor="middle">Main Entrance</text>
+
+  <!-- Living → Dining (interior row 2 wall, col A strip) -->
+  <line x1="150" y1="310" x2="220" y2="310" stroke="white" stroke-width="16"/>
+    <line x1="150" y1="310" x2="220" y2="310" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="150" y1="310" x2="150" y2="380" stroke="#555555" stroke-width="1.5"/>
+    <path d="M150,310 A70,70 0 0,1 220,380" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Hall → Living (col B, row 2) -->
+  <line x1="390" y1="180" x2="390" y2="250" stroke="white" stroke-width="16"/>
+    <line x1="390" y1="180" x2="390" y2="250" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="390" y1="180" x2="460" y2="180" stroke="#555555" stroke-width="1.5"/>
+    <path d="M390,180 A70,70 0 0,1 460,250" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Hall → Kitchen (col B, row 2 wall) -->
+  <line x1="430" y1="310" x2="500" y2="310" stroke="white" stroke-width="16"/>
+    <line x1="430" y1="310" x2="500" y2="310" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="430" y1="310" x2="430" y2="380" stroke="#555555" stroke-width="1.5"/>
+    <path d="M430,310 A70,70 0 0,1 500,380" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Bedroom 1 door (col C interior wall) -->
+  <line x1="660" y1="180" x2="660" y2="250" stroke="white" stroke-width="16"/>
+    <line x1="660" y1="180" x2="660" y2="250" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="660" y1="250" x2="590" y2="250" stroke="#555555" stroke-width="1.5"/>
+    <path d="M660,250 A70,70 0 0,0 590,180" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Bedroom 2 door (col C, row 2 wall) -->
+  <line x1="700" y1="310" x2="770" y2="310" stroke="white" stroke-width="16"/>
+    <line x1="700" y1="310" x2="770" y2="310" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="700" y1="310" x2="700" y2="380" stroke="#555555" stroke-width="1.5"/>
+    <path d="M700,310 A70,70 0 0,1 770,380" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Bathroom door (col D, row 2 wall) -->
+  <line x1="950" y1="310" x2="1010" y2="310" stroke="white" stroke-width="16"/>
+    <line x1="950" y1="310" x2="1010" y2="310" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="950" y1="310" x2="950" y2="370" stroke="#555555" stroke-width="1.5"/>
+    <path d="M950,310 A60,60 0 0,1 1010,370" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Garage door (col D, row 3) — sliding double -->
+  <line x1="945" y1="520" x2="1025" y2="520" stroke="white" stroke-width="16"/>
+    <line x1="945" y1="520" x2="1025" y2="520" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="945" y1="520" x2="945" y2="600" stroke="#555555" stroke-width="1.5"/>
+    <path d="M945,520 A80,80 0 0,1 1025,600" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Utility door (col C, row 3) -->
+  <line x1="690" y1="520" x2="750" y2="520" stroke="white" stroke-width="16"/>
+    <line x1="690" y1="520" x2="750" y2="520" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="690" y1="520" x2="690" y2="580" stroke="#555555" stroke-width="1.5"/>
+    <path d="M690,520 A60,60 0 0,1 750,580" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Staircase entry (col D, row 4 bottom) -->
+  <line x1="950" y1="730" x2="1010" y2="730" stroke="white" stroke-width="16"/>
+    <line x1="950" y1="730" x2="1010" y2="730" stroke="#f5f3ee" stroke-width="12"/>
+    <line x1="950" y1="730" x2="950" y2="790" stroke="#555555" stroke-width="1.5"/>
+    <path d="M950,730 A60,60 0 0,1 1010,790" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- ══════════════════════════════════════
+       STAIRCASE (D3→E4)
+  ═══════════════════════════════════════ -->
+  <rect x="940" y="530" width="260" height="200" fill="#f5f5f5" stroke="#2c2c2c" stroke-width="0.7"/><line x1="940" y1="550" x2="1200" y2="550" stroke="#888" stroke-width="1"/><line x1="940" y1="570" x2="1200" y2="570" stroke="#888" stroke-width="1"/><line x1="940" y1="590" x2="1200" y2="590" stroke="#888" stroke-width="1"/><line x1="940" y1="610" x2="1200" y2="610" stroke="#888" stroke-width="1"/><line x1="940" y1="630" x2="1200" y2="630" stroke="#888" stroke-width="1"/><line x1="940" y1="650" x2="1200" y2="650" stroke="#888" stroke-width="1"/><line x1="940" y1="670" x2="1200" y2="670" stroke="#888" stroke-width="1"/><line x1="940" y1="690" x2="1200" y2="690" stroke="#888" stroke-width="1"/><line x1="940" y1="710" x2="1200" y2="710" stroke="#888" stroke-width="1"/><line x1="1070" y1="715" x2="1070" y2="550" stroke="#444" stroke-width="2" marker-end="url(#dimArr)"/><text x="1080" y="630" font-family="Arial" font-size="11" fill="#444" transform="rotate(-90,1080,630)">UP</text>
+
+  <!-- ══════════════════════════════════════
+       ROOM LABELS
+  ═══════════════════════════════════════ -->
+  <!-- Row 1 -->
+  <text x="255" y="195" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Living Room</text>
+  <text x="255" y="213" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">4200 × 3500</text>
+  <text x="525" y="195" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Hall / Lobby</text>
+  <text x="525" y="213" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">2700 × 3500</text>
+  <text x="795" y="195" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Bedroom 1</text>
+  <text x="795" y="213" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">2700 × 3500</text>
+  <text x="1065" y="195" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Garage</text>
+  <text x="1065" y="213" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">2700 × 3500</text>
+
+  <!-- Row 2 -->
+  <text x="255" y="405" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Dining Room</text>
+  <text x="255" y="423" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">4200 × 3500</text>
+  <text x="525" y="405" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Kitchen</text>
+  <text x="525" y="423" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">2700 × 3500</text>
+  <text x="795" y="405" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Bedroom 2</text>
+  <text x="795" y="423" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">2700 × 3500</text>
+  <text x="1065" y="405" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Bathroom</text>
+  <text x="1065" y="423" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">2700 × 3500</text>
+
+  <!-- Row 3 -->
+  <text x="390" y="615" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Verandah / Porch</text>
+  <text x="390" y="633" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">8100 × 3500</text>
+  <text x="795" y="615" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Utility / Store</text>
+  <text x="795" y="633" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">2700 × 3500</text>
+  <text x="1065" y="615" font-family="Arial,sans-serif" font-size="16" fill="#1a1a2e" text-anchor="middle" font-weight="bold">Staircase</text>
+  <text x="1065" y="633" font-family="Arial,sans-serif" font-size="11" fill="#666" text-anchor="middle">2700 × 3500</text>
+
+  <!-- ══════════════════════════════════════
+       DIMENSION LINES
+  ═══════════════════════════════════════ -->
+  <!-- Top span dimensions -->
+  <line x1="120" y1="70" x2="120" y2="54" stroke="#444444" stroke-width="1.2"/>
+           <line x1="390" y1="70" x2="390" y2="54" stroke="#444444" stroke-width="1.2"/>
+  <line x1="120" y1="54" x2="390" y2="54" stroke="#444444" stroke-width="1.2" marker-start="url(#dimArr)" marker-end="url(#dimArr)"/>
+  <text x="255" y="44" font-family="Arial" font-size="12" fill="#333333" text-anchor="middle">4200</text>
+  <line x1="390" y1="70" x2="390" y2="54" stroke="#444444" stroke-width="1.2"/>
+           <line x1="660" y1="70" x2="660" y2="54" stroke="#444444" stroke-width="1.2"/>
+  <line x1="390" y1="54" x2="660" y2="54" stroke="#444444" stroke-width="1.2" marker-start="url(#dimArr)" marker-end="url(#dimArr)"/>
+  <text x="525" y="44" font-family="Arial" font-size="12" fill="#333333" text-anchor="middle">2700</text>
+  <line x1="660" y1="70" x2="660" y2="54" stroke="#444444" stroke-width="1.2"/>
+           <line x1="930" y1="70" x2="930" y2="54" stroke="#444444" stroke-width="1.2"/>
+  <line x1="660" y1="54" x2="930" y2="54" stroke="#444444" stroke-width="1.2" marker-start="url(#dimArr)" marker-end="url(#dimArr)"/>
+  <text x="795" y="44" font-family="Arial" font-size="12" fill="#333333" text-anchor="middle">2700</text>
+  <line x1="930" y1="70" x2="930" y2="54" stroke="#444444" stroke-width="1.2"/>
+           <line x1="1200" y1="70" x2="1200" y2="54" stroke="#444444" stroke-width="1.2"/>
+  <line x1="930" y1="54" x2="1200" y2="54" stroke="#444444" stroke-width="1.2" marker-start="url(#dimArr)" marker-end="url(#dimArr)"/>
+  <text x="1065" y="44" font-family="Arial" font-size="12" fill="#333333" text-anchor="middle">2700</text>
+
+  <!-- Left span dimensions -->
+  <line x1="90" y1="100" x2="106" y2="100" stroke="#444444" stroke-width="1.2"/>
+           <line x1="90" y1="310" x2="106" y2="310" stroke="#444444" stroke-width="1.2"/>
+  <line x1="90" y1="100" x2="90" y2="310" stroke="#444444" stroke-width="1.2" marker-start="url(#dimArr)" marker-end="url(#dimArr)"/>
+  <text x="112" y="205" font-family="Arial" font-size="12" fill="#333333" text-anchor="middle">3500</text>
+  <line x1="90" y1="310" x2="106" y2="310" stroke="#444444" stroke-width="1.2"/>
+           <line x1="90" y1="520" x2="106" y2="520" stroke="#444444" stroke-width="1.2"/>
+  <line x1="90" y1="310" x2="90" y2="520" stroke="#444444" stroke-width="1.2" marker-start="url(#dimArr)" marker-end="url(#dimArr)"/>
+  <text x="112" y="415" font-family="Arial" font-size="12" fill="#333333" text-anchor="middle">3500</text>
+  <line x1="90" y1="520" x2="106" y2="520" stroke="#444444" stroke-width="1.2"/>
+           <line x1="90" y1="730" x2="106" y2="730" stroke="#444444" stroke-width="1.2"/>
+  <line x1="90" y1="520" x2="90" y2="730" stroke="#444444" stroke-width="1.2" marker-start="url(#dimArr)" marker-end="url(#dimArr)"/>
+  <text x="112" y="625" font-family="Arial" font-size="12" fill="#333333" text-anchor="middle">3500</text>
+
+  <!-- Total width & height -->
+  <line x1="120" y1="45" x2="1214" y2="45" stroke="#444444" stroke-width="1.5" marker-start="url(#dimArr)" marker-end="url(#dimArr)"/>
+  <text x="660" y="40" font-family="Arial Black,Arial" font-size="13" fill="#333333" text-anchor="middle" font-weight="bold">12300 mm TOTAL WIDTH</text>
+
+  <line x1="1245" y1="100" x2="1245" y2="744" stroke="#444444" stroke-width="1.5" marker-start="url(#dimArr)" marker-end="url(#dimArr)"/>
+  <text x="1265" y="415" font-family="Arial Black,Arial" font-size="13" fill="#333333" text-anchor="middle" font-weight="bold" transform="rotate(90,1265,415)">10500 mm TOTAL HEIGHT</text>
+
+  <!-- ══════════════════════════════════════
+       LEGEND / SYMBOLS
+  ═══════════════════════════════════════ -->
+  <rect x="1340" y="100" width="220" height="290" rx="6" fill="white" stroke="#bbb" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="1350" y="124" font-family="Arial Black,Arial" font-size="13" fill="#1a2744" font-weight="bold">LEGEND</text>
+  <line x1="1350" y1="130" x2="1540" y2="130" stroke="#ddd" stroke-width="1"/>
+
+  <!-- Window symbol -->
+  <rect x="1350" y="143" width="40" height="12" fill="#7bbfff" opacity="0.4" stroke="#7bbfff" stroke-width="1.5"/>
+  <line x1="1350" y1="149" x2="1390" y2="149" stroke="#7bbfff" stroke-width="1.5"/>
+  <text x="1400" y="153" font-family="Arial" font-size="12" fill="#333">Window</text>
+
+  <!-- Door symbol -->
+  <line x1="1350" y1="175" x2="1370" y2="175" stroke="#555555" stroke-width="2"/>
+  <path d="M1350,175 A20,20 0 0,1 1370,195" fill="none" stroke="#888888" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="1400" y="183" font-family="Arial" font-size="12" fill="#333">Door / Swing</text>
+
+  <!-- Room fills -->
+  <rect x="1350" y="204" width="25" height="16" fill="#fff8f0" stroke="#bbb" stroke-width="1"/>
+  <text x="1384" y="215" font-family="Arial" font-size="12" fill="#333">Living / Dining</text>
+  <rect x="1350" y="228" width="25" height="16" fill="#f0f4ff" stroke="#bbb" stroke-width="1"/>
+  <text x="1384" y="239" font-family="Arial" font-size="12" fill="#333">Bedroom</text>
+  <rect x="1350" y="252" width="25" height="16" fill="#f0fff4" stroke="#bbb" stroke-width="1"/>
+  <text x="1384" y="263" font-family="Arial" font-size="12" fill="#333">Kitchen</text>
+  <rect x="1350" y="276" width="25" height="16" fill="#f0f8ff" stroke="#bbb" stroke-width="1"/>
+  <text x="1384" y="287" font-family="Arial" font-size="12" fill="#333">Bathroom</text>
+  <rect x="1350" y="300" width="25" height="16" fill="#f0ffe0" stroke="#bbb" stroke-width="1"/>
+  <text x="1384" y="311" font-family="Arial" font-size="12" fill="#333">Verandah</text>
+  <rect x="1350" y="324" width="25" height="16" fill="#f5f5f5" stroke="#bbb" stroke-width="1"/>
+  <text x="1384" y="335" font-family="Arial" font-size="12" fill="#333">Staircase</text>
+  <line x1="1350" y1="352" x2="1540" y2="352" stroke="#ddd" stroke-width="1"/>
+  <text x="1350" y="370" font-family="Arial" font-size="11" fill="#666">Walls: 230mm Brick</text>
+  <text x="1350" y="385" font-family="Arial" font-size="11" fill="#666">Slab: 150mm RCC M25</text>
+
+  <!-- North Arrow + Scale Bar -->
+  <g transform="translate(1470,850)">
+    <circle cx="0" cy="0" r="24" fill="white" stroke="#1a2744" stroke-width="2"/>
+    <polygon points="0,-20 7,10 0,5 -7,10" fill="#1a2744"/>
+    <polygon points="0,-20 -7,10 0,5 7,10" fill="#8a9ab0"/>
+    <text x="0" y="-24" font-family="Arial Black" font-size="13" fill="#1a2744" text-anchor="middle" font-weight="bold">N</text>
+  </g>
+  <g transform="translate(120,850)">
+    <rect x="0" y="0" width="80" height="10" fill="#1a2744"/>
+    <rect x="80" y="0" width="80" height="10" fill="white" stroke="#1a2744" stroke-width="1.5"/>
+    <text x="0" y="26" font-family="Arial" font-size="11" fill="#333333">0</text>
+    <text x="76" y="26" font-family="Arial" font-size="11" fill="#333333">5m</text>
+    <text x="160" y="26" font-family="Arial" font-size="11" fill="#333333">10m</text>
+    <text x="80" y="-4" font-family="Arial" font-size="11" fill="#555" text-anchor="middle">Scale 1:100</text>
+  </g>
+
+  <!-- Column position labels at intersections (for BuildTrack calibration) -->
+  <rect x="112" y="92" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="120" y="104" font-family="Arial" font-size="9" fill="white" text-anchor="middle">A1</text><rect x="112" y="302" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="120" y="314" font-family="Arial" font-size="9" fill="white" text-anchor="middle">A2</text><rect x="112" y="512" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="120" y="524" font-family="Arial" font-size="9" fill="white" text-anchor="middle">A3</text><rect x="112" y="722" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="120" y="734" font-family="Arial" font-size="9" fill="white" text-anchor="middle">A4</text><rect x="382" y="92" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="390" y="104" font-family="Arial" font-size="9" fill="white" text-anchor="middle">B1</text><rect x="382" y="302" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="390" y="314" font-family="Arial" font-size="9" fill="white" text-anchor="middle">B2</text><rect x="382" y="512" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="390" y="524" font-family="Arial" font-size="9" fill="white" text-anchor="middle">B3</text><rect x="382" y="722" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="390" y="734" font-family="Arial" font-size="9" fill="white" text-anchor="middle">B4</text><rect x="652" y="92" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="660" y="104" font-family="Arial" font-size="9" fill="white" text-anchor="middle">C1</text><rect x="652" y="302" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="660" y="314" font-family="Arial" font-size="9" fill="white" text-anchor="middle">C2</text><rect x="652" y="512" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="660" y="524" font-family="Arial" font-size="9" fill="white" text-anchor="middle">C3</text><rect x="652" y="722" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="660" y="734" font-family="Arial" font-size="9" fill="white" text-anchor="middle">C4</text><rect x="922" y="92" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="930" y="104" font-family="Arial" font-size="9" fill="white" text-anchor="middle">D1</text><rect x="922" y="302" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="930" y="314" font-family="Arial" font-size="9" fill="white" text-anchor="middle">D2</text><rect x="922" y="512" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="930" y="524" font-family="Arial" font-size="9" fill="white" text-anchor="middle">D3</text><rect x="922" y="722" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="930" y="734" font-family="Arial" font-size="9" fill="white" text-anchor="middle">D4</text><rect x="1192" y="92" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="1200" y="104" font-family="Arial" font-size="9" fill="white" text-anchor="middle">E1</text><rect x="1192" y="302" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="1200" y="314" font-family="Arial" font-size="9" fill="white" text-anchor="middle">E2</text><rect x="1192" y="512" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="1200" y="524" font-family="Arial" font-size="9" fill="white" text-anchor="middle">E3</text><rect x="1192" y="722" width="16" height="16" rx="3" fill="#1a2744" opacity="0.7"/>
+    <text x="1200" y="734" font-family="Arial" font-size="9" fill="white" text-anchor="middle">E4</text>
+
+</svg>

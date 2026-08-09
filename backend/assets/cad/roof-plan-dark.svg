@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 720" width="900" height="720"
+     style="font-family:'Arial',sans-serif;">
+
+  <defs>
+    <!-- Roof tile diagonal hatch -->
+    <pattern id="tile-hatch" width="16" height="16" patternUnits="userSpaceOnUse">
+      <rect width="16" height="16" fill="#0d0808"/>
+      <line x1="0" y1="8" x2="16" y2="8" stroke="#3a1a00" stroke-width="1"/>
+      <line x1="8" y1="0" x2="8" y2="16" stroke="#3a1a00" stroke-width="0.6"/>
+    </pattern>
+    <!-- Hip tile overlay -->
+    <pattern id="hip-tile" width="20" height="10" patternUnits="userSpaceOnUse">
+      <rect width="20" height="10" fill="#110808"/>
+      <line x1="0" y1="0" x2="20" y2="0" stroke="#552200" stroke-width="1.2"/>
+      <line x1="0" y1="5" x2="20" y2="5" stroke="#331100" stroke-width="0.7"/>
+    </pattern>
+    <!-- Skylight glass -->
+    <pattern id="glass" width="8" height="8" patternUnits="userSpaceOnUse">
+      <rect width="8" height="8" fill="#001a2a"/>
+      <line x1="0" y1="0" x2="8" y2="8" stroke="#004466" stroke-width="0.8"/>
+      <line x1="8" y1="0" x2="0" y2="8" stroke="#004466" stroke-width="0.8"/>
+    </pattern>
+    <!-- Chimney brick -->
+    <pattern id="brick" width="14" height="8" patternUnits="userSpaceOnUse">
+      <rect width="14" height="8" fill="#1a0505"/>
+      <rect x="0" y="0" width="14" height="4" fill="none" stroke="#552200" stroke-width="0.8"/>
+      <rect x="0" y="4" width="14" height="4" fill="none" stroke="#552200" stroke-width="0.8"/>
+      <line x1="7" y1="0" x2="7" y2="4" stroke="#552200" stroke-width="0.5"/>
+      <line x1="0" y1="4" x2="0" y2="8" stroke="#552200" stroke-width="0.5"/>
+      <line x1="14" y1="4" x2="14" y2="8" stroke="#552200" stroke-width="0.5"/>
+    </pattern>
+    <!-- Eaves gutter fill -->
+    <pattern id="eaves" width="10" height="4" patternUnits="userSpaceOnUse">
+      <rect width="10" height="4" fill="#0a0a14"/>
+      <line x1="0" y1="2" x2="10" y2="2" stroke="#224" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="720" fill="#0a0a0a"/>
+
+  <!-- ═══════════════════════════════
+       GRID LINES (faint dashed blue)
+  ═══════════════════════════════ -->
+  <g stroke="#003366" stroke-width="0.8" stroke-dasharray="14,7" opacity="0.8">
+    <!-- Vertical grid cols: A=120, B=310, C=500, D=690 -->
+    <line x1="120" y1="0" x2="120" y2="720"/>
+    <line x1="310" y1="0" x2="310" y2="720"/>
+    <line x1="500" y1="0" x2="500" y2="720"/>
+    <line x1="690" y1="0" x2="690" y2="720"/>
+    <!-- Horizontal grid rows: 1=100, 2=330, 3=560 -->
+    <line x1="0" y1="100" x2="900" y2="100"/>
+    <line x1="0" y1="330" x2="900" y2="330"/>
+    <line x1="0" y1="560" x2="900" y2="560"/>
+  </g>
+
+  <!-- ═══════════════════════════════
+       GRID BUBBLES
+  ═══════════════════════════════ -->
+  <g fill="none" stroke="#00d4ff" stroke-width="1.5">
+    <circle cx="120" cy="30" r="16"/>
+    <circle cx="310" cy="30" r="16"/>
+    <circle cx="500" cy="30" r="16"/>
+    <circle cx="690" cy="30" r="16"/>
+    <circle cx="50" cy="100" r="16"/>
+    <circle cx="50" cy="330" r="16"/>
+    <circle cx="50" cy="560" r="16"/>
+  </g>
+  <g font-size="13" font-weight="bold" fill="#00d4ff" text-anchor="middle">
+    <text x="120" y="35">A</text>
+    <text x="310" y="35">B</text>
+    <text x="500" y="35">C</text>
+    <text x="690" y="35">D</text>
+    <text x="50" y="105">1</text>
+    <text x="50" y="335">2</text>
+    <text x="50" y="565">3</text>
+  </g>
+
+  <!-- ═══════════════════════════════
+       EAVES OVERHANG BAND (outermost boundary, outer edge of gutter)
+       Offset 40px outside main roof footprint
+  ═══════════════════════════════ -->
+  <rect x="60" y="50" width="690" height="610" fill="url(#eaves)" stroke="#335" stroke-width="2"/>
+
+  <!-- ═══════════════════════════════
+       MAIN ROOF SURFACE (hip roof fill with tile pattern)
+  ═══════════════════════════════ -->
+  <rect x="100" y="90" width="610" height="530" fill="url(#tile-hatch)" stroke="#00d4ff" stroke-width="2.5"/>
+
+  <!-- ═══════════════════════════════
+       HIP ROOF GEOMETRY
+       Ridge line: horizontal, centred vertically
+       Hip rafters: from 4 corners to ridge ends
+  ═══════════════════════════════ -->
+
+  <!-- Ridge line (horizontal, centred) -->
+  <!-- Ridge at y=330 (mid height), from x=330 to x=580 -->
+  <line x1="330" y1="330" x2="580" y2="330" stroke="#ff8800" stroke-width="3"/>
+  <!-- Ridge label -->
+  <text x="455" y="320" font-size="9" fill="#ff8800" text-anchor="middle" font-weight="bold">RIDGE RL+8.200</text>
+
+  <!-- Hip rafters from 4 corners to ridge ends -->
+  <!-- NW corner (100,90) → ridge NW end (330,330) -->
+  <line x1="100" y1="90" x2="330" y2="330" stroke="#ff6600" stroke-width="2"/>
+  <!-- NE corner (710,90) → ridge NE end (580,330) -->
+  <line x1="710" y1="90" x2="580" y2="330" stroke="#ff6600" stroke-width="2"/>
+  <!-- SW corner (100,620) → ridge SW end (330,330) -->
+  <line x1="100" y1="620" x2="330" y2="330" stroke="#ff6600" stroke-width="2"/>
+  <!-- SE corner (710,620) → ridge SE end (580,330) -->
+  <line x1="710" y1="620" x2="580" y2="330" stroke="#ff6600" stroke-width="2"/>
+
+  <!-- Common rafters (west slope — from eaves edge to ridge) -->
+  <g stroke="#552200" stroke-width="1">
+    <line x1="100" y1="150" x2="330" y2="330"/>
+    <line x1="100" y1="210" x2="330" y2="330"/>
+    <line x1="100" y1="270" x2="330" y2="330"/>
+    <line x1="100" y1="390" x2="330" y2="330"/>
+    <line x1="100" y1="450" x2="330" y2="330"/>
+    <line x1="100" y1="510" x2="330" y2="330"/>
+    <line x1="100" y1="570" x2="330" y2="330"/>
+    <!-- East slope -->
+    <line x1="710" y1="150" x2="580" y2="330"/>
+    <line x1="710" y1="210" x2="580" y2="330"/>
+    <line x1="710" y1="270" x2="580" y2="330"/>
+    <line x1="710" y1="390" x2="580" y2="330"/>
+    <line x1="710" y1="450" x2="580" y2="330"/>
+    <line x1="710" y1="510" x2="580" y2="330"/>
+    <line x1="710" y1="570" x2="580" y2="330"/>
+    <!-- North slope -->
+    <line x1="180" y1="90" x2="330" y2="330"/>
+    <line x1="255" y1="90" x2="330" y2="330"/>
+    <line x1="405" y1="90" x2="405" y2="330"/>
+    <line x1="505" y1="90" x2="505" y2="330"/>
+    <line x1="580" y1="90" x2="580" y2="330"/>
+    <line x1="635" y1="90" x2="580" y2="330"/>
+    <!-- South slope -->
+    <line x1="180" y1="620" x2="330" y2="330"/>
+    <line x1="255" y1="620" x2="330" y2="330"/>
+    <line x1="405" y1="620" x2="405" y2="330"/>
+    <line x1="505" y1="620" x2="505" y2="330"/>
+    <line x1="580" y1="620" x2="580" y2="330"/>
+    <line x1="635" y1="620" x2="580" y2="330"/>
+  </g>
+
+  <!-- ═══════════════════════════════
+       SLOPE DIRECTION ARROWS
+  ═══════════════════════════════ -->
+  <g stroke="#00cc88" stroke-width="1.5" fill="#00cc88">
+    <!-- West -->
+    <line x1="200" y1="330" x2="140" y2="330"/>
+    <polygon points="140,330 150,326 150,334"/>
+    <text x="170" y="325" font-size="8" fill="#00cc88" text-anchor="middle">DOWN</text>
+    <!-- East -->
+    <line x1="620" y1="330" x2="680" y2="330"/>
+    <polygon points="680,330 670,326 670,334"/>
+    <text x="650" y="325" font-size="8" fill="#00cc88" text-anchor="middle">DOWN</text>
+    <!-- North -->
+    <line x1="405" y1="250" x2="405" y2="130"/>
+    <polygon points="405,130 401,142 409,142"/>
+    <text x="420" y="200" font-size="8" fill="#00cc88">DOWN</text>
+    <!-- South -->
+    <line x1="405" y1="410" x2="405" y2="590"/>
+    <polygon points="405,590 401,578 409,578"/>
+    <text x="420" y="510" font-size="8" fill="#00cc88">DOWN</text>
+  </g>
+
+  <!-- Pitch indicator triangle -->
+  <g transform="translate(760,250)">
+    <polygon points="0,60 40,60 40,0" fill="none" stroke="#ffaa00" stroke-width="1.5"/>
+    <text x="20" y="75" font-size="8" fill="#ffaa00" text-anchor="middle">BASE</text>
+    <text x="46" y="30" font-size="8" fill="#ffaa00">RISE</text>
+    <text x="14" y="50" font-size="8" fill="#ffaa00" transform="rotate(-56,14,50)">30°</text>
+    <line x1="38" y1="55" x2="38" y2="60" stroke="#ffaa00" stroke-width="1"/>
+    <line x1="35" y1="58" x2="40" y2="58" stroke="#ffaa00" stroke-width="1"/>
+  </g>
+
+  <!-- ═══════════════════════════════
+       SKYLIGHTS (2 units, with glass hatch)
+  ═══════════════════════════════ -->
+  <!-- Skylight 1 (left of ridge) -->
+  <rect x="220" y="295" width="60" height="70" fill="url(#glass)" stroke="#00aaff" stroke-width="2"/>
+  <text x="250" y="338" font-size="8" fill="#00aaff" text-anchor="middle">SK-01</text>
+  <text x="250" y="350" font-size="7" fill="#007799" text-anchor="middle">1200×900</text>
+
+  <!-- Skylight 2 (right of ridge) -->
+  <rect x="630" y="295" width="60" height="70" fill="url(#glass)" stroke="#00aaff" stroke-width="2"/>
+  <text x="660" y="338" font-size="8" fill="#00aaff" text-anchor="middle">SK-02</text>
+  <text x="660" y="350" font-size="7" fill="#007799" text-anchor="middle">1200×900</text>
+
+  <!-- ═══════════════════════════════
+       CHIMNEYS (2 units, brick hatch)
+  ═══════════════════════════════ -->
+  <!-- Chimney 1 -->
+  <rect x="155" y="155" width="50" height="50" fill="url(#brick)" stroke="#cc3300" stroke-width="2"/>
+  <text x="180" y="220" font-size="8" fill="#cc3300" text-anchor="middle">CH-01</text>
+
+  <!-- Chimney 2 -->
+  <rect x="608" y="155" width="50" height="50" fill="url(#brick)" stroke="#cc3300" stroke-width="2"/>
+  <text x="633" y="220" font-size="8" fill="#cc3300" text-anchor="middle">CH-02</text>
+
+  <!-- ═══════════════════════════════
+       DOWNPIPES (6 total, at gutter corners/mid)
+  ═══════════════════════════════ -->
+  <g fill="#0055aa" stroke="#0088dd" stroke-width="1">
+    <circle cx="80" cy="90" r="7"/><text x="80" y="75" font-size="7" fill="#0088dd" text-anchor="middle">DP1</text>
+    <circle cx="720" cy="90" r="7"/><text x="720" y="75" font-size="7" fill="#0088dd" text-anchor="middle">DP2</text>
+    <circle cx="80" cy="330" r="7"/><text x="65" y="334" font-size="7" fill="#0088dd" text-anchor="end">DP3</text>
+    <circle cx="720" cy="330" r="7"/><text x="735" y="334" font-size="7" fill="#0088dd">DP4</text>
+    <circle cx="80" cy="620" r="7"/><text x="80" y="640" font-size="7" fill="#0088dd" text-anchor="middle">DP5</text>
+    <circle cx="720" cy="620" r="7"/><text x="720" y="640" font-size="7" fill="#0088dd" text-anchor="middle">DP6</text>
+  </g>
+
+  <!-- ═══════════════════════════════
+       EAVES OVERHANG DIMENSION
+  ═══════════════════════════════ -->
+  <g stroke="#888" stroke-width="0.8" fill="#888" font-size="8">
+    <!-- Top: from eaves edge (60) to roof line (100) -->
+    <line x1="60" y1="42" x2="100" y2="42"/>
+    <line x1="60" y1="38" x2="60" y2="46"/>
+    <line x1="100" y1="38" x2="100" y2="46"/>
+    <text x="80" y="39" text-anchor="middle" font-size="7.5" fill="#888">600</text>
+    <!-- Top span A→D -->
+    <line x1="120" y1="46" x2="310" y2="46"/>
+    <line x1="310" y1="46" x2="500" y2="46"/>
+    <line x1="500" y1="46" x2="690" y2="46"/>
+    <line x1="120" y1="42" x2="120" y2="50"/>
+    <line x1="310" y1="42" x2="310" y2="50"/>
+    <line x1="500" y1="42" x2="500" y2="50"/>
+    <line x1="690" y1="42" x2="690" y2="50"/>
+    <text x="215" y="43" text-anchor="middle">2800</text>
+    <text x="405" y="43" text-anchor="middle">2800</text>
+    <text x="595" y="43" text-anchor="middle">2800</text>
+  </g>
+
+  <!-- Left side dims -->
+  <g stroke="#888" stroke-width="0.8" fill="#888" font-size="8">
+    <line x1="60" y1="100" x2="52" y2="100"/>
+    <line x1="60" y1="330" x2="52" y2="330"/>
+    <line x1="60" y1="560" x2="52" y2="560"/>
+    <line x1="52" y1="100" x2="52" y2="330"/>
+    <line x1="52" y1="330" x2="52" y2="560"/>
+    <text x="47" y="222" text-anchor="middle" transform="rotate(-90,47,222)">2800</text>
+    <text x="47" y="450" text-anchor="middle" transform="rotate(-90,47,450)">2800</text>
+  </g>
+
+  <!-- ═══════════════════════════════
+       NORTH ARROW
+  ═══════════════════════════════ -->
+  <g transform="translate(840,440)">
+    <circle cx="0" cy="0" r="22" fill="none" stroke="#555" stroke-width="1"/>
+    <polygon points="0,-18 -6,8 0,4 6,8" fill="#00d4ff"/>
+    <polygon points="0,-18 -6,8 0,4 6,8" fill="#333" transform="rotate(180)"/>
+    <text x="0" y="-24" font-size="11" fill="#00d4ff" text-anchor="middle" font-weight="bold">N</text>
+  </g>
+
+  <!-- ═══════════════════════════════
+       SCALE BAR
+  ═══════════════════════════════ -->
+  <g transform="translate(790,510)">
+    <text x="0" y="-4" font-size="8" fill="#888">SCALE 1:100</text>
+    <rect x="0" y="0" width="25" height="8" fill="#00d4ff"/>
+    <rect x="25" y="0" width="25" height="8" fill="#0a0a0a" stroke="#00d4ff" stroke-width="1"/>
+    <rect x="50" y="0" width="25" height="8" fill="#00d4ff"/>
+    <text x="0" y="18" font-size="7" fill="#888">0</text>
+    <text x="23" y="18" font-size="7" fill="#888">1m</text>
+    <text x="47" y="18" font-size="7" fill="#888">2m</text>
+    <text x="73" y="18" font-size="7" fill="#888">3m</text>
+  </g>
+
+  <!-- ═══════════════════════════════
+       LEGEND
+  ═══════════════════════════════ -->
+  <rect x="790" y="90" width="100" height="145" fill="#0d0d0d" stroke="#444" stroke-width="1"/>
+  <text x="840" y="106" font-size="8" fill="#aaa" text-anchor="middle" font-weight="bold">LEGEND</text>
+  <rect x="796" y="112" width="14" height="10" fill="url(#tile-hatch)" stroke="#552200" stroke-width="1"/>
+  <text x="814" y="121" font-size="7.5" fill="#ccc">Roof Tiles</text>
+  <rect x="796" y="128" width="14" height="10" fill="url(#glass)" stroke="#00aaff" stroke-width="1"/>
+  <text x="814" y="137" font-size="7.5" fill="#ccc">Skylight</text>
+  <rect x="796" y="144" width="14" height="10" fill="url(#brick)" stroke="#cc3300" stroke-width="1"/>
+  <text x="814" y="153" font-size="7.5" fill="#ccc">Chimney</text>
+  <line x1="796" y1="166" x2="810" y2="166" stroke="#ff6600" stroke-width="2"/>
+  <text x="814" y="170" font-size="7.5" fill="#ccc">Hip Rafter</text>
+  <line x1="796" y1="182" x2="810" y2="182" stroke="#ff8800" stroke-width="2.5"/>
+  <text x="814" y="186" font-size="7.5" fill="#ccc">Ridge</text>
+  <circle cx="803" cy="199" r="5" fill="#0055aa" stroke="#0088dd" stroke-width="1"/>
+  <text x="814" y="203" font-size="7.5" fill="#ccc">Downpipe</text>
+  <rect x="796" y="210" width="14" height="8" fill="url(#eaves)" stroke="#335" stroke-width="1"/>
+  <text x="814" y="218" font-size="7.5" fill="#ccc">Eaves/Gutter</text>
+  <text x="800" y="232" font-size="7" fill="#888">BS 5534 / EC5</text>
+
+  <!-- ═══════════════════════════════
+       TITLE BLOCK
+  ═══════════════════════════════ -->
+  <rect x="80" y="655" width="695" height="55" fill="#0d0d0d" stroke="#555" stroke-width="1"/>
+  <line x1="80" y1="670" x2="775" y2="670" stroke="#555" stroke-width="0.7"/>
+  <line x1="300" y1="655" x2="300" y2="710" stroke="#555" stroke-width="0.7"/>
+  <line x1="550" y1="655" x2="550" y2="710" stroke="#555" stroke-width="0.7"/>
+  <text x="190" y="664" font-size="8" fill="#888" text-anchor="middle">PROJECT</text>
+  <text x="190" y="678" font-size="10" fill="white" text-anchor="middle" font-weight="bold">RESIDENTIAL BUILDING</text>
+  <text x="190" y="695" font-size="8" fill="#aaa" text-anchor="middle">Two-Unit Dwelling</text>
+  <text x="425" y="664" font-size="8" fill="#888" text-anchor="middle">DRAWING TITLE</text>
+  <text x="425" y="678" font-size="10" fill="#00d4ff" text-anchor="middle" font-weight="bold">ROOF PLAN</text>
+  <text x="425" y="695" font-size="8" fill="#aaa" text-anchor="middle">AR-RP-001 | Sheet 3 of 3</text>
+  <text x="662" y="664" font-size="8" fill="#888" text-anchor="middle">SCALE / DATE</text>
+  <text x="662" y="678" font-size="9" fill="white" text-anchor="middle">1:100</text>
+  <text x="662" y="693" font-size="8" fill="#888" text-anchor="middle">Rev A | 2026</text>
+
+</svg>

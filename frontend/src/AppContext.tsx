@@ -37,6 +37,12 @@ interface AppState {
   patchDrawingElementTypeLabel: (drawingId: string, elementType: string, label: string) => Promise<void>;
   /** Mark a single grid node as deleted (hidden). Pass restore=true to un-delete. */
   deleteDrawingNode: (drawingId: string, code: string, restore?: boolean) => Promise<void>;
+  /** Mark a single auto-derived beam as deleted (hidden). Pass restore=true to un-delete. */
+  deleteDrawingBeam: (drawingId: string, beamId: string, restore?: boolean) => Promise<void>;
+  /** Add a custom beam between two grid codes. */
+  addCustomBeam: (drawingId: string, from: string, to: string) => Promise<void>;
+  /** Remove a custom beam by its two grid codes. */
+  removeCustomBeam: (drawingId: string, from: string, to: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -241,8 +247,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { ...d, deletedNodes: next };
       })
     );
-    // Persist to backend
     await DrawingsAPI.update(drawingId, { deletedNodes: { [code]: !restore } } as any);
+  }, []);
+
+  /** Mark or un-mark a single auto-derived beam as deleted. Optimistic local update + backend persist. */
+  const deleteDrawingBeam = useCallback(async (drawingId: string, beamId: string, restore = false) => {
+    setDrawings((prev) =>
+      prev.map((d) => {
+        if (d.id !== drawingId) return d;
+        const existing = d.deletedBeams ?? [];
+        const next = restore
+          ? existing.filter((b) => b !== beamId)
+          : existing.includes(beamId) ? existing : [...existing, beamId];
+        return { ...d, deletedBeams: next };
+      })
+    );
+    await DrawingsAPI.update(drawingId, { deletedBeams: { [beamId]: !restore } } as any);
+  }, []);
+
+  /** Add a custom beam between two nodes. Optimistic local update + backend persist. */
+  const addCustomBeam = useCallback(async (drawingId: string, from: string, to: string) => {
+    setDrawings((prev) =>
+      prev.map((d) => {
+        if (d.id !== drawingId) return d;
+        const existing = d.customBeams ?? [];
+        const alreadyExists = existing.some(
+          (b) => (b.from === from && b.to === to) || (b.from === to && b.to === from)
+        );
+        if (alreadyExists) return d;
+        return { ...d, customBeams: [...existing, { from, to }] };
+      })
+    );
+    await DrawingsAPI.update(drawingId, { customBeams: { add: [{ from, to }] } } as any);
+  }, []);
+
+  /** Remove a custom beam between two nodes. Optimistic local update + backend persist. */
+  const removeCustomBeam = useCallback(async (drawingId: string, from: string, to: string) => {
+    setDrawings((prev) =>
+      prev.map((d) => {
+        if (d.id !== drawingId) return d;
+        return {
+          ...d,
+          customBeams: (d.customBeams ?? []).filter(
+            (b) => !((b.from === from && b.to === to) || (b.from === to && b.to === from))
+          ),
+        };
+      })
+    );
+    await DrawingsAPI.update(drawingId, { customBeams: { remove: [{ from, to }] } } as any);
   }, []);
 
   const currentDrawing = useMemo(() => drawings.find((d) => d.id === currentDrawingId), [drawings, currentDrawingId]);
@@ -285,6 +337,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     patchDrawingColumnLabel,
     patchDrawingElementTypeLabel,
     deleteDrawingNode,
+    deleteDrawingBeam,
+    addCustomBeam,
+    removeCustomBeam,
   }), [
     projects, drawings, tasks, milestones, activity,
     currentDrawingId, selectedElementId,
@@ -296,7 +351,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     focusElementRequest, requestFocusElement,
     patchDrawingColumnPositions, resetDrawingColumnPositions,
     patchDrawingColumnLabel, patchDrawingElementTypeLabel,
-    deleteDrawingNode,
+    deleteDrawingNode, deleteDrawingBeam, addCustomBeam, removeCustomBeam,
     activeProjectId,
   ]);
 

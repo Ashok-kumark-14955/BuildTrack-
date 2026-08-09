@@ -694,10 +694,84 @@ const roofSheetGridPositions = () => computeGridPositions(
   roofSheetPointMap
 );
 
+interface TaskDef {
+  col: string; row: number; name: string; desc: string;
+  category: string; priority: string; engineer: string;
+  start: string; due: string; status: string; progress: number;
+  elementType: string; elementId: string; milestoneId: string;
+}
+
+const roofSheetTaskDefs = (milestoneId: string): TaskDef[] => [
+  { col:'A', row:1, name:'RSL-A1 Roof Sheet Setting Out', desc:'Set out first roof sheet run from grid A1 with survey control, check square to ridge and eaves before fixing.', category:'Survey', priority:'Critical', engineer:'Pradeep Nair', start:'2026-12-02', due:'2026-12-03', status:'Assigned', progress:0, elementType:'cladding', elementId:'RSL-A1', milestoneId },
+  { col:'B', row:1, name:'RSL-B1 Ridge Cap Starter Installation', desc:'Install starter ridge cap and butyl tape seal at B1 zone, maintain 150mm overlap and straight alignment.', category:'Finishing', priority:'High', engineer:'Pradeep Nair', start:'2026-12-03', due:'2026-12-04', status:'Assigned', progress:0, elementType:'ridge_cap', elementId:'RC-B1', milestoneId },
+  { col:'C', row:2, name:'RSL-C2 Sheet Run Fixing', desc:'Fix IBR roof sheets along C2 run with 14g-65 crest screws at each purlin support, verify washer compression.', category:'Finishing', priority:'High', engineer:'Nilesh Kumar', start:'2026-12-04', due:'2026-12-06', status:'Assigned', progress:0, elementType:'cladding', elementId:'SHT-C2', milestoneId },
+  { col:'D', row:2, name:'RSL-D2 Side Lap Sealant Application', desc:'Apply continuous butyl sealant to side laps at D2 row, ensure minimum 1.5 corrugation overlap.', category:'Finishing', priority:'Medium', engineer:'Pradeep Nair', start:'2026-12-05', due:'2026-12-06', status:'Assigned', progress:0, elementType:'cladding', elementId:'LAP-D2', milestoneId },
+  { col:'E', row:3, name:'RSL-E3 End Lap Stitch Screws', desc:'Install stitch screws at 450 c/c across end laps in E3 sheet band, inspect alignment and bite.', category:'Finishing', priority:'Medium', engineer:'Sonal Shah', start:'2026-12-06', due:'2026-12-07', status:'Assigned', progress:0, elementType:'cladding', elementId:'ELS-E3', milestoneId },
+  { col:'F', row:3, name:'RSL-F3 Translucent Sheet Panel Fixing', desc:'Fix translucent daylight roof sheet panel at F3 bay with compatible fasteners and thermal expansion clearance.', category:'Finishing', priority:'High', engineer:'Pradeep Nair', start:'2026-12-07', due:'2026-12-08', status:'Assigned', progress:0, elementType:'skylight', elementId:'TLS-F3', milestoneId },
+  { col:'A', row:4, name:'RSL-A4 Eaves Closure Flashing', desc:'Install eaves closure and bird-proof flashing at A4 line, secure beneath sheet profile without distortion.', category:'Finishing', priority:'Medium', engineer:'Nilesh Kumar', start:'2026-12-08', due:'2026-12-09', status:'Assigned', progress:0, elementType:'flashing', elementId:'EFL-A4', milestoneId },
+  { col:'B', row:4, name:'RSL-B4 Fastener Torque Inspection', desc:'Inspect crest fastener seating and torque at B4 zone, replace damaged neoprene washers and record QA check.', category:'Quality', priority:'High', engineer:'Sonal Shah', start:'2026-12-09', due:'2026-12-10', status:'Assigned', progress:0, elementType:'fastener', elementId:'FTQ-B4', milestoneId },
+  { col:'C', row:4, name:'RSL-C4 Roof Penetration Flashing', desc:'Flash around mechanical roof penetration at C4 with EPDM boot and sealant, ensure watertight termination.', category:'Finishing', priority:'High', engineer:'Pradeep Nair', start:'2026-12-09', due:'2026-12-10', status:'Assigned', progress:0, elementType:'flashing', elementId:'RPF-C4', milestoneId },
+  { col:'D', row:5, name:'RSL-D5 Sheet Alignment Survey', desc:'Carry out final sheet alignment survey at D5 and verify cover widths against approved shop drawing.', category:'Survey', priority:'Medium', engineer:'Sonal Shah', start:'2026-12-10', due:'2026-12-11', status:'Assigned', progress:0, elementType:'cladding', elementId:'ALS-D5', milestoneId },
+  { col:'E', row:5, name:'RSL-E5 Water Tightness Hose Test', desc:'Perform hose test over E5 roof sheet laps and ridge zone, inspect underside for leakage and issue punch list.', category:'Quality', priority:'Critical', engineer:'Sonal Shah', start:'2026-12-11', due:'2026-12-12', status:'Assigned', progress:0, elementType:'cladding', elementId:'WTT-E5', milestoneId },
+  { col:'F', row:5, name:'RSL-F5 Roof Sheet Layout As-Built', desc:'Submit as-built roof sheet layout marking installed sheet runs, skylights, flashings, and completed QA records.', category:'Documentation', priority:'High', engineer:'Pradeep Nair', start:'2026-12-13', due:'2026-12-15', status:'Assigned', progress:0, elementType:'cladding', elementId:'ABL-F5', milestoneId },
+];
+
+/** Inserts the Roof Sheet Layout drawing + its tasks. Used both by the fresh
+ *  seed path and by the repair path below (in case a prior seed run was
+ *  interrupted — e.g. a dev-server restart — after drawing 4 but before this
+ *  one committed, leaving the project stuck one drawing short forever since
+ *  seedSteelProject() only checks for the project's existence, not each drawing). */
+function insertRoofSheetDrawing(projectId: string, milestoneId: string, projectNow: string): string {
+  const localDb = db.default;
+  const roofSheetDrawingId = uuid();
+  localDb.prepare(
+    `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(roofSheetDrawingId, projectId, milestoneId,
+    'STR-RSL-005 Roof Sheet Layout',
+    writeSvgDataUrl(roofSheetLayoutSvg()),
+    'image', 6, 5,
+    JSON.stringify(roofSheetGridPositions()),
+    projectNow);
+
+  const insertTask = localDb.prepare(
+    `INSERT INTO tasks
+       (id, drawingId, milestoneId, gridCode, name, description, category,
+        priority, assignedTo, startDate, dueDate, status, progress,
+        elementType, elementId, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertActivity = localDb.prepare(
+    'INSERT INTO activity (id, taskId, drawingId, message, createdAt) VALUES (?, ?, ?, ?, ?)'
+  );
+
+  for (const t of roofSheetTaskDefs(milestoneId)) {
+    const taskId = uuid();
+    const gridCode = `${t.col}${t.row}`;
+    insertTask.run(taskId, roofSheetDrawingId, milestoneId, gridCode, t.name, t.desc, t.category, t.priority, t.engineer, t.start, t.due, t.status, t.progress, t.elementType, t.elementId, projectNow, projectNow);
+    insertActivity.run(uuid(), taskId, roofSheetDrawingId, `Task "${t.name}" created – status: ${t.status}`, projectNow);
+  }
+  insertActivity.run(uuid(), null, roofSheetDrawingId, 'STR-RSL-005 Roof Sheet Layout uploaded and tasks assigned', projectNow);
+  return roofSheetDrawingId;
+}
+
+/** Self-healing repair: if the Apex project already exists but is missing its
+ *  Roof Sheet Layout drawing (see comment on insertRoofSheetDrawing above),
+ *  backfill just that one drawing + its tasks instead of silently no-op'ing. */
+async function ensureRoofSheetDrawing(req: Request, projectId: string): Promise<void> {
+  const drawing = await db.get(req, `SELECT id FROM drawings WHERE projectId = ? AND name = ?`, [projectId, 'STR-RSL-005 Roof Sheet Layout']);
+  if (drawing) return;
+  const milestone: any = await db.get(req, `SELECT id FROM milestones WHERE projectId = ? AND name = ?`, [projectId, 'M5 – Roof Rafter & Cladding']);
+  if (!milestone) return;
+  insertRoofSheetDrawing(projectId, milestone.id, new Date().toISOString());
+}
 
 export async function seedSteelProject(req: Request): Promise<void> {
-  const existing = await db.get(req, `SELECT id FROM projects WHERE name = ?`, [PROJECT_NAME]);
-  if (existing) return;
+  const existing: any = await db.get(req, `SELECT id FROM projects WHERE name = ?`, [PROJECT_NAME]);
+  if (existing) {
+    await ensureRoofSheetDrawing(req, existing.id);
+    return;
+  }
 
   const now = new Date().toISOString();
   const projectId = uuid();
@@ -794,12 +868,6 @@ localDb.prepare(
   JSON.stringify(computeColumnPositions(['A','B','C','D','E','F'], [1,2,3,4,5], 200, 180, 220, 140)),
   projectNow);
 
-interface TaskDef {
-  col: string; row: number; name: string; desc: string;
-  category: string; priority: string; engineer: string;
-  start: string; due: string; status: string; progress: number;
-  elementType: string; elementId: string; milestoneId: string;
-}
 
 const foundationTasks: TaskDef[] = [
   { col:'A', row:1, name:'FP-A1 Pile Cap Excavation', desc:'Excavate pile cap pit to -3.5m RL, trim loose material, blind concrete 75mm.', category:'Civil', priority:'High', engineer:'Rajesh Nair', start:'2026-04-16', due:'2026-04-25', status:'Completed', progress:100, elementType:'footing', elementId:'FP-A1', milestoneId: milestoneIds.m2 },
@@ -936,40 +1004,7 @@ for (const t of rafterTasks) {
 insertActivity.run(uuid(), null, rafterDrawingId, 'STR-RAF-004 Steel Rafter Erection Plan uploaded and tasks assigned', projectNow);
 
 // ─── Drawing 5: Roof Sheet Layout ─────────────────────────────────────────────
-const roofSheetDrawingId = uuid();
-const roofSheetSvg = roofSheetLayoutSvg();
-localDb.prepare(
-  `INSERT INTO drawings (id, projectId, milestoneId, name, fileUrl, fileType, gridCols, gridRows, columnPositions, createdAt)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-).run(roofSheetDrawingId, projectId, milestoneIds.m5,
-  'STR-RSL-005 Roof Sheet Layout',
-  writeSvgDataUrl(roofSheetSvg),
-  'image', 6, 5,
-  JSON.stringify(roofSheetGridPositions()),
-  projectNow);
-
-const roofSheetTasks: TaskDef[] = [
-  { col:'A', row:1, name:'RSL-A1 Roof Sheet Setting Out', desc:'Set out first roof sheet run from grid A1 with survey control, check square to ridge and eaves before fixing.', category:'Survey', priority:'Critical', engineer:'Pradeep Nair', start:'2026-12-02', due:'2026-12-03', status:'Assigned', progress:0, elementType:'cladding', elementId:'RSL-A1', milestoneId: milestoneIds.m5 },
-  { col:'B', row:1, name:'RSL-B1 Ridge Cap Starter Installation', desc:'Install starter ridge cap and butyl tape seal at B1 zone, maintain 150mm overlap and straight alignment.', category:'Finishing', priority:'High', engineer:'Pradeep Nair', start:'2026-12-03', due:'2026-12-04', status:'Assigned', progress:0, elementType:'ridge_cap', elementId:'RC-B1', milestoneId: milestoneIds.m5 },
-  { col:'C', row:2, name:'RSL-C2 Sheet Run Fixing', desc:'Fix IBR roof sheets along C2 run with 14g-65 crest screws at each purlin support, verify washer compression.', category:'Finishing', priority:'High', engineer:'Nilesh Kumar', start:'2026-12-04', due:'2026-12-06', status:'Assigned', progress:0, elementType:'cladding', elementId:'SHT-C2', milestoneId: milestoneIds.m5 },
-  { col:'D', row:2, name:'RSL-D2 Side Lap Sealant Application', desc:'Apply continuous butyl sealant to side laps at D2 row, ensure minimum 1.5 corrugation overlap.', category:'Finishing', priority:'Medium', engineer:'Pradeep Nair', start:'2026-12-05', due:'2026-12-06', status:'Assigned', progress:0, elementType:'cladding', elementId:'LAP-D2', milestoneId: milestoneIds.m5 },
-  { col:'E', row:3, name:'RSL-E3 End Lap Stitch Screws', desc:'Install stitch screws at 450 c/c across end laps in E3 sheet band, inspect alignment and bite.', category:'Finishing', priority:'Medium', engineer:'Sonal Shah', start:'2026-12-06', due:'2026-12-07', status:'Assigned', progress:0, elementType:'cladding', elementId:'ELS-E3', milestoneId: milestoneIds.m5 },
-  { col:'F', row:3, name:'RSL-F3 Translucent Sheet Panel Fixing', desc:'Fix translucent daylight roof sheet panel at F3 bay with compatible fasteners and thermal expansion clearance.', category:'Finishing', priority:'High', engineer:'Pradeep Nair', start:'2026-12-07', due:'2026-12-08', status:'Assigned', progress:0, elementType:'skylight', elementId:'TLS-F3', milestoneId: milestoneIds.m5 },
-  { col:'A', row:4, name:'RSL-A4 Eaves Closure Flashing', desc:'Install eaves closure and bird-proof flashing at A4 line, secure beneath sheet profile without distortion.', category:'Finishing', priority:'Medium', engineer:'Nilesh Kumar', start:'2026-12-08', due:'2026-12-09', status:'Assigned', progress:0, elementType:'flashing', elementId:'EFL-A4', milestoneId: milestoneIds.m5 },
-  { col:'B', row:4, name:'RSL-B4 Fastener Torque Inspection', desc:'Inspect crest fastener seating and torque at B4 zone, replace damaged neoprene washers and record QA check.', category:'Quality', priority:'High', engineer:'Sonal Shah', start:'2026-12-09', due:'2026-12-10', status:'Assigned', progress:0, elementType:'fastener', elementId:'FTQ-B4', milestoneId: milestoneIds.m5 },
-  { col:'C', row:4, name:'RSL-C4 Roof Penetration Flashing', desc:'Flash around mechanical roof penetration at C4 with EPDM boot and sealant, ensure watertight termination.', category:'Finishing', priority:'High', engineer:'Pradeep Nair', start:'2026-12-09', due:'2026-12-10', status:'Assigned', progress:0, elementType:'flashing', elementId:'RPF-C4', milestoneId: milestoneIds.m5 },
-  { col:'D', row:5, name:'RSL-D5 Sheet Alignment Survey', desc:'Carry out final sheet alignment survey at D5 and verify cover widths against approved shop drawing.', category:'Survey', priority:'Medium', engineer:'Sonal Shah', start:'2026-12-10', due:'2026-12-11', status:'Assigned', progress:0, elementType:'cladding', elementId:'ALS-D5', milestoneId: milestoneIds.m5 },
-  { col:'E', row:5, name:'RSL-E5 Water Tightness Hose Test', desc:'Perform hose test over E5 roof sheet laps and ridge zone, inspect underside for leakage and issue punch list.', category:'Quality', priority:'Critical', engineer:'Sonal Shah', start:'2026-12-11', due:'2026-12-12', status:'Assigned', progress:0, elementType:'cladding', elementId:'WTT-E5', milestoneId: milestoneIds.m5 },
-  { col:'F', row:5, name:'RSL-F5 Roof Sheet Layout As-Built', desc:'Submit as-built roof sheet layout marking installed sheet runs, skylights, flashings, and completed QA records.', category:'Documentation', priority:'High', engineer:'Pradeep Nair', start:'2026-12-13', due:'2026-12-15', status:'Assigned', progress:0, elementType:'cladding', elementId:'ABL-F5', milestoneId: milestoneIds.m5 },
-];
-
-for (const t of roofSheetTasks) {
-  const taskId = uuid();
-  const gridCode = `${t.col}${t.row}`;
-  insertTask.run(taskId, roofSheetDrawingId, t.milestoneId, gridCode, t.name, t.desc, t.category, t.priority, t.engineer, t.start, t.due, t.status, t.progress, t.elementType, t.elementId, projectNow, projectNow);
-  insertActivity.run(uuid(), taskId, roofSheetDrawingId, `Task "${t.name}" created – status: ${t.status}`, projectNow);
-}
-insertActivity.run(uuid(), null, roofSheetDrawingId, 'STR-RSL-005 Roof Sheet Layout uploaded and tasks assigned', projectNow);
+insertRoofSheetDrawing(projectId, milestoneIds.m5, projectNow);
 
 // ─── Project-level Tasks (high-level schedule) ─────────────────────────────
 const projectLevelTasks = [

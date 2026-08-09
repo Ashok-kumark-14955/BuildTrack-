@@ -24,11 +24,17 @@ function serialize(row: any) {
   if (!row) return row;
   let columnPositions = {};
   try { columnPositions = row.columnPositions ? JSON.parse(row.columnPositions) : {}; } catch { columnPositions = {}; }
+  let deletedNodes: string[] = [];
+  try { deletedNodes = row.deletedNodes ? JSON.parse(row.deletedNodes) : []; } catch { deletedNodes = []; }
+  let customBeams: { from: string; to: string }[] = [];
+  try { customBeams = row.customBeams ? JSON.parse(row.customBeams) : []; } catch { customBeams = []; }
+  let deletedBeams: string[] = [];
+  try { deletedBeams = row.deletedBeams ? JSON.parse(row.deletedBeams) : []; } catch { deletedBeams = []; }
   let columnLabels = {};
   try { columnLabels = row.columnLabels ? JSON.parse(row.columnLabels) : {}; } catch { columnLabels = {}; }
   let elementTypeLabels = {};
   try { elementTypeLabels = row.elementTypeLabels ? JSON.parse(row.elementTypeLabels) : {}; } catch { elementTypeLabels = {}; }
-  return { ...row, columnPositions, columnLabels, elementTypeLabels };
+  return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels };
 }
 
 /**
@@ -138,9 +144,21 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-// Update grid config (also supports milestoneId, columnPositions, columnLabels, elementTypeLabels, lat, lng)
+// Update grid config (also supports milestoneId, columnPositions, deletedNodes, columnLabels, elementTypeLabels, lat, lng)
 router.patch('/:id', async (req, res) => {
-  const { gridCols, gridRows, name, milestoneId, columnPositions, resetColumnPositions, columnLabels, resetColumnLabels, elementTypeLabels, resetElementTypeLabels, lat, lng, fileUrl } = req.body;
+  const {
+    gridCols, gridRows, name, milestoneId,
+    columnPositions, resetColumnPositions,
+    deletedNodes,                         // { [code]: true|false } — true=delete, false=restore
+    resetDeletedNodes,                    // boolean — clear all deletions
+    customBeams: customBeamsPatch,        // { add?: {from,to}[], remove?: {from,to}[] }
+    resetCustomBeams,                     // boolean — clear all custom beams
+    deletedBeams,                         // { [beamId]: true|false } — true=delete, false=restore
+    resetDeletedBeams,                    // boolean — clear all beam deletions
+    columnLabels, resetColumnLabels,
+    elementTypeLabels, resetElementTypeLabels,
+    lat, lng, fileUrl,
+  } = req.body;
   const existing: any = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   const newMilestoneId = 'milestoneId' in req.body ? (milestoneId || null) : existing.milestoneId;
@@ -156,6 +174,23 @@ router.patch('/:id', async (req, res) => {
     newColumnPositions = JSON.stringify({ ...current, ...columnPositions });
   }
 
+  // deletedNodes patch: { [code]: true } adds the code; { [code]: false } removes it.
+  let newDeletedNodes = existing.deletedNodes || '[]';
+  if (resetDeletedNodes) {
+    newDeletedNodes = '[]';
+  } else if (deletedNodes && typeof deletedNodes === 'object') {
+    let current: string[] = [];
+    try { current = existing.deletedNodes ? JSON.parse(existing.deletedNodes) : []; } catch { current = []; }
+    for (const [code, remove] of Object.entries(deletedNodes)) {
+      if (remove) {
+        if (!current.includes(code)) current.push(code);
+      } else {
+        current = current.filter((c) => c !== code);
+      }
+    }
+    newDeletedNodes = JSON.stringify(current);
+  }
+
   let newColumnLabels = existing.columnLabels || '{}';
   if (resetColumnLabels) {
     newColumnLabels = '{}';
@@ -163,6 +198,43 @@ router.patch('/:id', async (req, res) => {
     let current: Record<string, string> = {};
     try { current = existing.columnLabels ? JSON.parse(existing.columnLabels) : {}; } catch { current = {}; }
     newColumnLabels = JSON.stringify({ ...current, ...columnLabels });
+  }
+
+  // customBeams: { add?: {from,to}[], remove?: {from,to}[] }
+  let newCustomBeams = existing.customBeams || '[]';
+  if (resetCustomBeams) {
+    newCustomBeams = '[]';
+  } else if (customBeamsPatch && typeof customBeamsPatch === 'object') {
+    let current: { from: string; to: string }[] = [];
+    try { current = existing.customBeams ? JSON.parse(existing.customBeams) : []; } catch { current = []; }
+    const { add, remove: rem } = customBeamsPatch as { add?: { from: string; to: string }[]; remove?: { from: string; to: string }[] };
+    if (add) {
+      for (const b of add) {
+        const exists = current.some((c) => (c.from === b.from && c.to === b.to) || (c.from === b.to && c.to === b.from));
+        if (!exists) current.push(b);
+      }
+    }
+    if (rem) {
+      current = current.filter((c) => !rem.some((r) => (r.from === c.from && r.to === c.to) || (r.from === c.to && r.to === c.from)));
+    }
+    newCustomBeams = JSON.stringify(current);
+  }
+
+  // deletedBeams patch: { [beamId]: true } adds the id; { [beamId]: false } removes it.
+  let newDeletedBeams = existing.deletedBeams || '[]';
+  if (resetDeletedBeams) {
+    newDeletedBeams = '[]';
+  } else if (deletedBeams && typeof deletedBeams === 'object') {
+    let current: string[] = [];
+    try { current = existing.deletedBeams ? JSON.parse(existing.deletedBeams) : []; } catch { current = []; }
+    for (const [beamId, remove] of Object.entries(deletedBeams)) {
+      if (remove) {
+        if (!current.includes(beamId)) current.push(beamId);
+      } else {
+        current = current.filter((c) => c !== beamId);
+      }
+    }
+    newDeletedBeams = JSON.stringify(current);
   }
 
   let newElementTypeLabels = existing.elementTypeLabels || '{}';
@@ -176,13 +248,16 @@ router.patch('/:id', async (req, res) => {
 
   await db.run(
     req,
-    'UPDATE drawings SET gridCols = ?, gridRows = ?, name = ?, milestoneId = ?, columnPositions = ?, columnLabels = ?, elementTypeLabels = ?, lat = ?, lng = ?, fileUrl = ? WHERE id = ?',
+    'UPDATE drawings SET gridCols = ?, gridRows = ?, name = ?, milestoneId = ?, columnPositions = ?, deletedNodes = ?, customBeams = ?, deletedBeams = ?, columnLabels = ?, elementTypeLabels = ?, lat = ?, lng = ?, fileUrl = ? WHERE id = ?',
     [
       gridCols ?? existing.gridCols,
       gridRows ?? existing.gridRows,
       name ?? existing.name,
       newMilestoneId,
       newColumnPositions,
+      newDeletedNodes,
+      newCustomBeams,
+      newDeletedBeams,
       newColumnLabels,
       newElementTypeLabels,
       newLat,

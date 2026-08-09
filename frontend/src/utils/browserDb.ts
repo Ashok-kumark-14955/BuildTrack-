@@ -262,6 +262,9 @@ export async function drawingCreate(data: Partial<Drawing> & { svgContent?: stri
     gridCols: data.gridCols ?? 5,
     gridRows: data.gridRows ?? 4,
     columnPositions: data.columnPositions ?? {},
+    deletedNodes: data.deletedNodes ?? [],
+    customBeams: data.customBeams ?? [],
+    deletedBeams: data.deletedBeams ?? [],
     columnLabels: data.columnLabels ?? {},
     elementTypeLabels: data.elementTypeLabels ?? {},
     lat: data.lat ?? null,
@@ -292,6 +295,44 @@ export async function drawingUpdate(id: string, data: Record<string, unknown>): 
   // drag), and a plain overwrite here would wipe out every other calibrated point.
   if (data.columnPositions && typeof data.columnPositions === 'object') {
     updated.columnPositions = { ...updated.columnPositions, ...(data.columnPositions as Record<string, { x: number; y: number }>) };
+  }
+  // deletedNodes patch: { [code]: true } adds the code; { [code]: false } removes it.
+  if (data.resetDeletedNodes) {
+    updated.deletedNodes = [];
+  } else if (data.deletedNodes && typeof data.deletedNodes === 'object') {
+    let codes = [...(updated.deletedNodes ?? [])];
+    for (const [code, remove] of Object.entries(data.deletedNodes as Record<string, boolean>)) {
+      codes = remove ? (codes.includes(code) ? codes : [...codes, code]) : codes.filter((c) => c !== code);
+    }
+    updated.deletedNodes = codes;
+  }
+  // deletedBeams patch: { [beamId]: true } adds the id; { [beamId]: false } removes it.
+  if (data.resetDeletedBeams) {
+    updated.deletedBeams = [];
+  } else if (data.deletedBeams && typeof data.deletedBeams === 'object') {
+    let ids = [...(updated.deletedBeams ?? [])];
+    for (const [beamId, remove] of Object.entries(data.deletedBeams as Record<string, boolean>)) {
+      ids = remove ? (ids.includes(beamId) ? ids : [...ids, beamId]) : ids.filter((b) => b !== beamId);
+    }
+    updated.deletedBeams = ids;
+  }
+  // customBeams patch: { add?: {from,to}[], remove?: {from,to}[] }
+  if (data.resetCustomBeams) {
+    updated.customBeams = [];
+  } else if (data.customBeams && typeof data.customBeams === 'object') {
+    let beams = [...(updated.customBeams ?? [])];
+    const { add, remove } = data.customBeams as { add?: { from: string; to: string }[]; remove?: { from: string; to: string }[] };
+    const sameBeam = (a: { from: string; to: string }, b: { from: string; to: string }) =>
+      (a.from === b.from && a.to === b.to) || (a.from === b.to && a.to === b.from);
+    if (add) {
+      for (const b of add) {
+        if (!beams.some((c) => sameBeam(c, b))) beams.push(b);
+      }
+    }
+    if (remove) {
+      beams = beams.filter((c) => !remove.some((r) => sameBeam(c, r)));
+    }
+    updated.customBeams = beams;
   }
   // Generic field updates
   const plain = ['name','milestoneId','gridCols','gridRows','lat','lng'] as const;
@@ -343,6 +384,9 @@ export async function drawingUpload(form: FormData): Promise<Drawing> {
     gridCols: 5,
     gridRows: 4,
     columnPositions: {},
+    deletedNodes: [],
+    customBeams: [],
+    deletedBeams: [],
     columnLabels: {},
     elementTypeLabels: {},
     lat: null,

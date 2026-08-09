@@ -151,82 +151,322 @@ function makeFoundationSVG() {
   return svg;
 }
 
-// ── Drawing 2: Ground Floor Plan ───────────────────────────────────────────────
+// ── Drawing 2: Ground Floor Plan (Dark CAD style matching reference) ───────────
 function makeGroundFloorSVG() {
-  const colXs = [200, 510, 780, 1050];
-  const rowYs = [355, 660];
-  let svg = svgOpen('#f4f8f4');
-  svg += `<text x="${W/2}" y="35" font-family="Arial Black,Arial" font-size="22" fill="#1a2744" text-anchor="middle" font-weight="bold">GROUND FLOOR PLAN — HBP-GF-002</text>`;
+  // Use full canvas — dark CAD style
+  const gfW = W, gfH = H;
 
-  // Room fills
-  const rooms = [
-    { x:140, y:90, w:270, h:530, fill:'#dff0e0', label:'LIVING &\nDINING', lx:275, ly:310 },
-    { x:410, y:90, w:230, h:380, fill:'#e8e0f0', label:'MASTER\nBEDROOM', lx:525, ly:245 },
-    { x:640, y:90, w:200, h:380, fill:'#ffe8d6', label:'BATH\nROOM', lx:740, ly:265 },
-    { x:840, y:90, w:230, h:380, fill:'#d6eeff', label:'GARAGE', lx:955, ly:260 },
-    { x:410, y:470, w:230, h:150, fill:'#fff3d6', label:'KITCHEN', lx:525, ly:542 },
-    { x:640, y:470, w:430, h:150, fill:'#fde8e8', label:'BED 2 / BED 3', lx:855, ly:542 },
-  ];
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${gfW}" height="${gfH}" viewBox="0 0 ${gfW} ${gfH}">
+  <defs>
+    <pattern id="stair-grid-gf" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
+      <rect width="22" height="22" fill="none" stroke="#b8a000" stroke-width="0.9"/>
+    </pattern>
+    <marker id="gf-arr-up" markerWidth="7" markerHeight="7" refX="3" refY="7" orient="auto">
+      <path d="M0,7 L3,0 L6,7" fill="none" stroke="#ccaa00" stroke-width="1.5"/>
+    </marker>
+    <marker id="gf-arr-dn" markerWidth="7" markerHeight="7" refX="3" refY="0" orient="auto">
+      <path d="M0,0 L3,7 L6,0" fill="none" stroke="#ccaa00" stroke-width="1.5"/>
+    </marker>
+  </defs>
 
-  rooms.forEach(r => {
-    svg += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.fill}" stroke="#1a2744" stroke-width="3" filter="url(#shadow)"/>`;
-    r.label.split('\n').forEach((line, i) =>
-      svg += `<text x="${r.lx}" y="${r.ly + i * 22}" font-family="Arial,sans-serif" font-size="15" fill="#1a2744" text-anchor="middle" font-weight="bold" opacity="0.7">${line}</text>`
-    );
-  });
+  <!-- Black background -->
+  <rect width="${gfW}" height="${gfH}" fill="#000000"/>
 
-  // Wall outline thick
-  svg += `<rect x="140" y="90" width="930" height="530" fill="none" stroke="#1a2744" stroke-width="5"/>`;
+  <!-- ══ OUTER DASHED BORDER ══ -->
+  <rect x="18" y="10" width="870" height="790" fill="none" stroke="#444" stroke-width="1.5" stroke-dasharray="10,6"/>
 
-  // Interior walls
-  svg += `
-  <line x1="410" y1="90" x2="410" y2="620" stroke="#1a2744" stroke-width="4"/>
-  <line x1="640" y1="90" x2="640" y2="620" stroke="#1a2744" stroke-width="4"/>
-  <line x1="840" y1="90" x2="840" y2="620" stroke="#1a2744" stroke-width="4"/>
-  <line x1="410" y1="470" x2="1070" y2="470" stroke="#1a2744" stroke-width="4"/>`;
+  <!-- ══ OUTER WALLS (cyan) ══ -->
+  <!-- Top wall (both units) -->
+  <rect x="38" y="38" width="840" height="16" fill="#000" stroke="#00e5ff" stroke-width="3.5"/>
+  <!-- Bottom wall left unit -->
+  <rect x="38" y="760" width="600" height="16" fill="#000" stroke="#00e5ff" stroke-width="3.5"/>
+  <!-- Left wall -->
+  <rect x="38" y="38" width="16" height="738" fill="#000" stroke="#00e5ff" stroke-width="3.5"/>
+  <!-- Right wall left unit (divider between units) -->
+  <rect x="620" y="38" width="16" height="460" fill="#000" stroke="#00e5ff" stroke-width="3.5"/>
+  <!-- Right wall right unit -->
+  <rect x="862" y="38" width="16" height="510" fill="#000" stroke="#00e5ff" stroke-width="3.5"/>
+  <!-- Right unit bottom wall -->
+  <rect x="636" y="498" width="242" height="16" fill="#000" stroke="#00e5ff" stroke-width="3.5"/>
+  <!-- Staircase right wall -->
+  <rect x="862" y="498" width="16" height="278" fill="#000" stroke="#00e5ff" stroke-width="3.5"/>
+  <!-- Staircase bottom wall -->
+  <rect x="636" y="760" width="242" height="16" fill="#000" stroke="#00e5ff" stroke-width="3.5"/>
 
-  // Door symbols
-  svg += `
-  <!-- Doors: arcs -->
-  <path d="M 285,90 A 60,60 0 0,1 225,150" fill="none" stroke="#1a2744" stroke-width="2" stroke-dasharray="4,3"/>
-  <line x1="225" y1="90" x2="285" y2="90" stroke="#1a2744" stroke-width="2"/>
-  <path d="M 440,90 A 60,60 0 0,1 440,150" fill="none" stroke="#1a2744" stroke-width="2" stroke-dasharray="4,3"/>`;
+  <!-- ══ INTERIOR WALLS (orange) ══ -->
+  <!-- Left unit: vertical — BedRoom(left) / center -->
+  <rect x="232" y="38" width="12" height="310" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Left unit: vertical — Toilet right edge -->
+  <rect x="408" y="38" width="12" height="195" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Left unit: Toilet bottom horizontal -->
+  <rect x="232" y="185" width="190" height="12" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Left unit: left section toilet bottom (separate left-toilet) -->
+  <rect x="38" y="232" width="208" height="12" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Left unit: main horizontal divider -->
+  <rect x="38" y="348" width="598" height="12" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Left unit lower: vertical center -->
+  <rect x="232" y="358" width="12" height="414" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Left unit lower: Kitchen right -->
+  <rect x="408" y="358" width="12" height="275" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Left unit: Kitchen bottom -->
+  <rect x="232" y="633" width="192" height="12" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Left unit: Entryway top -->
+  <rect x="232" y="645" width="402" height="12" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
 
-  // Windows (double line on wall)
-  svg += `
-  <line x1="140" y1="280" x2="140" y2="380" stroke="#60c0ff" stroke-width="6"/>
-  <line x1="840" y1="200" x2="840" y2="300" stroke="#60c0ff" stroke-width="6"/>
-  <line x1="1070" y1="200" x2="1070" y2="350" stroke="#60c0ff" stroke-width="6"/>`;
+  <!-- Right unit: vertical — Kitchen / BedRoom -->
+  <rect x="748" y="38" width="12" height="200" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Right unit: Kitchen bottom -->
+  <rect x="636" y="235" width="125" height="12" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Right unit: horizontal divider -->
+  <rect x="636" y="348" width="242" height="12" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Right unit: Toilet vertical -->
+  <rect x="742" y="358" width="12" height="155" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Right unit: Toilet bottom -->
+  <rect x="742" y="513" width="132" height="12" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
+  <!-- Right unit: Entryway divider -->
+  <rect x="636" y="513" width="118" height="12" fill="#cc6600" stroke="#e07800" stroke-width="1.5"/>
 
-  svg += gridLabels(colXs, rowYs, 65, 65);
+  <!-- ══ ROOM FILLS ══ -->
+  <!-- Left unit BedRoom top-left -->
+  <rect x="54" y="54" width="172" height="172" fill="#08081a" opacity="0.98"/>
+  <!-- Left unit Toilet top-center -->
+  <rect x="244" y="54" width="158" height="125" fill="#08101a" opacity="0.98"/>
+  <!-- Left unit BedRoom center (spanning top) -->
+  <rect x="244" y="197" width="366" height="145" fill="#08081a" opacity="0.98"/>
+  <!-- Left unit left-Toilet -->
+  <rect x="54" y="244" width="172" height="100" fill="#08101a" opacity="0.98"/>
+  <!-- Left unit Living Room (bottom-left) -->
+  <rect x="54" y="360" width="172" height="394" fill="#08081a" opacity="0.98"/>
+  <!-- Left unit Bed Room center-lower -->
+  <rect x="244" y="360" width="376" height="269" fill="#08081a" opacity="0.98"/>
+  <!-- Left unit Kitchen -->
+  <rect x="244" y="657" width="160" height="97" fill="#08081a" opacity="0.98"/>
+  <!-- Left unit Entryway -->
+  <rect x="420" y="657" width="192" height="97" fill="#040404" opacity="0.98"/>
 
-  // Room area annotations
-  svg += `
-  <text x="275" y="340" font-family="Arial" font-size="12" fill="#1a2744" text-anchor="middle" opacity="0.6">28.5 m²</text>
-  <text x="525" y="270" font-family="Arial" font-size="12" fill="#1a2744" text-anchor="middle" opacity="0.6">16.0 m²</text>
-  <text x="740" y="290" font-family="Arial" font-size="12" fill="#1a2744" text-anchor="middle" opacity="0.6">6.5 m²</text>
-  <text x="955" y="285" font-family="Arial" font-size="12" fill="#1a2744" text-anchor="middle" opacity="0.6">15.0 m²</text>
+  <!-- Right unit Kitchen -->
+  <rect x="648" y="54" width="94" height="175" fill="#08081a" opacity="0.98"/>
+  <!-- Right unit BedRoom -->
+  <rect x="760" y="54" width="96" height="288" fill="#08081a" opacity="0.98"/>
+  <!-- Right unit Living Room -->
+  <rect x="648" y="247" width="88" height="97" fill="#08081a" opacity="0.98"/>
+  <!-- Right unit Living Room lower -->
+  <rect x="648" y="360" width="88" height="147" fill="#08081a" opacity="0.98"/>
+  <!-- Right unit Toilet -->
+  <rect x="754" y="360" width="102" height="147" fill="#08101a" opacity="0.98"/>
+  <!-- Right unit Entryway -->
+  <rect x="648" y="525" width="108" height="229" fill="#040404" opacity="0.98"/>
 
-  <!-- Legend -->
-  <rect x="1100" y="100" width="430" height="200" rx="8" fill="white" stroke="#ccc" stroke-width="2" filter="url(#shadow)"/>
-  <text x="1120" y="125" font-family="Arial Black" font-size="14" fill="#1a2744" font-weight="bold">ROOM LEGEND</text>
-  <rect x="1120" y="135" width="22" height="16" fill="#dff0e0" stroke="#1a2744" stroke-width="1.5"/>
-  <text x="1150" y="148" font-family="Arial" font-size="13" fill="#333">Living / Dining Area</text>
-  <rect x="1120" y="158" width="22" height="16" fill="#e8e0f0" stroke="#1a2744" stroke-width="1.5"/>
-  <text x="1150" y="171" font-family="Arial" font-size="13" fill="#333">Master Bedroom</text>
-  <rect x="1120" y="181" width="22" height="16" fill="#ffe8d6" stroke="#1a2744" stroke-width="1.5"/>
-  <text x="1150" y="194" font-family="Arial" font-size="13" fill="#333">Bathroom / WC</text>
-  <rect x="1120" y="204" width="22" height="16" fill="#d6eeff" stroke="#1a2744" stroke-width="1.5"/>
-  <text x="1150" y="217" font-family="Arial" font-size="13" fill="#333">Garage</text>
-  <rect x="1120" y="227" width="22" height="16" fill="#fff3d6" stroke="#1a2744" stroke-width="1.5"/>
-  <text x="1150" y="240" font-family="Arial" font-size="13" fill="#333">Kitchen</text>
-  <rect x="1120" y="250" width="22" height="16" fill="#fde8e8" stroke="#1a2744" stroke-width="1.5"/>
-  <text x="1150" y="263" font-family="Arial" font-size="13" fill="#333">Bedrooms 2 & 3</text>`;
+  <!-- ══ STAIRCASE ══ -->
+  <rect x="752" y="525" width="106" height="229" fill="#080900" opacity="0.98"/>
+  <rect x="757" y="530" width="96" height="219" fill="url(#stair-grid-gf)"/>
+  <!-- Arrows -->
+  <line x1="800" y1="735" x2="800" y2="545" stroke="#ccaa00" stroke-width="2.5" marker-end="url(#gf-arr-up)"/>
+  <line x1="815" y1="545" x2="815" y2="735" stroke="#ccaa00" stroke-width="2.5" marker-end="url(#gf-arr-dn)"/>
+  <!-- Staircase label rotated -->
+  <text x="858" y="640" font-size="10" fill="#ccaa00" text-anchor="middle" font-family="Arial"
+        transform="rotate(90,858,640)">3rd Landing</text>
+  <text x="870" y="640" font-size="10" fill="#ccaa00" text-anchor="middle" font-family="Arial"
+        transform="rotate(90,870,640)">Staircase</text>
 
-  svg += northArrow(1490, 460);
-  svg += scaleBar(1100, 490);
-  svg += titleBlock('GROUND FLOOR PLAN', 'HBP-GF-002', '1:50');
-  svg += svgClose;
+  <!-- ══ DOOR SWINGS ══ -->
+  <!-- Left BedRoom top-left door (D2) - right wall -->
+  <line x1="232" y1="160" x2="232" y2="232" stroke="#000" stroke-width="7"/>
+  <line x1="232" y1="165" x2="300" y2="165" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M232,165 A68,68 0 0,1 300,233" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="253" y="202" font-size="11" fill="#fff" font-family="Arial">D2</text>
+
+  <!-- Left Toilet door top (D3) -->
+  <line x1="232" y1="54" x2="232" y2="120" stroke="#000" stroke-width="7"/>
+  <line x1="232" y1="60" x2="285" y2="60" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M232,60 A53,53 0 0,1 285,113" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="248" y="92" font-size="11" fill="#fff" font-family="Arial">D3</text>
+
+  <!-- Center Bed Room upper entry (D2) -->
+  <line x1="232" y1="390" x2="232" y2="460" stroke="#000" stroke-width="7"/>
+  <line x1="232" y1="395" x2="295" y2="395" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M232,395 A63,63 0 0,1 295,458" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="250" y="432" font-size="11" fill="#fff" font-family="Arial">D2</text>
+
+  <!-- Center Bed Room lower door (D3) -->
+  <line x1="232" y1="520" x2="232" y2="630" stroke="#000" stroke-width="7"/>
+  <line x1="232" y1="528" x2="292" y2="528" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M232,528 A60,60 0 0,1 292,588" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="250" y="561" font-size="11" fill="#fff" font-family="Arial">D3</text>
+
+  <!-- Kitchen door (D3) -->
+  <line x1="232" y1="660" x2="232" y2="715" stroke="#000" stroke-width="7"/>
+  <line x1="232" y1="665" x2="285" y2="665" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M232,665 A53,53 0 0,0 285,718" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="246" y="692" font-size="11" fill="#fff" font-family="Arial">D3</text>
+
+  <!-- Left Toilet side door (D3) -->
+  <line x1="54" y1="260" x2="54" y2="328" stroke="#000" stroke-width="7"/>
+  <line x1="54" y1="265" x2="116" y2="265" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M54,265 A62,62 0 0,1 116,327" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="70" y="298" font-size="11" fill="#fff" font-family="Arial">D3</text>
+
+  <!-- Right unit Kitchen door (D3) -->
+  <line x1="636" y1="68" x2="636" y2="128" stroke="#000" stroke-width="7"/>
+  <line x1="636" y1="73" x2="690" y2="73" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M636,73 A55,55 0 0,1 691,128" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="651" y="105" font-size="11" fill="#fff" font-family="Arial">D3</text>
+
+  <!-- Right unit BedRoom door (D2) -->
+  <line x1="748" y1="175" x2="748" y2="290" stroke="#000" stroke-width="7"/>
+  <line x1="748" y1="182" x2="815" y2="182" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M748,182 A67,67 0 0,1 815,249" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="768" y="220" font-size="11" fill="#fff" font-family="Arial">D2</text>
+
+  <!-- Right unit Toilet door (D3) -->
+  <line x1="742" y1="375" x2="742" y2="448" stroke="#000" stroke-width="7"/>
+  <line x1="742" y1="382" x2="793" y2="382" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M742,382 A51,51 0 0,0 793,433" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="757" y="415" font-size="11" fill="#fff" font-family="Arial">D3</text>
+
+  <!-- Right unit Living/Entryway door (D2) -->
+  <line x1="742" y1="460" x2="742" y2="515" stroke="#000" stroke-width="7"/>
+  <line x1="742" y1="467" x2="797" y2="467" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M742,467 A55,55 0 0,0 797,522" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="758" y="498" font-size="11" fill="#fff" font-family="Arial">D2</text>
+
+  <!-- Main entrance left unit (D) -->
+  <line x1="420" y1="776" x2="510" y2="776" stroke="#000" stroke-width="7"/>
+  <line x1="425" y1="776" x2="425" y2="718" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M425,776 A58,58 0 0,1 483,718" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="455" y="768" font-size="11" fill="#fff" font-family="Arial">D</text>
+
+  <!-- Right unit entrance (D) -->
+  <line x1="636" y1="660" x2="720" y2="660" stroke="#000" stroke-width="7"/>
+  <line x1="642" y1="660" x2="642" y2="605" stroke="#8B0030" stroke-width="2.5"/>
+  <path d="M642,660 A55,55 0 0,1 697,605" fill="none" stroke="#8B0030" stroke-width="1.8"/>
+  <text x="668" y="650" font-size="11" fill="#fff" font-family="Arial">D</text>
+
+  <!-- ══ WINDOWS ══ -->
+  <!-- W = window (gray), SW = sliding window (darker), V = ventilator, GD = glass door -->
+
+  <!-- TOP WALL — left BedRoom window (W) -->
+  <rect x="72" y="36" width="72" height="18" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+  <line x1="96" y1="36" x2="96" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="120" y1="36" x2="120" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <text x="108" y="33" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">W</text>
+
+  <!-- TOP WALL — ventilator above left-toilet (V) -->
+  <rect x="258" y="36" width="50" height="18" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+  <line x1="280" y1="36" x2="280" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <text x="283" y="33" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">V</text>
+
+  <!-- GD — glass door to left-unit balcony -->
+  <rect x="398" y="36" width="26" height="18" fill="#0d2a0d" stroke="#448844" stroke-width="2"/>
+  <text x="411" y="33" font-size="8" fill="#66cc66" text-anchor="middle" font-family="Arial">GD</text>
+
+  <!-- SW — sliding window center top -->
+  <rect x="428" y="36" width="84" height="18" fill="#333" stroke="#999" stroke-width="2"/>
+  <line x1="450" y1="36" x2="450" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="471" y1="36" x2="471" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="492" y1="36" x2="492" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <text x="470" y="33" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">SW</text>
+
+  <!-- SW right unit Kitchen top -->
+  <rect x="654" y="36" width="82" height="18" fill="#333" stroke="#999" stroke-width="2"/>
+  <line x1="675" y1="36" x2="675" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="695" y1="36" x2="695" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="715" y1="36" x2="715" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <text x="695" y="33" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">SW</text>
+
+  <!-- W right unit BedRoom top -->
+  <rect x="770" y="36" width="70" height="18" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+  <line x1="795" y1="36" x2="795" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="820" y1="36" x2="820" y2="54" stroke="#aaa" stroke-width="1.2"/>
+  <text x="805" y="33" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">W</text>
+
+  <!-- LEFT WALL — W for left BedRoom -->
+  <rect x="36" y="68" width="18" height="70" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+  <line x1="36" y1="100" x2="54" y2="100" stroke="#aaa" stroke-width="1.2"/>
+  <text x="30" y="105" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">W</text>
+
+  <!-- LEFT WALL — V for left Toilet -->
+  <rect x="36" y="260" width="18" height="46" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+  <line x1="36" y1="283" x2="54" y2="283" stroke="#aaa" stroke-width="1.2"/>
+  <text x="30" y="286" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">V</text>
+
+  <!-- LEFT WALL — W for Living Room -->
+  <rect x="36" y="468" width="18" height="78" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+  <line x1="36" y1="507" x2="54" y2="507" stroke="#aaa" stroke-width="1.2"/>
+  <text x="30" y="510" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">W</text>
+
+  <!-- BOTTOM WALL — W -->
+  <rect x="88" y="760" width="78" height="18" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+  <line x1="115" y1="760" x2="115" y2="776" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="142" y1="760" x2="142" y2="776" stroke="#aaa" stroke-width="1.2"/>
+  <text x="127" y="783" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">W</text>
+
+  <!-- SW bottom left unit -->
+  <rect x="428" y="760" width="66" height="18" fill="#333" stroke="#999" stroke-width="2"/>
+  <line x1="447" y1="760" x2="447" y2="776" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="466" y1="760" x2="466" y2="776" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="485" y1="760" x2="485" y2="776" stroke="#aaa" stroke-width="1.2"/>
+  <text x="461" y="783" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">SW</text>
+
+  <!-- SW bottom right unit -->
+  <rect x="656" y="760" width="66" height="18" fill="#333" stroke="#999" stroke-width="2"/>
+  <line x1="675" y1="760" x2="675" y2="776" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="694" y1="760" x2="694" y2="776" stroke="#aaa" stroke-width="1.2"/>
+  <line x1="713" y1="760" x2="713" y2="776" stroke="#aaa" stroke-width="1.2"/>
+  <text x="690" y="783" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">SW</text>
+
+  <!-- RIGHT WALL right unit — W BedRoom -->
+  <rect x="862" y="72" width="18" height="68" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+  <line x1="862" y1="106" x2="878" y2="106" stroke="#aaa" stroke-width="1.2"/>
+  <text x="888" y="109" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">W</text>
+
+  <!-- RIGHT WALL right unit — V Toilet area -->
+  <rect x="862" y="408" width="18" height="42" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+  <line x1="862" y1="429" x2="878" y2="429" stroke="#aaa" stroke-width="1.2"/>
+  <text x="888" y="432" font-size="9" fill="#ccc" text-anchor="middle" font-family="Arial">V</text>
+
+  <!-- GD right unit right wall Balcony -->
+  <rect x="862" y="460" width="18" height="38" fill="#0d2a0d" stroke="#448844" stroke-width="2"/>
+  <text x="871" y="457" font-size="8" fill="#66cc66" text-anchor="middle" font-family="Arial">GD</text>
+
+  <!-- ══ BALCONIES ══ -->
+  <!-- Left unit balcony (top, near Toilet) -->
+  <rect x="400" y="8" width="30" height="28" fill="#001400" stroke="#005500" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="415" y="22" font-size="8" fill="#44cc44" text-anchor="middle" font-family="Arial">Balcony</text>
+  <circle cx="408" cy="15" r="5" fill="#006622" opacity="0.8"/>
+  <circle cx="422" cy="12" r="4" fill="#006622" opacity="0.8"/>
+
+  <!-- Right unit balcony (right side) -->
+  <rect x="880" y="452" width="30" height="55" fill="#001400" stroke="#005500" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="895" y="480" font-size="8" fill="#44cc44" text-anchor="middle" font-family="Arial" transform="rotate(90,895,480)">Balcony</text>
+  <circle cx="892" cy="500" r="5" fill="#006622" opacity="0.8"/>
+  <circle cx="902" cy="510" r="4" fill="#006622" opacity="0.8"/>
+
+  <!-- ══ ROOM LABELS ══ -->
+  <!-- Left unit -->
+  <text x="140" y="136" font-size="15" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Bed Room</text>
+  <text x="323" y="120" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Toilet</text>
+  <text x="435" y="275" font-size="15" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Bed Room</text>
+  <text x="140" y="295" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Toilet</text>
+  <text x="140" y="555" font-size="15" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Living Room</text>
+  <text x="432" y="497" font-size="15" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Bed Room</text>
+  <text x="325" y="710" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Kitchen</text>
+  <text x="514" y="710" font-size="12" fill="#cccccc" text-anchor="middle" font-family="Arial">Entryway</text>
+
+  <!-- Right unit -->
+  <text x="695" y="145" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Kitchen</text>
+  <text x="808" y="188" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Bed Room</text>
+  <text x="692" y="300" font-size="12" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Living Room</text>
+  <text x="808" y="435" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="bold" font-family="Arial">Toilet</text>
+  <text x="692" y="620" font-size="12" fill="#cccccc" text-anchor="middle" font-family="Arial">Entryway</text>
+
+  <!-- ══ TITLE ══ -->
+  <text x="460" y="812" font-size="16" fill="#aaaaaa" text-anchor="middle" font-weight="bold"
+        letter-spacing="2" font-family="Arial">GROUND FLOOR PLAN</text>
+  <text x="460" y="830" font-size="10" fill="#666666" text-anchor="middle" font-family="Arial">Drawing No: HBP-GF-001  |  Scale 1:50  |  All dimensions in mm</text>
+
+</svg>`;
+
   return svg;
 }
 

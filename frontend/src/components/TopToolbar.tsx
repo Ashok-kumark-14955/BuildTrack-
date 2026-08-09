@@ -482,7 +482,7 @@ export default function TopToolbar({
           title={showGrid ? 'Hide column markers' : 'Show column markers'}
           className="relative flex items-center gap-1.5 text-[12px] px-3.5 py-[7px] font-bold transition-all duration-200"
           style={showGrid
-            ? { background: 'linear-gradient(135deg, rgba(236,72,153,0.7) 0%, rgba(190,24,93,0.7) 100%)', color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)' }
+            ? { background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 100%)', color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)' }
             : { color: 'rgba(255,255,255,0.45)' }}
           onMouseEnter={(e) => { if (!showGrid) e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
           onMouseLeave={(e) => { if (!showGrid) e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
@@ -499,7 +499,7 @@ export default function TopToolbar({
           title={showBeams ? 'Hide beam markup' : 'Show beam markup'}
           className="relative flex items-center gap-1.5 text-[12px] px-3.5 py-[7px] font-bold transition-all duration-200"
           style={showBeams
-            ? { background: 'linear-gradient(135deg, rgba(236,72,153,0.7) 0%, rgba(190,24,93,0.7) 100%)', color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)' }
+            ? { background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 100%)', color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)' }
             : { color: 'rgba(255,255,255,0.45)' }}
           onMouseEnter={(e) => { if (!showBeams) e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
           onMouseLeave={(e) => { if (!showBeams) e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}

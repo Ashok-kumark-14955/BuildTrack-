@@ -37,13 +37,21 @@ function buildPositions(colXs, rowYs) {
 const foundationPositions = buildPositions([200, 580, 960], [200, 600]);
 
 /**
- * Ground Floor Plan  (4 cols × 2 rows)  HBP-GF-002
- * Walls at x = 170, 440, 710, 1000  → column centers = wall midpoints
- * Rows centred between walls: y at ~355 (row 1 mid) and ~660 (row 2 mid)
- * Column grid centres: 200, 510, 780, 1050 (from circle label positions in SVG)
- * Row centres: 355, 660 (circle label positions in SVG)
+ * Ground Floor Plan  (4 cols × 2 rows)  HBP-GF-002  (dark CAD style)
+ * New SVG canvas: 1600×950, plan occupies x=38..878, y=38..776
+ *
+ * Left unit column centres (walls at x=38,244,420,636):
+ *   col A = mid of 38..244  → 141
+ *   col B = mid of 244..420 → 332
+ *   col C = mid of 420..636 → 528
+ * Right unit:
+ *   col D = mid of 636..878 → 757
+ *
+ * Row centres (walls at y=38,360,776):
+ *   row 1 = mid of 38..360  → 199
+ *   row 2 = mid of 360..776 → 568
  */
-const groundFloorPositions = buildPositions([200, 510, 780, 1050], [355, 660]);
+const groundFloorPositions = buildPositions([141, 332, 528, 757], [199, 568]);
 
 /**
  * Roof Plan  (3 cols × 3 rows)  HBP-RF-003
@@ -89,21 +97,6 @@ const DRAWINGS = [
     id: '12b0ce29-ff25-46d2-bc99-fb8c3529bc79',
     name: 'Roof Plan',
     positions: roofPositions,
-  },
-  {
-    id: '628bde45-dcdc-4ae5-b635-4e6301496968',
-    name: 'Electrical Layout Plan',
-    positions: electricalPositions,
-  },
-  {
-    id: 'e2cab291-8be9-467d-b334-24fd13ccd4a1',
-    name: 'Plumbing and Drainage Plan',
-    positions: plumbingPositions,
-  },
-  {
-    id: '3efd90a6-309c-4497-b41b-28c347ea0122',
-    name: 'Interior Finishing Plan',
-    positions: finishingPositions,
   },
 ];
 

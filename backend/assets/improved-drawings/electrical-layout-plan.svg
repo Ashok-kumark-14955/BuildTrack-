@@ -1,295 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="950" viewBox="0 0 1600 950">
   <defs>
-    <filter id="ds" x="-5%" y="-5%" width="115%" height="115%">
-      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000025"/>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.18"/>
     </filter>
-    <marker id="da" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-      <path d="M0,0 L6,3 L0,6 Z" fill="#1a2744"/>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#1a2744"/>
     </marker>
   </defs>
-
-  <rect width="1600" height="1050" fill="#fefce8"/>
-  <rect x="0" y="960" width="1600" height="90" fill="#1a2744"/>
-  <rect x="0" y="952" width="1600" height="8" fill="#c8a400"/>
-  <rect x="20" y="20" width="1560" height="932" fill="none" stroke="#1a2744" stroke-width="3"/>
-  <rect x="28" y="28" width="1544" height="916" fill="none" stroke="#1a2744" stroke-width="1"/>
-
-  <text x="800" y="60" font-family="Arial Black,Arial" font-size="26" font-weight="bold" fill="#1a2744" text-anchor="middle" letter-spacing="2">ELECTRICAL LAYOUT PLAN</text>
-  <text x="800" y="82" font-family="Arial" font-size="13" fill="#555" text-anchor="middle">HOUSE BUILDING PROJECT — Drawing No. HBP-EL-004 — Scale 1:50</text>
-
-  <!-- ══ BUILDING OUTLINE ══ -->
-  <rect x="100" y="100" width="1200" height="760" fill="#fffdf0" stroke="#1a2744" stroke-width="5"/>
-
-  <!-- Room dividers -->
-  <line x1="540" y1="100" x2="540" y2="520" stroke="#1a2744" stroke-width="4"/>
-  <line x1="880" y1="100" x2="880" y2="520" stroke="#1a2744" stroke-width="4"/>
-  <line x1="100" y1="520" x2="1300" y2="520" stroke="#1a2744" stroke-width="4"/>
-  <line x1="390" y1="520" x2="390" y2="860" stroke="#1a2744" stroke-width="4"/>
-  <line x1="590" y1="520" x2="590" y2="860" stroke="#1a2744" stroke-width="4"/>
-  <line x1="890" y1="520" x2="890" y2="860" stroke="#1a2744" stroke-width="4"/>
-  <line x1="1100" y1="520" x2="1100" y2="860" stroke="#1a2744" stroke-width="4"/>
-  <line x1="390" y1="680" x2="590" y2="680" stroke="#1a2744" stroke-width="3"/>
-
-  <!-- Room labels (light) -->
-  <text x="320" y="310" font-family="Arial" font-size="13" fill="#aaa" text-anchor="middle">LIVING ROOM</text>
-  <text x="710" y="310" font-family="Arial" font-size="13" fill="#aaa" text-anchor="middle">DINING</text>
-  <text x="1090" y="310" font-family="Arial" font-size="13" fill="#aaa" text-anchor="middle">MASTER BED</text>
-  <text x="245" y="690" font-family="Arial" font-size="12" fill="#aaa" text-anchor="middle">KITCHEN</text>
-  <text x="490" y="590" font-family="Arial" font-size="11" fill="#aaa" text-anchor="middle">TOILET</text>
-  <text x="490" y="750" font-family="Arial" font-size="11" fill="#aaa" text-anchor="middle">BATH</text>
-  <text x="740" y="690" font-family="Arial" font-size="13" fill="#aaa" text-anchor="middle">BEDROOM 2</text>
-  <text x="995" y="690" font-family="Arial" font-size="13" fill="#aaa" text-anchor="middle">BEDROOM 3</text>
-  <text x="1200" y="690" font-family="Arial" font-size="12" fill="#aaa" text-anchor="middle">UTIL</text>
-
-  <!-- ══ WIRING (circuit runs) ══ -->
-  <!-- Main distribution circuit horizontal spine -->
-  <line x1="200" y1="140" x2="1250" y2="140" stroke="#ca8a04" stroke-width="3" stroke-dasharray="0"/>
-  <!-- Vertical feeders -->
-  <line x1="200" y1="140" x2="200" y2="860" stroke="#ca8a04" stroke-width="2" stroke-dasharray="5,3"/>
-  <line x1="540" y1="140" x2="540" y2="860" stroke="#ca8a04" stroke-width="2" stroke-dasharray="5,3"/>
-  <line x1="880" y1="140" x2="880" y2="860" stroke="#ca8a04" stroke-width="2" stroke-dasharray="5,3"/>
-  <line x1="1250" y1="140" x2="1250" y2="500" stroke="#ca8a04" stroke-width="2" stroke-dasharray="5,3"/>
-  <!-- Horizontal circuit at mid height -->
-  <line x1="200" y1="510" x2="1250" y2="510" stroke="#ca8a04" stroke-width="2" stroke-dasharray="5,3"/>
-  <!-- Horizontal circuit at low -->
-  <line x1="200" y1="840" x2="1250" y2="840" stroke="#ca8a04" stroke-width="2" stroke-dasharray="5,3"/>
-
-  <!-- ══ ELECTRICAL SYMBOLS ══ -->
-  <!-- Helper macro: light point = circle with X -->
-  <!-- Living Room lights -->
-  <circle cx="200" cy="240" r="16" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
-  <line x1="189" y1="229" x2="211" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="211" y1="229" x2="189" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="200" y="272" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">L1</text>
-
-  <circle cx="390" cy="240" r="16" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
-  <line x1="379" y1="229" x2="401" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="401" y1="229" x2="379" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="390" y="272" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">L2</text>
-
-  <!-- Fan living room -->
-  <circle cx="295" cy="380" r="18" fill="#fff7d6" stroke="#ca8a04" stroke-width="2"/>
-  <path d="M295,362 Q310,368 316,380 Q310,392 295,398 Q280,392 274,380 Q280,368 295,362Z" fill="#ca8a04" opacity="0.3"/>
-  <text x="295" y="384" font-family="Arial" font-size="11" fill="#92400e" text-anchor="middle">FAN</text>
-  <text x="295" y="410" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">F1</text>
-
-  <!-- Switches living room -->
-  <rect x="108" y="280" width="22" height="22" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
-  <text x="119" y="294" font-family="Arial" font-size="11" fill="#92400e" text-anchor="middle">S</text>
-  <text x="119" y="312" font-family="Arial" font-size="9" fill="#92400e" text-anchor="middle">SW1</text>
-
-  <rect x="108" y="340" width="22" height="22" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
-  <text x="119" y="354" font-family="Arial" font-size="11" fill="#92400e" text-anchor="middle">S</text>
-  <text x="119" y="372" font-family="Arial" font-size="9" fill="#92400e" text-anchor="middle">SW2</text>
-
-  <!-- Socket living room -->
-  <circle cx="450" cy="490" r="14" fill="white" stroke="#ca8a04" stroke-width="2.5"/>
-  <line x1="444" y1="483" x2="444" y2="497" stroke="#ca8a04" stroke-width="2"/>
-  <line x1="456" y1="483" x2="456" y2="497" stroke="#ca8a04" stroke-width="2"/>
-  <text x="450" y="520" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">SK1</text>
-
-  <!-- Dining lights -->
-  <circle cx="640" cy="240" r="16" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
-  <line x1="629" y1="229" x2="651" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="651" y1="229" x2="629" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="640" y="272" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">L3</text>
-
-  <circle cx="780" cy="240" r="16" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
-  <line x1="769" y1="229" x2="791" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="791" y1="229" x2="769" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="780" y="272" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">L4</text>
-
-  <!-- Master Bed lights + AC + fan -->
-  <circle cx="960" cy="240" r="16" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
-  <line x1="949" y1="229" x2="971" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="971" y1="229" x2="949" y2="251" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="960" y="272" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">L5</text>
-
-  <!-- AC symbol -->
-  <rect x="1050" y="108" width="70" height="30" rx="6" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="2"/>
-  <text x="1085" y="128" font-family="Arial" font-size="11" fill="#1e3a8a" text-anchor="middle" font-weight="bold">AC1</text>
-  <text x="1085" y="152" font-family="Arial" font-size="9" fill="#1e3a8a" text-anchor="middle">1.5T Split</text>
-
-  <circle cx="1090" cy="380" r="18" fill="#fff7d6" stroke="#ca8a04" stroke-width="2"/>
-  <path d="M1090,362 Q1105,368 1111,380 Q1105,392 1090,398 Q1075,392 1069,380 Q1075,368 1090,362Z" fill="#ca8a04" opacity="0.3"/>
-  <text x="1090" y="384" font-family="Arial" font-size="11" fill="#92400e" text-anchor="middle">FAN</text>
-  <text x="1090" y="410" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">F2</text>
-
-  <!-- Main DB -->
-  <rect x="108" y="108" width="60" height="50" rx="4" fill="#fee2e2" stroke="#b91c1c" stroke-width="3"/>
-  <text x="138" y="128" font-family="Arial Black" font-size="11" fill="#7f1d1d" text-anchor="middle">MDB</text>
-  <text x="138" y="143" font-family="Arial" font-size="9" fill="#7f1d1d" text-anchor="middle">63A, 12W</text>
-  <text x="138" y="170" font-family="Arial" font-size="9" fill="#b91c1c" text-anchor="middle">MAIN DB</text>
-
-  <!-- Sub DB Kitchen -->
-  <rect x="108" y="560" width="50" height="40" rx="4" fill="#fee2e2" stroke="#b91c1c" stroke-width="2.5"/>
-  <text x="133" y="576" font-family="Arial Black" font-size="10" fill="#7f1d1d" text-anchor="middle">SDB</text>
-  <text x="133" y="590" font-family="Arial" font-size="9" fill="#7f1d1d" text-anchor="middle">Kitchen</text>
-
-  <!-- Kitchen lights/sockets -->
-  <circle cx="220" cy="600" r="14" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
-  <line x1="211" y1="591" x2="229" y2="609" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="229" y1="591" x2="211" y2="609" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="220" y="628" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">L6</text>
-
-  <circle cx="310" cy="750" r="14" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
-  <line x1="301" y1="741" x2="319" y2="759" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="319" y1="741" x2="301" y2="759" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="310" y="778" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">L7</text>
-
-  <!-- Kitchen socket (15A) -->
-  <circle cx="240" cy="750" r="14" fill="white" stroke="#b91c1c" stroke-width="2.5"/>
-  <line x1="234" y1="743" x2="234" y2="757" stroke="#b91c1c" stroke-width="2"/>
-  <line x1="246" y1="743" x2="246" y2="757" stroke="#b91c1c" stroke-width="2"/>
-  <text x="240" y="779" font-family="Arial" font-size="9" fill="#b91c1c" text-anchor="middle">15A</text>
-
-  <!-- Exhaust fan kitchen -->
-  <circle cx="300" cy="528" r="12" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
-  <text x="300" y="532" font-family="Arial" font-size="9" fill="#0369a1" text-anchor="middle">EXH</text>
-  <text x="300" y="552" font-family="Arial" font-size="9" fill="#0369a1" text-anchor="middle">EF1</text>
-
-  <!-- Toilet exhaust -->
-  <circle cx="490" cy="555" r="12" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
-  <text x="490" y="559" font-family="Arial" font-size="9" fill="#0369a1" text-anchor="middle">EXH</text>
-  <text x="490" y="578" font-family="Arial" font-size="9" fill="#0369a1" text-anchor="middle">EF2</text>
-
-  <!-- Bed2 light + fan + AC -->
-  <circle cx="680" cy="600" r="16" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
-  <line x1="669" y1="589" x2="691" y2="611" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="691" y1="589" x2="669" y2="611" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="680" y="632" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">L8</text>
-
-  <circle cx="800" cy="720" r="18" fill="#fff7d6" stroke="#ca8a04" stroke-width="2"/>
-  <path d="M800,702 Q815,708 821,720 Q815,732 800,738 Q785,732 779,720 Q785,708 800,702Z" fill="#ca8a04" opacity="0.3"/>
-  <text x="800" y="724" font-family="Arial" font-size="11" fill="#92400e" text-anchor="middle">FAN</text>
-  <text x="800" y="750" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">F3</text>
-
-  <rect x="590" y="528" width="65" height="28" rx="5" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="2"/>
-  <text x="622" y="547" font-family="Arial" font-size="11" fill="#1e3a8a" text-anchor="middle" font-weight="bold">AC2</text>
-
-  <!-- Bed3 light + fan -->
-  <circle cx="960" cy="600" r="16" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
-  <line x1="949" y1="589" x2="971" y2="611" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="971" y1="589" x2="949" y2="611" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="960" y="632" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">L9</text>
-
-  <circle cx="980" cy="750" r="18" fill="#fff7d6" stroke="#ca8a04" stroke-width="2"/>
-  <path d="M980,732 Q995,738 1001,750 Q995,762 980,768 Q965,762 959,750 Q965,738 980,732Z" fill="#ca8a04" opacity="0.3"/>
-  <text x="980" y="754" font-family="Arial" font-size="11" fill="#92400e" text-anchor="middle">FAN</text>
-  <text x="980" y="780" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">F4</text>
-
-  <!-- External light -->
-  <circle cx="100" cy="840" r="14" fill="#d1fae5" stroke="#059669" stroke-width="2.5"/>
-  <text x="100" y="844" font-family="Arial" font-size="10" fill="#065f46" text-anchor="middle">EXT</text>
-  <text x="100" y="865" font-family="Arial" font-size="9" fill="#065f46" text-anchor="middle">EL1</text>
-
-  <circle cx="1300" cy="840" r="14" fill="#d1fae5" stroke="#059669" stroke-width="2.5"/>
-  <text x="1300" y="844" font-family="Arial" font-size="10" fill="#065f46" text-anchor="middle">EXT</text>
-  <text x="1300" y="865" font-family="Arial" font-size="9" fill="#065f46" text-anchor="middle">EL2</text>
-
-  <!-- Earthing point -->
-  <g transform="translate(1270,108)">
-    <line x1="0" y1="0" x2="0" y2="28" stroke="#16a34a" stroke-width="3"/>
-    <line x1="-12" y1="28" x2="12" y2="28" stroke="#16a34a" stroke-width="3"/>
-    <line x1="-8" y1="34" x2="8" y2="34" stroke="#16a34a" stroke-width="2.5"/>
-    <line x1="-4" y1="40" x2="4" y2="40" stroke="#16a34a" stroke-width="2"/>
-    <text x="0" y="58" font-family="Arial" font-size="10" fill="#16a34a" text-anchor="middle">EARTH</text>
+  <rect width="1600" height="950" fill="#f4f4ff"/><text x="800" y="35" font-family="Arial Black,Arial" font-size="22" fill="#1a2744" text-anchor="middle" font-weight="bold">ELECTRICAL LAYOUT PLAN — HBP-EL-004</text><rect x="100" y="100" width="1200" height="680" fill="#eeeef8" stroke="#5050c0" stroke-width="4" filter="url(#shadow)"/><rect x="100" y="100" width="400" height="680" fill="#e8e8ff" opacity="0.5"/><text x="300" y="130" font-family="Arial" font-size="13" fill="#5050c0" text-anchor="middle" font-weight="bold">LIVING / DINING ZONE</text><rect x="500" y="100" width="400" height="680" fill="#fff8e8" opacity="0.5"/><text x="700" y="130" font-family="Arial" font-size="13" fill="#c07000" text-anchor="middle" font-weight="bold">BEDROOM ZONE</text><rect x="900" y="100" width="400" height="680" fill="#e8fff8" opacity="0.5"/><text x="1100" y="130" font-family="Arial" font-size="13" fill="#007060" text-anchor="middle" font-weight="bold">SERVICE ZONE</text>
+  <!-- Main conduit trunk lines -->
+  <polyline points="150,180 150,700" fill="none" stroke="#f0a020" stroke-width="3" stroke-dasharray="10,5" opacity="0.7"/>
+  <polyline points="150,440 1260,440" fill="none" stroke="#f0a020" stroke-width="2" stroke-dasharray="8,5" opacity="0.5"/>
+  <polyline points="150,700 1260,700" fill="none" stroke="#f0a020" stroke-width="2" stroke-dasharray="8,5" opacity="0.5"/><rect x="132" y="162" width="36" height="36" fill="#1a2744" stroke="#5050c0" stroke-width="3" rx="4"/><text x="150" y="185" font-family="Arial Black" font-size="11" fill="white" text-anchor="middle">DB</text><text x="150" y="210" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">DB1</text><circle cx="380" cy="180" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="370" y1="180" x2="390" y2="180" stroke="#5050c0" stroke-width="2"/><line x1="380" y1="170" x2="380" y2="190" stroke="#5050c0" stroke-width="2"/><text x="380" y="206" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">L1</text><circle cx="600" cy="180" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="590" y1="180" x2="610" y2="180" stroke="#5050c0" stroke-width="2"/><line x1="600" y1="170" x2="600" y2="190" stroke="#5050c0" stroke-width="2"/><text x="600" y="206" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">L2</text><circle cx="820" cy="180" r="14" fill="#fff8e0" stroke="#c07000" stroke-width="2.5"/><path d="M820,170 A12,12 0 0,1 830,180" fill="none" stroke="#c07000" stroke-width="2"/><path d="M830,180 A12,12 0 0,1 820,190" fill="none" stroke="#c07000" stroke-width="2"/><path d="M820,190 A12,12 0 0,1 810,180" fill="none" stroke="#c07000" stroke-width="2"/><text x="820" y="206" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">F1</text><circle cx="1040" cy="180" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="1030" y1="180" x2="1050" y2="180" stroke="#5050c0" stroke-width="2"/><line x1="1040" y1="170" x2="1040" y2="190" stroke="#5050c0" stroke-width="2"/><text x="1040" y="206" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">L3</text><rect x="1246" y="170" width="28" height="20" rx="4" fill="#d6fff0" stroke="#007060" stroke-width="2.5"/><text x="1260" y="184" font-family="Arial Black" font-size="10" fill="#007060" text-anchor="middle">AC</text><text x="1260" y="206" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">AC1</text><rect x="138" y="428" width="24" height="24" rx="3" fill="#fff" stroke="#5050c0" stroke-width="2.5"/><circle cx="145" cy="437" r="3" fill="#5050c0"/><circle cx="155" cy="437" r="3" fill="#5050c0"/><text x="150" y="466" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">S1-S4</text><rect x="368" y="428" width="24" height="24" rx="3" fill="#fff" stroke="#5050c0" stroke-width="2.5"/><circle cx="375" cy="437" r="3" fill="#5050c0"/><circle cx="385" cy="437" r="3" fill="#5050c0"/><text x="380" y="466" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">SB1</text><circle cx="600" cy="440" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="590" y1="440" x2="610" y2="440" stroke="#5050c0" stroke-width="2"/><line x1="600" y1="430" x2="600" y2="450" stroke="#5050c0" stroke-width="2"/><text x="600" y="466" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">L5</text><circle cx="820" cy="440" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="810" y1="440" x2="830" y2="440" stroke="#5050c0" stroke-width="2"/><line x1="820" y1="430" x2="820" y2="450" stroke="#5050c0" stroke-width="2"/><text x="820" y="466" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">L6-WP</text><rect x="1022" y="422" width="36" height="36" fill="#1a2744" stroke="#5050c0" stroke-width="3" rx="4"/><text x="1040" y="445" font-family="Arial Black" font-size="11" fill="white" text-anchor="middle">DB</text><text x="1040" y="470" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">DB2</text><circle cx="1260" cy="440" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="1250" y1="440" x2="1270" y2="440" stroke="#5050c0" stroke-width="2"/><line x1="1260" y1="430" x2="1260" y2="450" stroke="#5050c0" stroke-width="2"/><text x="1260" y="466" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">L7-EXT</text><rect x="136" y="690" width="28" height="20" rx="4" fill="#d6fff0" stroke="#007060" stroke-width="2.5"/><text x="150" y="704" font-family="Arial Black" font-size="10" fill="#007060" text-anchor="middle">AC</text><text x="150" y="726" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">AC2</text><circle cx="380" cy="700" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="370" y1="700" x2="390" y2="700" stroke="#5050c0" stroke-width="2"/><line x1="380" y1="690" x2="380" y2="710" stroke="#5050c0" stroke-width="2"/><text x="380" y="726" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">L7-ST</text><rect x="588" y="688" width="24" height="24" rx="3" fill="#fff" stroke="#5050c0" stroke-width="2.5"/><circle cx="595" cy="697" r="3" fill="#5050c0"/><circle cx="605" cy="697" r="3" fill="#5050c0"/><text x="600" y="726" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">S3-KT</text><circle cx="820" cy="700" r="14" fill="#fff8e0" stroke="#c07000" stroke-width="2.5"/><path d="M820,690 A12,12 0 0,1 830,700" fill="none" stroke="#c07000" stroke-width="2"/><path d="M830,700 A12,12 0 0,1 820,710" fill="none" stroke="#c07000" stroke-width="2"/><path d="M820,710 A12,12 0 0,1 810,700" fill="none" stroke="#c07000" stroke-width="2"/><text x="820" y="726" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">F2</text><circle cx="1040" cy="700" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="1030" y1="700" x2="1050" y2="700" stroke="#5050c0" stroke-width="2"/><line x1="1040" y1="690" x2="1040" y2="710" stroke="#5050c0" stroke-width="2"/><text x="1040" y="726" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">EARTH</text><circle cx="1260" cy="700" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="1250" y1="700" x2="1270" y2="700" stroke="#5050c0" stroke-width="2"/><line x1="1260" y1="690" x2="1260" y2="710" stroke="#5050c0" stroke-width="2"/><text x="1260" y="726" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle">T&C</text><circle cx="150" cy="65" r="14" fill="#1a2744"/><text x="150" y="70" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">A</text><line x1="150" y1="79" x2="150" y2="714" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="380" cy="65" r="14" fill="#1a2744"/><text x="380" y="70" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">B</text><line x1="380" y1="79" x2="380" y2="714" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="600" cy="65" r="14" fill="#1a2744"/><text x="600" y="70" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">C</text><line x1="600" y1="79" x2="600" y2="714" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="820" cy="65" r="14" fill="#1a2744"/><text x="820" y="70" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">D</text><line x1="820" y1="79" x2="820" y2="714" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="1040" cy="65" r="14" fill="#1a2744"/><text x="1040" y="70" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">E</text><line x1="1040" y1="79" x2="1040" y2="714" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="1260" cy="65" r="14" fill="#1a2744"/><text x="1260" y="70" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">F</text><line x1="1260" y1="79" x2="1260" y2="714" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="65" cy="180" r="14" fill="#1a2744"/><text x="65" y="185" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">1</text><line x1="79" y1="180" x2="1274" y2="180" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="65" cy="440" r="14" fill="#1a2744"/><text x="65" y="445" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">2</text><line x1="79" y1="440" x2="1274" y2="440" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="65" cy="700" r="14" fill="#1a2744"/><text x="65" y="705" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">3</text><line x1="79" y1="700" x2="1274" y2="700" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/>
+  <rect x="1310" y="120" width="270" height="300" rx="8" fill="white" stroke="#ccc" stroke-width="2" filter="url(#shadow)"/>
+  <text x="1330" y="148" font-family="Arial Black" font-size="13" fill="#1a2744" font-weight="bold">MEP LEGEND</text>
+  <circle cx="1345" cy="172" r="14" fill="white" stroke="#5050c0" stroke-width="2.5"/><line x1="1335" y1="172" x2="1355" y2="172" stroke="#5050c0" stroke-width="2"/><line x1="1345" y1="162" x2="1345" y2="182" stroke="#5050c0" stroke-width="2"/><text x="1345" y="198" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle"></text>
+  <text x="1368" y="178" font-family="Arial" font-size="12" fill="#333"> Light Point</text>
+  <circle cx="1345" cy="204" r="14" fill="#fff8e0" stroke="#c07000" stroke-width="2.5"/><path d="M1345,194 A12,12 0 0,1 1355,204" fill="none" stroke="#c07000" stroke-width="2"/><path d="M1355,204 A12,12 0 0,1 1345,214" fill="none" stroke="#c07000" stroke-width="2"/><path d="M1345,214 A12,12 0 0,1 1335,204" fill="none" stroke="#c07000" stroke-width="2"/><text x="1345" y="230" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle"></text>
+  <text x="1368" y="210" font-family="Arial" font-size="12" fill="#333"> Ceiling Fan</text>
+  <rect x="1331" y="226" width="28" height="20" rx="4" fill="#d6fff0" stroke="#007060" stroke-width="2.5"/><text x="1345" y="240" font-family="Arial Black" font-size="10" fill="#007060" text-anchor="middle">AC</text><text x="1345" y="262" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle"></text>
+  <text x="1368" y="242" font-family="Arial" font-size="12" fill="#333"> AC Unit</text>
+  <rect x="1333" y="256" width="24" height="24" rx="3" fill="#fff" stroke="#5050c0" stroke-width="2.5"/><circle cx="1340" cy="265" r="3" fill="#5050c0"/><circle cx="1350" cy="265" r="3" fill="#5050c0"/><text x="1345" y="294" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle"></text>
+  <text x="1368" y="274" font-family="Arial" font-size="12" fill="#333"> Socket Point</text>
+  <rect x="1327" y="287" width="36" height="36" fill="#1a2744" stroke="#5050c0" stroke-width="3" rx="4"/><text x="1345" y="310" font-family="Arial Black" font-size="11" fill="white" text-anchor="middle">DB</text><text x="1345" y="335" font-family="Arial" font-size="11" fill="#1a2744" text-anchor="middle"></text>
+  <text x="1368" y="311" font-family="Arial" font-size="12" fill="#333"> Distribution Board</text>
+  <line x1="1330" y1="332" x2="1360" y2="332" stroke="#f0a020" stroke-width="3" stroke-dasharray="8,4"/>
+  <text x="1368" y="337" font-family="Arial" font-size="12" fill="#333"> Conduit Run</text>
+  <text x="1330" y="390" font-family="Arial" font-size="11" fill="#666">Supply: 63A TPN, 240V</text>
+  <text x="1330" y="406" font-family="Arial" font-size="11" fill="#666">Wire: CPVC 1.5–2.5mm²</text>
+  <!-- North Arrow -->
+  <g transform="translate(1490,750)">
+    <circle cx="0" cy="0" r="22" fill="white" stroke="#1a2744" stroke-width="2"/>
+    <polygon points="0,-18 6,8 0,4 -6,8" fill="#1a2744"/>
+    <polygon points="0,-18 -6,8 0,4 6,8" fill="#8a9ab0"/>
+    <text x="0" y="-22" font-family="Arial Black" font-size="12" fill="#1a2744" text-anchor="middle" font-weight="bold">N</text>
   </g>
-
-  <!-- ══ LEGEND ══ -->
-  <rect x="1330" y="100" width="240" height="560" rx="6" fill="white" stroke="#ca8a04" stroke-width="2" filter="url(#ds)"/>
-  <text x="1450" y="122" font-family="Arial Black" font-size="13" fill="#1a2744" text-anchor="middle">LEGEND</text>
-  <line x1="1340" y1="130" x2="1560" y2="130" stroke="#ca8a04" stroke-width="1"/>
-
-  <!-- Light point -->
-  <circle cx="1358" cy="152" r="11" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
-  <line x1="1350" y1="144" x2="1366" y2="160" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="1366" y1="144" x2="1350" y2="160" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="1380" y="157" font-family="Arial" font-size="12" fill="#333">Light Point (L)</text>
-
-  <!-- Fan -->
-  <circle cx="1358" cy="186" r="11" fill="#fff7d6" stroke="#ca8a04" stroke-width="2"/>
-  <text x="1358" y="190" font-family="Arial" font-size="9" fill="#92400e" text-anchor="middle">FAN</text>
-  <text x="1380" y="191" font-family="Arial" font-size="12" fill="#333">Ceiling Fan (F)</text>
-
-  <!-- Socket 6A -->
-  <circle cx="1358" cy="220" r="11" fill="white" stroke="#ca8a04" stroke-width="2"/>
-  <line x1="1353" y1="214" x2="1353" y2="226" stroke="#ca8a04" stroke-width="1.5"/>
-  <line x1="1363" y1="214" x2="1363" y2="226" stroke="#ca8a04" stroke-width="1.5"/>
-  <text x="1380" y="225" font-family="Arial" font-size="12" fill="#333">Socket 6A (SK)</text>
-
-  <!-- Socket 15A -->
-  <circle cx="1358" cy="254" r="11" fill="white" stroke="#b91c1c" stroke-width="2"/>
-  <line x1="1353" y1="248" x2="1353" y2="260" stroke="#b91c1c" stroke-width="1.5"/>
-  <line x1="1363" y1="248" x2="1363" y2="260" stroke="#b91c1c" stroke-width="1.5"/>
-  <text x="1380" y="259" font-family="Arial" font-size="12" fill="#333">Socket 15A</text>
-
-  <!-- Switch -->
-  <rect x="1347" y="278" width="18" height="18" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
-  <text x="1356" y="291" font-family="Arial" font-size="10" fill="#92400e" text-anchor="middle">S</text>
-  <text x="1380" y="293" font-family="Arial" font-size="12" fill="#333">Switch (SW)</text>
-
-  <!-- AC unit -->
-  <rect x="1345" y="308" width="28" height="16" rx="3" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="1.5"/>
-  <text x="1359" y="321" font-family="Arial" font-size="9" fill="#1e3a8a" text-anchor="middle">AC</text>
-  <text x="1380" y="325" font-family="Arial" font-size="12" fill="#333">Air Conditioner</text>
-
-  <!-- Exhaust fan -->
-  <circle cx="1358" cy="356" r="11" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
-  <text x="1358" y="360" font-family="Arial" font-size="8" fill="#0369a1" text-anchor="middle">EXH</text>
-  <text x="1380" y="361" font-family="Arial" font-size="12" fill="#333">Exhaust Fan (EF)</text>
-
-  <!-- External light -->
-  <circle cx="1358" cy="390" r="11" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
-  <text x="1358" y="394" font-family="Arial" font-size="8" fill="#065f46" text-anchor="middle">EXT</text>
-  <text x="1380" y="395" font-family="Arial" font-size="12" fill="#333">Ext. Light (EL)</text>
-
-  <!-- MDB -->
-  <rect x="1345" y="410" width="28" height="22" rx="3" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
-  <text x="1359" y="425" font-family="Arial" font-size="9" fill="#7f1d1d" text-anchor="middle">MDB</text>
-  <text x="1380" y="428" font-family="Arial" font-size="12" fill="#333">Main DB</text>
-
-  <!-- Earth -->
-  <g transform="translate(1350,456)">
-    <line x1="8" y1="0" x2="8" y2="16" stroke="#16a34a" stroke-width="2"/>
-    <line x1="0" y1="16" x2="16" y2="16" stroke="#16a34a" stroke-width="2"/>
-    <line x1="3" y1="20" x2="13" y2="20" stroke="#16a34a" stroke-width="1.5"/>
-    <line x1="5" y1="24" x2="11" y2="24" stroke="#16a34a" stroke-width="1"/>
-  </g>
-  <text x="1380" y="470" font-family="Arial" font-size="12" fill="#333">Earthing Point</text>
-
-  <!-- Circuit lines -->
-  <line x1="1345" y1="500" x2="1375" y2="500" stroke="#ca8a04" stroke-width="2.5"/>
-  <text x="1380" y="505" font-family="Arial" font-size="12" fill="#333">Power circuit</text>
-  <line x1="1345" y1="524" x2="1375" y2="524" stroke="#ca8a04" stroke-width="2" stroke-dasharray="5,3"/>
-  <text x="1380" y="529" font-family="Arial" font-size="12" fill="#333">Light circuit</text>
-  <line x1="1345" y1="548" x2="1375" y2="548" stroke="#1d4ed8" stroke-width="2"/>
-  <text x="1380" y="553" font-family="Arial" font-size="12" fill="#333">AC circuit (ded.)</text>
-
-  <!-- Notes -->
-  <rect x="1330" y="680" width="240" height="260" rx="6" fill="white" stroke="#1a2744" stroke-width="1.5" filter="url(#ds)"/>
-  <text x="1450" y="700" font-family="Arial Black" font-size="11" fill="#1a2744" text-anchor="middle">NOTES</text>
-  <text x="1340" y="718" font-family="Arial" font-size="10" fill="#333">1. All wiring: FRLS PVC</text>
-  <text x="1340" y="732" font-family="Arial" font-size="10" fill="#333">   conduit. Min 2.5sqmm.</text>
-  <text x="1340" y="748" font-family="Arial" font-size="10" fill="#333">2. AC circuits: 4sqmm</text>
-  <text x="1340" y="762" font-family="Arial" font-size="10" fill="#333">   dedicated. 20A MCB.</text>
-  <text x="1340" y="778" font-family="Arial" font-size="10" fill="#333">3. MDB: 63A incomer,</text>
-  <text x="1340" y="792" font-family="Arial" font-size="10" fill="#333">   100mA RCCB.</text>
-  <text x="1340" y="808" font-family="Arial" font-size="10" fill="#333">4. Earthing: IS 3043</text>
-  <text x="1340" y="822" font-family="Arial" font-size="10" fill="#333">   plate earth, copper.</text>
-  <text x="1340" y="838" font-family="Arial" font-size="10" fill="#b00000">5. All work: IE Rules</text>
-  <text x="1340" y="852" font-family="Arial" font-size="10" fill="#b00000">   1956 &amp; IS 732.</text>
-  <text x="1340" y="868" font-family="Arial" font-size="10" fill="#333">6. SPD at MDB for</text>
-  <text x="1340" y="882" font-family="Arial" font-size="10" fill="#333">   lightning protection.</text>
-  <text x="1340" y="898" font-family="Arial" font-size="10" fill="#333">7. Load: 8kW total.</text>
-  <text x="1340" y="912" font-family="Arial" font-size="10" fill="#333">   Solar: 2.4kWp PV.</text>
-  <text x="1340" y="928" font-family="Arial" font-size="10" fill="#333">8. LT supply: 1ph 230V.</text>
-
-  <!-- Title block -->
-  <text x="24" y="988" font-family="Arial Black,Arial" font-size="20" font-weight="bold" fill="white">ELECTRICAL LAYOUT PLAN</text>
-  <text x="24" y="1012" font-family="Arial" font-size="12" fill="#a0c0e0">Project: House Building Project  |  Drawing: HBP-EL-004  |  Scale: 1:50  |  Date: August 2026  |  Rev: A</text>
-  <text x="1580" y="1012" font-family="Arial" font-size="11" fill="#a0c0e0" text-anchor="end">© BuildTrack Construction Management</text>
-  <line x1="780" y1="960" x2="780" y2="1050" stroke="#c8a400" stroke-width="1" opacity="0.4"/>
-  <text x="880" y="988" font-family="Arial" font-size="13" fill="#c8e4ff">Approved By: Arjun Electricals</text>
-  <text x="880" y="1010" font-family="Arial" font-size="12" fill="#88a8cc">Checked: Er. Rajesh Sharma  |  Drawn: K. Mohan</text>
-</svg>
+  <!-- Title Block -->
+  <rect x="0" y="890" width="1600" height="60" fill="#1a2744" rx="0"/>
+  <text x="20" y="914" font-family="Arial Black,Arial,sans-serif" font-size="18" fill="#ffffff" font-weight="bold">ELECTRICAL LAYOUT PLAN</text>
+  <text x="20" y="936" font-family="Arial,sans-serif" font-size="13" fill="#a0b4d0">Drawing No: HBP-EL-004   |   Scale: 1:50   |   Date: 09 Aug 2026   |   House Building Project</text>
+  <text x="1580" y="936" font-family="Arial,sans-serif" font-size="12" fill="#a0b4d0" text-anchor="end">© BuildTrack Construction Management</text></svg>

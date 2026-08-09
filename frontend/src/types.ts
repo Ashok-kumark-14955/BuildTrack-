@@ -23,6 +23,10 @@ export interface Drawing {
   columnPositions: Record<string, ColumnPosition>;
   /** Grid codes that have been individually deleted (hidden) by the user */
   deletedNodes: string[];
+  /** Custom beam connections added by the user (grid code pairs) */
+  customBeams: { from: string; to: string }[];
+  /** Auto-derived structural beam ids that have been individually deleted (hidden) by the user */
+  deletedBeams: string[];
   /** Custom display labels keyed by default gridCode (e.g. "A1" → "P1") */
   columnLabels: Record<string, string>;
   /** Custom type labels for structural elements (e.g. "column" → "Anchor Bolt", "beam" → "Rafter") */
@@ -49,7 +53,9 @@ export interface Task {
   id: string;
   drawingId: string;
   milestoneId: string | null;
-  elementType: ElementType;
+  // Broader than ElementType (which is the drawing-engine's rendering vocabulary) —
+  // tasks carry domain-specific values like "footing", "purlin", "cladding", etc.
+  elementType: string;
   elementId: string;
   gridCode: string;
   name: string;
