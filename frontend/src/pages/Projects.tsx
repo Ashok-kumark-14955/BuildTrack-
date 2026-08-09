@@ -11,7 +11,7 @@ type SortKey = 'name' | 'createdAt' | 'updatedAt';
 
 export default function Projects() {
   const navigate = useNavigate();
-  const { setActiveProjectId, setCurrentDrawingId, drawings } = useApp();
+  const { setActiveProjectId, refreshMilestones, refreshTasks } = useApp();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -140,13 +140,13 @@ export default function Projects() {
             {projects.map((p) => (
               <tr
                 key={p.id}
-                onClick={() => {
-                  // Set this as the active project in global state
+                onClick={async () => {
+                  // Refresh milestones & tasks for the new project context
+                  await Promise.all([refreshMilestones(), refreshTasks()]);
+                  // Setting activeProjectId triggers the AppContext useEffect which
+                  // re-fetches all drawings and auto-switches to the first one for
+                  // this project — no need to call setCurrentDrawingId manually.
                   setActiveProjectId(p.id);
-                  // Switch to the first drawing of this project (if any)
-                  const firstDrawing = drawings.find((d) => d.projectId === p.id);
-                  if (firstDrawing) setCurrentDrawingId(firstDrawing.id);
-                  // Navigate to the drawing canvas view
                   navigate('/');
                 }}
                 className={`border-t border-zinc-800 hover:bg-zinc-800/60 cursor-pointer transition-colors ${p.archived ? 'opacity-60' : ''}`}

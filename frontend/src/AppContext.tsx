@@ -14,7 +14,7 @@ interface AppState {
   setActiveProjectId: (id: string | null) => void;
   setCurrentDrawingId: (id: string | null) => void;
   setSelectedElementId: (id: string | null) => void;
-  refreshDrawings: () => Promise<void>;
+  refreshDrawings: () => Promise<void | Drawing[]>;
   refreshTasks: () => Promise<void>;
   refreshActivity: () => Promise<void>;
   refreshProjects: () => Promise<void>;
@@ -52,8 +52,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshDrawings = useCallback(async () => {
     const list = await DrawingsAPI.list();
     setDrawings(list);
+    // Only auto-select the first drawing when there is no current selection at all
     if (!currentDrawingId && list.length > 0) setCurrentDrawingId(list[0].id);
+    return list; // allow callers to act on the fresh list
   }, [currentDrawingId]);
+
+  // When activeProjectId changes, fetch the latest drawings and immediately
+  // switch currentDrawingId to the first drawing that belongs to that project.
+  // We re-fetch here so that newly-uploaded drawings for this project are
+  // always visible even if the in-memory list is stale.
+  useEffect(() => {
+    if (!activeProjectId) return;
+    DrawingsAPI.list().then((list) => {
+      setDrawings(list);
+      const projectDrawings = list.filter((d) => d.projectId === activeProjectId);
+      if (projectDrawings.length > 0) {
+        setCurrentDrawingId(projectDrawings[0].id);
+      } else {
+        setCurrentDrawingId(null);
+      }
+    }).catch(() => {});
+  }, [activeProjectId]);
 
   /** Patch a single drawing's columnPositions in local state without a full reload.
    *  Used by calibration drags so the image never unmounts/reloads. */

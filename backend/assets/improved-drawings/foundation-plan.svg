@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="950" viewBox="0 0 1600 950">
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.18"/>
+    </filter>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#1a2744"/>
+    </marker>
+  </defs>
+  <rect width="1600" height="950" fill="#f7f4ee"/><text x="800" y="35" font-family="Arial Black,Arial" font-size="22" fill="#1a2744" text-anchor="middle" font-weight="bold">FOUNDATION PLAN — HBP-FND-001</text><circle cx="200" cy="65" r="14" fill="#1a2744"/><text x="200" y="70" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">A</text><line x1="200" y1="79" x2="200" y2="614" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="580" cy="65" r="14" fill="#1a2744"/><text x="580" y="70" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">B</text><line x1="580" y1="79" x2="580" y2="614" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="960" cy="65" r="14" fill="#1a2744"/><text x="960" y="70" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">C</text><line x1="960" y1="79" x2="960" y2="614" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="65" cy="200" r="14" fill="#1a2744"/><text x="65" y="205" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">1</text><line x1="79" y1="200" x2="974" y2="200" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/><circle cx="65" cy="600" r="14" fill="#1a2744"/><text x="65" y="605" font-family="Arial Black,Arial" font-size="14" fill="white" text-anchor="middle" font-weight="bold">2</text><line x1="79" y1="600" x2="974" y2="600" stroke="#1a2744" stroke-width="1.5" stroke-dasharray="6,5" opacity="0.35"/>
+  <!-- Grade beams -->
+  <line x1="200" y1="200" x2="960" y2="200" stroke="#6b4c2a" stroke-width="14" stroke-linecap="round" opacity="0.55"/>
+  <line x1="200" y1="600" x2="960" y2="600" stroke="#6b4c2a" stroke-width="14" stroke-linecap="round" opacity="0.55"/>
+  <line x1="200" y1="200" x2="200" y2="600" stroke="#6b4c2a" stroke-width="14" stroke-linecap="round" opacity="0.55"/>
+  <line x1="580" y1="200" x2="580" y2="600" stroke="#6b4c2a" stroke-width="14" stroke-linecap="round" opacity="0.55"/>
+  <line x1="960" y1="200" x2="960" y2="600" stroke="#6b4c2a" stroke-width="14" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- Diagonal hatching for soil -->
+  <rect x="140" y="140" width="880" height="520" fill="none" stroke="#c8b89a" stroke-width="1" stroke-dasharray="8,8"/>
+    <!-- Footing pad A1 -->
+    <rect x="145" y="145" width="110" height="110" fill="#d4c5a0" stroke="#6b4c2a" stroke-width="3" filter="url(#shadow)"/>
+    <rect x="165" y="165" width="70" height="70" fill="#b0976a" stroke="#6b4c2a" stroke-width="2.5"/>
+    <line x1="165" y1="165" x2="235" y2="235" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <line x1="235" y1="165" x2="165" y2="235" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <text x="200" y="280" font-family="Arial Black,Arial" font-size="15" fill="#1a2744" text-anchor="middle" font-weight="bold">A1</text>
+    <!-- Footing pad B1 -->
+    <rect x="525" y="145" width="110" height="110" fill="#d4c5a0" stroke="#6b4c2a" stroke-width="3" filter="url(#shadow)"/>
+    <rect x="545" y="165" width="70" height="70" fill="#b0976a" stroke="#6b4c2a" stroke-width="2.5"/>
+    <line x1="545" y1="165" x2="615" y2="235" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <line x1="615" y1="165" x2="545" y2="235" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <text x="580" y="280" font-family="Arial Black,Arial" font-size="15" fill="#1a2744" text-anchor="middle" font-weight="bold">B1</text>
+    <!-- Footing pad C1 -->
+    <rect x="905" y="145" width="110" height="110" fill="#d4c5a0" stroke="#6b4c2a" stroke-width="3" filter="url(#shadow)"/>
+    <rect x="925" y="165" width="70" height="70" fill="#b0976a" stroke="#6b4c2a" stroke-width="2.5"/>
+    <line x1="925" y1="165" x2="995" y2="235" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <line x1="995" y1="165" x2="925" y2="235" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <text x="960" y="280" font-family="Arial Black,Arial" font-size="15" fill="#1a2744" text-anchor="middle" font-weight="bold">C1</text>
+    <!-- Footing pad A2 -->
+    <rect x="145" y="545" width="110" height="110" fill="#d4c5a0" stroke="#6b4c2a" stroke-width="3" filter="url(#shadow)"/>
+    <rect x="165" y="565" width="70" height="70" fill="#b0976a" stroke="#6b4c2a" stroke-width="2.5"/>
+    <line x1="165" y1="565" x2="235" y2="635" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <line x1="235" y1="565" x2="165" y2="635" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <text x="200" y="680" font-family="Arial Black,Arial" font-size="15" fill="#1a2744" text-anchor="middle" font-weight="bold">A2</text>
+    <!-- Footing pad B2 -->
+    <rect x="525" y="545" width="110" height="110" fill="#d4c5a0" stroke="#6b4c2a" stroke-width="3" filter="url(#shadow)"/>
+    <rect x="545" y="565" width="70" height="70" fill="#b0976a" stroke="#6b4c2a" stroke-width="2.5"/>
+    <line x1="545" y1="565" x2="615" y2="635" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <line x1="615" y1="565" x2="545" y2="635" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <text x="580" y="680" font-family="Arial Black,Arial" font-size="15" fill="#1a2744" text-anchor="middle" font-weight="bold">B2</text>
+    <!-- Footing pad C2 -->
+    <rect x="905" y="545" width="110" height="110" fill="#d4c5a0" stroke="#6b4c2a" stroke-width="3" filter="url(#shadow)"/>
+    <rect x="925" y="565" width="70" height="70" fill="#b0976a" stroke="#6b4c2a" stroke-width="2.5"/>
+    <line x1="925" y1="565" x2="995" y2="635" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <line x1="995" y1="565" x2="925" y2="635" stroke="#6b4c2a" stroke-width="1.5" opacity="0.6"/>
+    <text x="960" y="680" font-family="Arial Black,Arial" font-size="15" fill="#1a2744" text-anchor="middle" font-weight="bold">C2</text>
+  <!-- Dim: between A and B (col spacing) -->
+  <line x1="200" y1="130" x2="580" y2="130" stroke="#1a2744" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  <text x="390" y="120" font-family="Arial" font-size="13" fill="#1a2744" text-anchor="middle">3800 mm</text>
+  <line x1="580" y1="130" x2="960" y2="130" stroke="#1a2744" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  <text x="770" y="120" font-family="Arial" font-size="13" fill="#1a2744" text-anchor="middle">3800 mm</text>
+  <!-- Dim: row 1 to row 2 -->
+  <line x1="1060" y1="200" x2="1060" y2="600" stroke="#1a2744" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  <text x="1080" y="405" font-family="Arial" font-size="13" fill="#1a2744">4000 mm</text>
+
+  <!-- Legend -->
+  <rect x="1100" y="200" width="440" height="160" rx="8" fill="white" stroke="#c8b89a" stroke-width="2" filter="url(#shadow)"/>
+  <text x="1120" y="225" font-family="Arial Black" font-size="14" fill="#1a2744" font-weight="bold">LEGEND</text>
+  <rect x="1120" y="238" width="30" height="20" fill="#b0976a" stroke="#6b4c2a" stroke-width="2"/>
+  <text x="1160" y="253" font-family="Arial" font-size="13" fill="#333">Isolated Pad Footing</text>
+  <rect x="1120" y="266" width="30" height="10" fill="#6b4c2a" opacity="0.55"/>
+  <text x="1160" y="278" font-family="Arial" font-size="13" fill="#333">Grade Beam (600×350)</text>
+  <rect x="1120" y="290" width="30" height="12" fill="none" stroke="#c8b89a" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="1160" y="305" font-family="Arial" font-size="13" fill="#333">Excavation Boundary</text>
+  <text x="1120" y="345" font-family="Arial" font-size="12" fill="#666">Concrete: M25 RCC</text>
+  <text x="1120" y="362" font-family="Arial" font-size="12" fill="#666">Reinforcement: Fe500 TMT</text>
+  <!-- North Arrow -->
+  <g transform="translate(1480,480)">
+    <circle cx="0" cy="0" r="22" fill="white" stroke="#1a2744" stroke-width="2"/>
+    <polygon points="0,-18 6,8 0,4 -6,8" fill="#1a2744"/>
+    <polygon points="0,-18 -6,8 0,4 6,8" fill="#8a9ab0"/>
+    <text x="0" y="-22" font-family="Arial Black" font-size="12" fill="#1a2744" text-anchor="middle" font-weight="bold">N</text>
+  </g>
+  <!-- Scale Bar -->
+  <g transform="translate(1100,500)">
+    <rect x="0" y="0" width="60" height="10" fill="#1a2744"/>
+    <rect x="60" y="0" width="60" height="10" fill="white" stroke="#1a2744" stroke-width="1"/>
+    <text x="0" y="24" font-family="Arial,sans-serif" font-size="11" fill="#1a2744">0</text>
+    <text x="57" y="24" font-family="Arial,sans-serif" font-size="11" fill="#1a2744">5m</text>
+    <text x="60" y="-4" font-family="Arial,sans-serif" font-size="11" fill="#444" text-anchor="middle">Scale 1:100</text>
+  </g>
+  <!-- Title Block -->
+  <rect x="0" y="890" width="1600" height="60" fill="#1a2744" rx="0"/>
+  <text x="20" y="914" font-family="Arial Black,Arial,sans-serif" font-size="18" fill="#ffffff" font-weight="bold">FOUNDATION PLAN</text>
+  <text x="20" y="936" font-family="Arial,sans-serif" font-size="13" fill="#a0b4d0">Drawing No: HBP-FND-001   |   Scale: 1:100   |   Date: 09 Aug 2026   |   House Building Project</text>
+  <text x="1580" y="936" font-family="Arial,sans-serif" font-size="12" fill="#a0b4d0" text-anchor="end">© BuildTrack Construction Management</text></svg>

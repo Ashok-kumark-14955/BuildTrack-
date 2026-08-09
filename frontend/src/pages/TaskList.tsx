@@ -32,11 +32,20 @@ const MS_STYLE: Record<string, { bg: string; text: string; dot: string; bar: str
 
 export default function TaskList() {
   const {
-    tasks, drawings, projects,
+    tasks, drawings, projects, activeProjectId,
     requestFocusElement, setSelectedElementId, setCurrentDrawingId,
     milestones, createMilestone, updateMilestone, deleteMilestone,
     refreshDrawings, createTask, refreshTasks,
   } = useApp();
+
+  // Scope the task list to the active project (or first project as fallback).
+  // All global arrays still contain data for ALL projects, so we need to filter
+  // down to only the drawings/milestones that belong to the active project.
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? projects[0];
+  const projectDrawings = drawings.filter((d) => d.projectId === activeProject?.id);
+  const projectDrawingIds = new Set(projectDrawings.map((d) => d.id));
+  const projectMilestones = milestones.filter((m) => m.projectId === activeProject?.id);
+  const projectTasks = tasks.filter((t) => projectDrawingIds.has(t.drawingId));
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
@@ -184,36 +193,37 @@ export default function TaskList() {
   };
 
   // ─── Build hierarchy: Milestone → Drawing → Tasks ───────────────────────
+  // Uses project-scoped arrays so only the active project's data is shown.
   const hierarchy = useMemo(() => {
     type DrawingNode = { drawing: Drawing; tasks: Task[] };
     type MilestoneNode = { milestone: Milestone | null; drawings: DrawingNode[] };
     const nodes: MilestoneNode[] = [];
 
-    // Each milestone: drawings that belong to it (via drawing.milestoneId)
-    milestones.forEach((ms) => {
-      const msDrawings = drawings.filter((d) => d.milestoneId === ms.id);
+    // Each milestone (scoped to active project): drawings that belong to it
+    projectMilestones.forEach((ms) => {
+      const msDrawings = projectDrawings.filter((d) => d.milestoneId === ms.id);
       nodes.push({
         milestone: ms,
         drawings: msDrawings.map((d) => ({
           drawing: d,
-          tasks: sortTasks(tasks.filter((t) => t.drawingId === d.id && filterTask(t))),
+          tasks: sortTasks(projectTasks.filter((t) => t.drawingId === d.id && filterTask(t))),
         })),
       });
     });
 
-    // Unassigned drawings (no milestoneId)
-    const unassigned = drawings.filter((d) => !d.milestoneId);
+    // Unassigned drawings (no milestoneId) — still scoped to active project
+    const unassigned = projectDrawings.filter((d) => !d.milestoneId);
     if (unassigned.length > 0) {
       nodes.push({
         milestone: null,
         drawings: unassigned.map((d) => ({
           drawing: d,
-          tasks: sortTasks(tasks.filter((t) => t.drawingId === d.id && filterTask(t))),
+          tasks: sortTasks(projectTasks.filter((t) => t.drawingId === d.id && filterTask(t))),
         })),
       });
     }
     return nodes;
-  }, [milestones, drawings, tasks, search, statusFilter, priorityFilter, sortKey, sortAsc]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectMilestones, projectDrawings, projectTasks, search, statusFilter, priorityFilter, sortKey, sortAsc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Milestone helpers
   const openCreateMs = () => { setEditingMs(null); setMsForm({ name: '', description: '', dueDate: '', status: 'Active' }); setShowMsModal(true); };
