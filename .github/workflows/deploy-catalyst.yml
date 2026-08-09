@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
 
       - uses: actions/setup-node@v4
         with:
@@ -17,6 +20,7 @@ jobs:
       - name: Install Catalyst CLI
         run: npm install -g zcatalyst-cli
 
+      # ── Backend ─────────────────────────────────────────────────────────────
       - name: Build backend
         working-directory: backend
         run: |
@@ -34,6 +38,13 @@ jobs:
           --build-path .
           --stack node22
           --command "npm start"
+
+      # ── Frontend ─────────────────────────────────────────────────────────────
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
 
       - name: Deploy frontend to Slate
         run: >

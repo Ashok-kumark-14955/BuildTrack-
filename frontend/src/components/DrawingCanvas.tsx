@@ -12,11 +12,58 @@ import { STATUS_COLORS } from '../types';
 import { detectColumnPositions } from '../utils/autoCalibrate';
 
 // ─── Custom hook: load an image with cleanup (supports idb:// keys) ──────────
-function useImage(url: string | undefined) {
+// Tries the given URL first; if that fails AND a fallback URL is provided,
+// attempts the fallback (e.g. proxy URL fails → try direct Stratus URL).
+function useImage(url: string | undefined, fallbackUrl?: string | undefined) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   useEffect(() => {
     if (!url) { setImg(null); return; }
     let cancelled = false;
+
+    async function tryLoad(src: string, isFallback = false): Promise<void> {
+      console.log(`[useImage] ${isFallback ? 'fallback' : 'primary'} load attempt — src prefix=`, src.slice(0, 100));
+
+      return new Promise((resolve) => {
+        const image = new window.Image();
+
+        // ⚠️  Do NOT set crossOrigin for pre-signed S3/Stratus URLs or data: URLs.
+        //    Adding crossOrigin sends an Origin header which most S3 presigned-URL
+        //    policies reject (CORS preflight fails → image.onerror fires → black screen).
+        //    For same-origin URLs (e.g. /uploads/…) CORS is not needed either.
+        //    So we never set crossOrigin here; the only thing that needed it was
+        //    canvas.toDataURL() after Konva.Filters, which we handle by caching
+        //    the image node directly in Konva (which bypasses the taint check).
+
+        image.onload = () => {
+          if (cancelled) { resolve(); return; }
+          console.log('[useImage] onload fired — naturalWidth=', image.naturalWidth, 'naturalHeight=', image.naturalHeight);
+          // decode() ensures paint-ready state but may throw on certain CORS
+          // configurations. We always resolve with the image regardless.
+          const finish = () => {
+            if (cancelled) { resolve(); return; }
+            console.log('[useImage] setImg called');
+            setImg(image);
+            resolve();
+          };
+          if (typeof image.decode === 'function') {
+            image.decode().then(finish).catch((e) => {
+              console.warn('[useImage] decode() threw (non-fatal):', e?.message);
+              finish();
+            });
+          } else {
+            finish();
+          }
+        };
+
+        image.onerror = () => {
+          if (cancelled) { resolve(); return; }
+          console.error('[useImage] LOAD FAILED — src=', src.slice(0, 120));
+          resolve(); // resolve so the outer flow can try fallback
+        };
+
+        image.src = src;
+      });
+    }
 
     (async () => {
       // Resolve idb:// → data URL before creating the Image element
@@ -27,50 +74,21 @@ function useImage(url: string | undefined) {
         return;
       }
 
-      const image = new window.Image();
+      await tryLoad(src, false);
 
-      // ⚠️  Do NOT set crossOrigin for pre-signed S3/Stratus URLs or data: URLs.
-      //    Adding crossOrigin sends an Origin header which most S3 presigned-URL
-      //    policies reject (CORS preflight fails → image.onerror fires → black screen).
-      //    For same-origin URLs (e.g. /uploads/…) CORS is not needed either.
-      //    So we never set crossOrigin here; the only thing that needed it was
-      //    canvas.toDataURL() after Konva.Filters, which we handle by caching
-      //    the image node directly in Konva (which bypasses the taint check).
-
-      image.onload = () => {
-        if (cancelled) return;
-        console.log('[useImage] onload fired — naturalWidth=', image.naturalWidth, 'naturalHeight=', image.naturalHeight);
-        // decode() ensures paint-ready state but may throw on certain CORS
-        // configurations. We always resolve with the image regardless of whether
-        // decode() succeeds or fails — a failed decode does NOT mean the image
-        // is invalid; it is still renderable by Konva (which uses the GPU path).
-        const finish = () => {
-          if (cancelled) return;
-          console.log('[useImage] setImg called');
-          setImg(image);
-        };
-        if (typeof image.decode === 'function') {
-          image.decode().then(finish).catch((e) => {
-            console.warn('[useImage] decode() threw (non-fatal):', e?.message);
-            finish();
-          });
-        } else {
-          finish();
+      // If image is still null after primary attempt, try the fallback (direct fileUrl)
+      if (!img && !cancelled && fallbackUrl) {
+        const fallbackSrc = await resolveFileUrl(fallbackUrl);
+        if (fallbackSrc && !cancelled) {
+          console.warn('[useImage] primary failed — trying fallback URL');
+          await tryLoad(fallbackSrc, true);
         }
-      };
-
-      image.onerror = (e) => {
-        if (!cancelled) {
-          console.error('[useImage] onerror — LOAD FAILED. src=', src.slice(0, 120), e);
-          setImg(null);
-        }
-      };
-
-      image.src = src;
+      }
     })();
 
     return () => { cancelled = true; };
-  }, [url]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, fallbackUrl]);
   return img;
 }
 
@@ -346,9 +364,13 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   const renameInputRef = useRef<HTMLInputElement>(null);
   const imageNodeRef = useRef<Konva.Image | null>(null);
 
-  // Use the backend proxy URL so the image is served from the same AppSail origin,
-  // avoiding CORS failures when loading directly from Stratus signed URLs in the browser.
-  const image = useImage(currentDrawing ? drawingFileProxyUrl(currentDrawing.id) : undefined);
+  // Primary: load via backend proxy (same origin → no CORS issues with Stratus).
+  // Fallback: if the proxy fails (e.g. backend not yet deployed), try the raw fileUrl
+  // resolved by the API (which may be a Stratus signed URL or a data: URL in dev).
+  const image = useImage(
+    currentDrawing ? drawingFileProxyUrl(currentDrawing.id) : undefined,
+    currentDrawing?.fileUrl || undefined,
+  );
 
   // ── Resize observer ──
   useEffect(() => {
