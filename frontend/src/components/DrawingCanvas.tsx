@@ -6,7 +6,7 @@ import 'konva/lib/filters/Invert';
 import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../AppContext';
-import { DrawingsAPI } from '../api';
+import { DrawingsAPI, drawingFileProxyUrl } from '../api';
 import { resolveFileUrl } from '../utils/imageStorage';
 import { STATUS_COLORS } from '../types';
 import { detectColumnPositions } from '../utils/autoCalibrate';
@@ -346,7 +346,9 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   const renameInputRef = useRef<HTMLInputElement>(null);
   const imageNodeRef = useRef<Konva.Image | null>(null);
 
-  const image = useImage(currentDrawing ? currentDrawing.fileUrl : undefined);
+  // Use the backend proxy URL so the image is served from the same AppSail origin,
+  // avoiding CORS failures when loading directly from Stratus signed URLs in the browser.
+  const image = useImage(currentDrawing ? drawingFileProxyUrl(currentDrawing.id) : undefined);
 
   // ── Resize observer ──
   useEffect(() => {

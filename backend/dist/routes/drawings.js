@@ -39,6 +39,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
 const uuid_1 = require("uuid");
+const https_1 = __importDefault(require("https"));
+const http_1 = __importDefault(require("http"));
 const db = __importStar(require("../db"));
 const stratus_1 = require("../db/stratus");
 const router = (0, express_1.Router)();
@@ -236,6 +238,50 @@ router.patch('/:id', async (req, res) => {
         req.params.id,
     ]);
     res.json(await serializeWithUrl(req, await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id])));
+});
+// Proxy endpoint: streams the drawing file from Stratus through the backend.
+// This avoids CORS issues since Stratus signed URLs don't include Access-Control-Allow-Origin.
+// The browser loads the image from the same AppSail origin instead of directly from Stratus.
+router.get('/:id/file', async (req, res) => {
+    try {
+        const row = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
+        if (!row)
+            return res.status(404).json({ error: 'Not found' });
+        const signedUrl = await resolveFileUrl(req, row.fileUrl || '');
+        if (!signedUrl || signedUrl.startsWith('stratus://') || signedUrl.startsWith('idb://')) {
+            return res.status(404).json({ error: 'No file available' });
+        }
+        // data: URL — decode and return directly (local dev)
+        if (signedUrl.startsWith('data:')) {
+            const [meta, b64] = signedUrl.split(',');
+            const mimeMatch = meta.match(/data:([^;]+)/);
+            const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+            const buf = Buffer.from(b64, 'base64');
+            res.setHeader('Content-Type', mime);
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            return res.send(buf);
+        }
+        // Stratus signed URL — proxy it
+        const client = signedUrl.startsWith('https') ? https_1.default : http_1.default;
+        client.get(signedUrl, (upstream) => {
+            res.setHeader('Content-Type', upstream.headers['content-type'] || 'image/svg+xml');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            if (upstream.statusCode && upstream.statusCode !== 200) {
+                res.status(upstream.statusCode || 500).json({ error: 'Upstream error' });
+                return;
+            }
+            upstream.pipe(res);
+        }).on('error', (err) => {
+            console.error('[proxy] fetch error:', err.message);
+            res.status(502).json({ error: 'Failed to fetch drawing file' });
+        });
+    }
+    catch (err) {
+        console.error('[proxy] error:', err?.message || err);
+        res.status(500).json({ error: 'Internal error' });
+    }
 });
 router.delete('/:id', async (req, res) => {
     await db.run(req, 'DELETE FROM drawings WHERE id = ?', [req.params.id]);

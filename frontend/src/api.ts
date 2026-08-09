@@ -33,6 +33,13 @@ export const fileUrl = (path: string) => {
   return `${API_BASE}${path}`;
 };
 
+/**
+ * Given a drawing id, return the backend proxy URL that streams the drawing
+ * file through the AppSail backend (avoids CORS issues with Stratus).
+ */
+export const drawingFileProxyUrl = (drawingId: string) =>
+  `${API_BASE}/api/drawings/${drawingId}/file`;
+
 export interface ProjectListParams {
   q?: string;
   status?: string;
