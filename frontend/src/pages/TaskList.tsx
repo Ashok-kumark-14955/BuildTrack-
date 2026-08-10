@@ -12,6 +12,9 @@ import {
   MILESTONE_STATUS_OPTIONS, CATEGORY_OPTIONS, type Task, type Milestone, type Drawing,
 } from '../types';
 import { DrawingsAPI, CliqAPI } from '../api';
+import { useForecastsByDrawing } from '../utils/useWeatherForecast';
+import { getTaskWeatherRisk } from '../utils/weather';
+import WeatherRiskBadge from '../components/WeatherRiskBadge';
 import toast from 'react-hot-toast';
 
 type SortKey = 'gridCode' | 'name' | 'status' | 'assignedTo' | 'priority' | 'dueDate' | 'progress';
@@ -46,6 +49,7 @@ export default function TaskList() {
   const projectDrawingIds = new Set(projectDrawings.map((d) => d.id));
   const projectMilestones = milestones.filter((m) => m.projectId === activeProject?.id);
   const projectTasks = tasks.filter((t) => projectDrawingIds.has(t.drawingId));
+  const forecastsByDrawing = useForecastsByDrawing(projectDrawings);
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
@@ -501,7 +505,16 @@ export default function TaskList() {
                                       <td className="px-2 py-1.5">
                                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${PRIORITY_STYLE[t.priority]}`}>{t.priority}</span>
                                       </td>
-                                      <td className="px-2 py-1.5 text-slate-400 tabular-nums">{t.dueDate || <span className="text-zinc-600">—</span>}</td>
+                                      <td className="px-2 py-1.5 text-slate-400 tabular-nums">
+                                        <div className="flex items-center gap-1.5">
+                                          {t.dueDate || <span className="text-zinc-600">—</span>}
+                                          {(() => {
+                                            const forecast = forecastsByDrawing[drawing.id];
+                                            const risk = forecast ? getTaskWeatherRisk(t, forecast) : null;
+                                            return risk ? <WeatherRiskBadge risk={risk} /> : null;
+                                          })()}
+                                        </div>
+                                      </td>
                                       <td className="px-2 py-1.5">
                                         <div className="flex items-center gap-1.5">
                                           <div className="w-14 h-1 bg-zinc-800 rounded-full overflow-hidden">

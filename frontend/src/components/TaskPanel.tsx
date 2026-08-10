@@ -3,6 +3,9 @@ import { X, Trash2, Save, Plus, MessageSquare, Send, LayoutGrid, Minus, Flag, Ca
 import { useApp } from '../AppContext';
 import { TasksAPI, DrawingsAPI, GeocodeAPI } from '../api';
 import { fileToDataUrl, resolveFileUrl } from '../utils/imageStorage';
+import { useWeatherForecast } from '../utils/useWeatherForecast';
+import { getTaskWeatherRisk } from '../utils/weather';
+import WeatherRiskBadge from './WeatherRiskBadge';
 import {
   CATEGORY_OPTIONS, CONSTRUCTION_STAGE_SUGGESTIONS, BEAM_STAGE_SUGGESTIONS, PRIORITY_OPTIONS, STATUS_COLORS, STATUS_OPTIONS,
   type Comment, type ElementType, type Task, type TaskPriority, type TaskStatus,
@@ -95,6 +98,7 @@ export default function TaskPanel() {
 
   // Site location for the current drawing
   const currentDrawing = drawings.find((d) => d.id === currentDrawingId) ?? null;
+  const forecast = useWeatherForecast(currentDrawing?.lat, currentDrawing?.lng);
   const [locLat, setLocLat] = useState('');
   const [locLng, setLocLng] = useState('');
   const [savingLoc, setSavingLoc] = useState(false);
@@ -436,6 +440,7 @@ export default function TaskPanel() {
         <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
           {elementTasks.map((t) => {
             const ms = milestones.find((m) => m.id === t.milestoneId);
+            const risk = forecast ? getTaskWeatherRisk(t, forecast) : null;
             return (
               <button
                 key={t.id}
@@ -462,6 +467,12 @@ export default function TaskPanel() {
                   <span>{t.assignedTo || 'Unassigned'}</span>
                   <span className="text-zinc-600">•</span>
                   <span className="tabular-nums">{t.progress}%</span>
+                  {risk && (
+                    <>
+                      <span className="text-zinc-600">•</span>
+                      <WeatherRiskBadge risk={risk} />
+                    </>
+                  )}
                 </div>
               </button>
             );
