@@ -11,6 +11,19 @@ import { resolveFileUrl } from '../utils/imageStorage';
 import { STATUS_COLORS } from '../types';
 import { detectColumnPositions } from '../utils/autoCalibrate';
 
+// High-contrast mode inverts the whole canvas via a CSS filter (see stageContainerRef
+// below) so the underlying drawing image reads well in both light and dark originals.
+// That same filter would also flip our meaningful status colours (green/blue/orange/
+// red/slate/dark) into confusing hues. Pre-inverting status colours here means the
+// CSS filter flips them right back to their true, intended colour on screen.
+function invertHex(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const num = parseInt(m[1], 16);
+  const inverted = 0xffffff ^ num;
+  return `#${inverted.toString(16).padStart(6, '0')}`;
+}
+
 // ─── Custom hook: load an image with cleanup (supports idb:// keys) ──────────
 // Tries the given URL first; if that fails AND a fallback URL is provided,
 // attempts the fallback (e.g. proxy URL fails → try direct Stratus URL).
@@ -110,6 +123,7 @@ interface ColumnProps {
   scale: number;
   sameRowYs: number[]; // y of other columns sharing this column's row (snap target for straight rows)
   sameColXs: number[]; // x of other columns sharing this column's col (snap target for straight columns)
+  highContrast: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
   onReposition: (code: string, x: number, y: number) => void;
@@ -119,10 +133,11 @@ interface ColumnProps {
 const SNAP_TOLERANCE_PX = 8; // screen pixels
 
 const ColumnHotspot = memo(function ColumnHotspot({
-  id, code, label, x, y, radius, status, isHovered, isSelected, calibrating, scale, sameRowYs, sameColXs,
+  id, code, label, x, y, radius, status, isHovered, isSelected, calibrating, scale, sameRowYs, sameColXs, highContrast,
   onSelect, onHover, onReposition, onDoubleClick,
 }: ColumnProps) {
-  const color = STATUS_COLORS[status] ?? STATUS_COLORS['No Task'];
+  const statusColor = STATUS_COLORS[status] ?? STATUS_COLORS['No Task'];
+  const color = highContrast ? invertHex(statusColor) : statusColor;
   const isEmpty = false; // always use status colour
   const r = isHovered || isSelected ? radius * 1.22 : radius;
   const [snapGuide, setSnapGuide] = useState<{ axis: 'x' | 'y'; value: number } | null>(null);
@@ -496,15 +511,17 @@ interface BeamProps {
   status: string;
   isHovered: boolean;
   isSelected: boolean;
+  highContrast: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }
 
 const BeamHotspot = memo(function BeamHotspot({
-  id, x1, y1, x2, y2, thickness, status, isHovered, isSelected, onSelect, onHover,
+  id, x1, y1, x2, y2, thickness, status, isHovered, isSelected, highContrast, onSelect, onHover,
 }: BeamProps) {
   const isEmpty = status === 'No Task';
-  const color = isEmpty ? '#334155' : (STATUS_COLORS[status] ?? STATUS_COLORS['No Task']);
+  const statusColor = isEmpty ? '#334155' : (STATUS_COLORS[status] ?? STATUS_COLORS['No Task']);
+  const color = highContrast ? invertHex(statusColor) : statusColor;
   const strokeWidth = isHovered || isSelected ? thickness * 1.6 : thickness;
 
   return (
@@ -1319,6 +1336,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               status={statusByElement[b.id] ?? 'No Task'}
               isHovered={hoveredElementId === b.id}
               isSelected={selectedElementId === b.id}
+              highContrast={highContrast}
               onSelect={handleSelect}
               onHover={handleHover}
             />
@@ -1334,7 +1352,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               const cbId = `CustomBeam_${cb.from}_${cb.to}`;
               const isSelected = selectedElementId === cbId;
               const cbStatus = statusByElement[cbId] ?? 'No Task';
-              const cbColor = cbStatus === 'No Task' ? '#334155' : (STATUS_COLORS[cbStatus] ?? STATUS_COLORS['No Task']);
+              const cbStatusColor = cbStatus === 'No Task' ? '#334155' : (STATUS_COLORS[cbStatus] ?? STATUS_COLORS['No Task']);
+              const cbColor = highContrast ? invertHex(cbStatusColor) : cbStatusColor;
               return (
                 <Group key={cbId} listening={calibrating ? false : true}
                   onClick={(e) => { e.cancelBubble = true; setSelectedElementId(cbId); }}
@@ -1435,6 +1454,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
                 scale={scale}
                 sameRowYs={sameRowYs}
                 sameColXs={sameColXs}
+                highContrast={highContrast}
                 onSelect={handleSelect}
                 onHover={handleHover}
                 onReposition={handleReposition}
