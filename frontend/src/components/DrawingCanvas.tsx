@@ -123,7 +123,7 @@ const ColumnHotspot = memo(function ColumnHotspot({
   onSelect, onHover, onReposition, onDoubleClick,
 }: ColumnProps) {
   const color = STATUS_COLORS[status] ?? STATUS_COLORS['No Task'];
-  const isEmpty = status === 'No Task';
+  const isEmpty = false; // always use status colour
   const r = isHovered || isSelected ? radius * 1.22 : radius;
   const [snapGuide, setSnapGuide] = useState<{ axis: 'x' | 'y'; value: number } | null>(null);
 
@@ -215,7 +215,7 @@ const ColumnHotspot = memo(function ColumnHotspot({
       )}
       <Circle
         radius={r}
-        fill={isEmpty ? '#334155' : color}
+        fill={color}
         opacity={isHovered || isSelected ? 1 : 0.9}
         stroke={isHovered || isSelected ? '#ffffff' : 'rgba(255,255,255,0.55)'}
         strokeWidth={isHovered || isSelected ? 2 : 1.25}
