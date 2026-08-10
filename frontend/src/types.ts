@@ -153,11 +153,11 @@ export interface ActivityItem {
 
 export const STATUS_COLORS: Record<string, string> = {
   'No Task':    '#64748b', // slate grey
-  'Assigned':   '#3b82f6', // vivid blue
-  'In Progress':'#f59e0b', // vivid amber
-  'Completed':  '#22c55e', // vivid green
-  'Blocked':    '#ef4444', // vivid red
-  'Delayed':    '#f97316', // vivid orange
+  'Assigned':   '#3b82f6', // blue
+  'In Progress':'#f97316', // orange
+  'Completed':  '#22c55e', // green
+  'Blocked':    '#ef4444', // red
+  'Delayed':    '#1e293b', // black/dark
 };
 
 export const STATUS_OPTIONS: TaskStatus[] = ['Assigned', 'In Progress', 'Completed', 'Blocked', 'Delayed'];
