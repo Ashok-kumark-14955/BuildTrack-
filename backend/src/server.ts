@@ -65,55 +65,45 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 /**
  * POST /api/setup-tables
- * Creates the custom_modules and custom_records tables in Catalyst DataStore.
+ * Creates the custom_modules and custom_records tables in Catalyst DataStore
+ * using ZCQL DDL statements (CREATE TABLE IF NOT EXISTS).
  * This endpoint is meant to be called ONCE after deployment, from inside AppSail
  * where the Catalyst SDK can authenticate with admin scope.
  */
 app.post('/api/setup-tables', async (req, res) => {
   try {
     const catalyst = require('zcatalyst-sdk-node');
-    const app = catalyst.initialize(req as any, { scope: 'admin' });
-    const ds = app.datastore();
+    const catalystApp = catalyst.initialize(req as any, { scope: 'admin' });
+    const ds = catalystApp.datastore();
+    const zcql = ds.zcql();
 
     const results: any[] = [];
 
-    const tables = [
+    // ZCQL DDL: CREATE TABLE statements for each required table.
+    // Catalyst DataStore auto-adds ROWID (primary key) and CREATORID columns.
+    const ddlStatements: Array<{ table: string; ddl: string }> = [
       {
-        table_name: 'custom_modules',
-        columns: [
-          { column_name: 'id',        data_type: 'varchar', max_size: 255  },
-          { column_name: 'name',      data_type: 'varchar', max_size: 255  },
-          { column_name: 'fields',    data_type: 'varchar', max_size: 5000 },
-          { column_name: 'createdAt', data_type: 'varchar', max_size: 255  },
-          { column_name: 'updatedAt', data_type: 'varchar', max_size: 255  },
-        ],
+        table: 'custom_modules',
+        ddl: `CREATE TABLE IF NOT EXISTS custom_modules (id varchar(255), name varchar(255), fields varchar(5000), createdAt varchar(255), updatedAt varchar(255))`,
       },
       {
-        table_name: 'custom_records',
-        columns: [
-          { column_name: 'id',        data_type: 'varchar', max_size: 255   },
-          { column_name: 'moduleId',  data_type: 'varchar', max_size: 255   },
-          { column_name: 'data',      data_type: 'varchar', max_size: 10000 },
-          { column_name: 'createdAt', data_type: 'varchar', max_size: 255   },
-          { column_name: 'updatedAt', data_type: 'varchar', max_size: 255   },
-        ],
+        table: 'custom_records',
+        ddl: `CREATE TABLE IF NOT EXISTS custom_records (id varchar(255), moduleId varchar(255), data varchar(10000), createdAt varchar(255), updatedAt varchar(255))`,
       },
     ];
 
-    for (const tableDef of tables) {
+    for (const { table, ddl } of ddlStatements) {
       try {
-        const existing = await ds.getAllTables();
-        const alreadyExists = existing.some((t: any) =>
-          (t.table_name || t.tableName || t.name || '').toLowerCase() === tableDef.table_name.toLowerCase()
-        );
-        if (alreadyExists) {
-          results.push({ table: tableDef.table_name, status: 'already_exists' });
-          continue;
-        }
-        const created = await ds.createTable(tableDef);
-        results.push({ table: tableDef.table_name, status: 'created', result: created });
+        const result = await zcql.executeZCQLQuery(ddl);
+        results.push({ table, status: 'created', result });
       } catch (tableErr: any) {
-        results.push({ table: tableDef.table_name, status: 'error', error: tableErr.message });
+        const msg: string = tableErr.message || '';
+        // Treat "table already exists" style errors as success
+        if (msg.toLowerCase().includes('already exists') || msg.toLowerCase().includes('duplicate')) {
+          results.push({ table, status: 'already_exists' });
+        } else {
+          results.push({ table, status: 'error', error: msg });
+        }
       }
     }
 
