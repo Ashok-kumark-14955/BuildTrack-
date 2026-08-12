@@ -4,7 +4,14 @@
   "stack": "node22",
   "memory": 512,
   "scripts": {
-    "predeploy": "npm run build"
+    "predeploy": "echo 'Skipping build - dist/ is pre-compiled and committed to git'"
   },
-  "env_variables": {}
+  "env_variables": {
+    "ZOHO_CLIENT_ID": "1000.CDKRZ5XPM4JL0UJAARM9Q5UNZY7EOE",
+    "ZOHO_CLIENT_SECRET": "5c0c92d2e09b32fc544700b4199bf5d935237121b5",
+    "ZOHO_REFRESH_TOKEN": "1000.c9cfe70eaf4c57b587f2bb09455620ff.23ee499e8a53eccaed7c508524c06b52",
+    "ZOHO_PORTAL_ID": "60082733574",
+    "ZOHO_PROJECT_ID": "476111000000075843",
+    "ZOHO_TOKEN_ROTATOR_URL": "https://project-rainfall-60081725173.development.catalystserverless.in/server/zoho-token-rotator/"
+  }
 }
