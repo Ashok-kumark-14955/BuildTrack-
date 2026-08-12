@@ -66,42 +66,81 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }));
 /**
  * POST /api/setup-tables
  * Creates the custom_modules and custom_records tables in Catalyst DataStore
- * using ZCQL DDL statements (CREATE TABLE IF NOT EXISTS).
- * This endpoint is meant to be called ONCE after deployment, from inside AppSail
+ * using the Catalyst REST Management API (POST /baas/v1/project/{id}/table).
+ * The SDK's datastore requester is reused so auth headers are injected automatically.
+ *
+ * This endpoint is meant to be called ONCE after deployment from inside AppSail
  * where the Catalyst SDK can authenticate with admin scope.
  */
 app.post('/api/setup-tables', async (req, res) => {
   try {
     const catalyst = require('zcatalyst-sdk-node');
     const catalystApp = catalyst.initialize(req as any, { scope: 'admin' });
-    const zcql = catalystApp.zcql();
+    // Access the datastore's internal AuthorizedHttpClient requester.
+    // It pre-populates auth headers and prepends /baas/v1/project/{projectId} when req.catalyst=true.
+    const ds = catalystApp.datastore();
+    const requester = (ds as any).requester;
 
     const results: any[] = [];
 
-    // ZCQL DDL: CREATE TABLE statements for each required table.
-    // Catalyst DataStore auto-adds ROWID (primary key) and CREATORID columns.
-    const ddlStatements: Array<{ table: string; ddl: string }> = [
+    // First, fetch all existing tables so we can skip ones that already exist.
+    let existingTableNames: string[] = [];
+    try {
+      const existing = await ds.getAllTables();
+      existingTableNames = existing.map((t: any) =>
+        (t.table_name || t.tableName || t.name || '').toLowerCase()
+      );
+    } catch (_e) {
+      // If listing fails, proceed and let individual create calls report errors.
+    }
+
+    const tableDefs = [
       {
-        table: 'custom_modules',
-        ddl: `CREATE TABLE IF NOT EXISTS custom_modules (id varchar(255), name varchar(255), fields varchar(5000), createdAt varchar(255), updatedAt varchar(255))`,
+        table_name: 'custom_modules',
+        columns: [
+          { column_name: 'id',        data_type: 'varchar', max_size: 255  },
+          { column_name: 'name',      data_type: 'varchar', max_size: 255  },
+          { column_name: 'fields',    data_type: 'varchar', max_size: 5000 },
+          { column_name: 'createdAt', data_type: 'varchar', max_size: 255  },
+          { column_name: 'updatedAt', data_type: 'varchar', max_size: 255  },
+        ],
       },
       {
-        table: 'custom_records',
-        ddl: `CREATE TABLE IF NOT EXISTS custom_records (id varchar(255), moduleId varchar(255), data varchar(10000), createdAt varchar(255), updatedAt varchar(255))`,
+        table_name: 'custom_records',
+        columns: [
+          { column_name: 'id',        data_type: 'varchar', max_size: 255   },
+          { column_name: 'moduleId',  data_type: 'varchar', max_size: 255   },
+          { column_name: 'data',      data_type: 'varchar', max_size: 10000 },
+          { column_name: 'createdAt', data_type: 'varchar', max_size: 255   },
+          { column_name: 'updatedAt', data_type: 'varchar', max_size: 255   },
+        ],
       },
     ];
 
-    for (const { table, ddl } of ddlStatements) {
+    for (const tableDef of tableDefs) {
+      const name = tableDef.table_name;
       try {
-        const result = await zcql.executeZCQLQuery(ddl);
-        results.push({ table, status: 'created', result });
+        if (existingTableNames.includes(name.toLowerCase())) {
+          results.push({ table: name, status: 'already_exists' });
+          continue;
+        }
+        // POST /baas/v1/project/{id}/table  — uses the SDK requester so auth is handled automatically.
+        const resp = await requester.send({
+          method: 'POST',
+          path: '/table',
+          data: tableDef,
+          type: 'json',
+          catalyst: true,
+          track: false,
+          user: 'admin',
+        });
+        results.push({ table: name, status: 'created', result: resp.data });
       } catch (tableErr: any) {
         const msg: string = tableErr.message || '';
-        // Treat "table already exists" style errors as success
         if (msg.toLowerCase().includes('already exists') || msg.toLowerCase().includes('duplicate')) {
-          results.push({ table, status: 'already_exists' });
+          results.push({ table: name, status: 'already_exists' });
         } else {
-          results.push({ table, status: 'error', error: msg });
+          results.push({ table: name, status: 'error', error: msg });
         }
       }
     }
