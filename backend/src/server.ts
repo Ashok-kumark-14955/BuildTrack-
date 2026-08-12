@@ -76,76 +76,91 @@ app.post('/api/setup-tables', async (req, res) => {
   try {
     const catalyst = require('zcatalyst-sdk-node');
     const catalystApp = catalyst.initialize(req as any, { scope: 'admin' });
-    // Access the datastore's internal AuthorizedHttpClient requester.
-    // It pre-populates auth headers and prepends /baas/v1/project/{projectId} when req.catalyst=true.
     const ds = catalystApp.datastore();
     const requester = (ds as any).requester;
 
-    const results: any[] = [];
-
     // First, fetch all existing tables so we can skip ones that already exist.
     let existingTableNames: string[] = [];
+    let rawTables: any[] = [];
     try {
       const existing = await ds.getAllTables();
+      rawTables = existing.map((t: any) => t.toJSON ? t.toJSON() : t);
       existingTableNames = existing.map((t: any) =>
         (t.table_name || t.tableName || t.name || '').toLowerCase()
       );
-    } catch (_e) {
-      // If listing fails, proceed and let individual create calls report errors.
+    } catch (listErr: any) {
+      // If listing fails, proceed anyway
     }
 
-    const tableDefs = [
-      {
-        table_name: 'custom_modules',
-        columns: [
-          { column_name: 'id',        data_type: 'text'    },
-          { column_name: 'name',      data_type: 'text'    },
-          { column_name: 'fields',    data_type: 'text'    },
-          { column_name: 'createdAt', data_type: 'text'    },
-          { column_name: 'updatedAt', data_type: 'text'    },
-        ],
-      },
-      {
-        table_name: 'custom_records',
-        columns: [
-          { column_name: 'id',        data_type: 'text'    },
-          { column_name: 'moduleId',  data_type: 'text'    },
-          { column_name: 'data',      data_type: 'text'    },
-          { column_name: 'createdAt', data_type: 'text'    },
-          { column_name: 'updatedAt', data_type: 'text'    },
-        ],
-      },
-    ];
+    const results: any[] = [];
 
-    for (const tableDef of tableDefs) {
-      const name = tableDef.table_name;
-      try {
-        if (existingTableNames.includes(name.toLowerCase())) {
-          results.push({ table: name, status: 'already_exists' });
-          continue;
+    // We'll try multiple payload formats and capture raw errors to diagnose
+    const tableNames = ['custom_modules', 'custom_records'];
+    const colDefs = {
+      custom_modules: ['id', 'name', 'fields', 'createdAt', 'updatedAt'],
+      custom_records: ['id', 'moduleId', 'data', 'createdAt', 'updatedAt'],
+    };
+
+    for (const name of tableNames) {
+      if (existingTableNames.includes(name.toLowerCase())) {
+        results.push({ table: name, status: 'already_exists' });
+        continue;
+      }
+
+      const cols = colDefs[name as keyof typeof colDefs];
+      const columnArray = cols.map(c => ({ column_name: c, data_type: 'text' }));
+
+      // Try payload format 1: { table_name, columns: [...] }
+      const payloadV1 = { table_name: name, columns: columnArray };
+      // Try payload format 2: { table_name, column_details: [...] }
+      const payloadV2 = { table_name: name, column_details: columnArray };
+      // Try payload format 3: nested under table_details
+      const payloadV3 = { table_details: { table_name: name, column_details: columnArray } };
+      // Try payload format 4: columns with data_type: 'varchar', max_length: 255
+      const columnArrayVarchar = cols.map(c => ({ column_name: c, data_type: 'varchar', max_length: 255 }));
+      const payloadV4 = { table_name: name, columns: columnArrayVarchar };
+
+      const payloads = [
+        { label: 'v1_text_columns', data: payloadV1 },
+        { label: 'v2_text_column_details', data: payloadV2 },
+        { label: 'v3_table_details_nested', data: payloadV3 },
+        { label: 'v4_varchar_columns', data: payloadV4 },
+      ];
+
+      let succeeded = false;
+      const attempts: any[] = [];
+
+      for (const p of payloads) {
+        if (succeeded) break;
+        try {
+          const resp = await requester.send({
+            method: 'POST',
+            path: '/table',
+            data: p.data,
+            type: 'json',
+            catalyst: true,
+            track: false,
+            user: 'admin',
+          });
+          results.push({ table: name, status: 'created', format: p.label, result: resp.data });
+          succeeded = true;
+        } catch (e: any) {
+          attempts.push({ format: p.label, error: e.message, code: e.code, statusCode: e.statusCode });
+          // If "already exists", stop trying
+          const msg = (e.message || '').toLowerCase();
+          if (msg.includes('already exists') || msg.includes('duplicate')) {
+            results.push({ table: name, status: 'already_exists' });
+            succeeded = true;
+          }
         }
-        // POST /baas/v1/project/{id}/table  — uses the SDK requester so auth is handled automatically.
-        const resp = await requester.send({
-          method: 'POST',
-          path: '/table',
-          data: tableDef,
-          type: 'json',
-          catalyst: true,
-          track: false,
-          user: 'admin',
-        });
-        results.push({ table: name, status: 'created', result: resp.data });
-      } catch (tableErr: any) {
-        const msg: string = tableErr.message || '';
-        if (msg.toLowerCase().includes('already exists') || msg.toLowerCase().includes('duplicate')) {
-          results.push({ table: name, status: 'already_exists' });
-        } else {
-          results.push({ table: name, status: 'error', error: msg });
-        }
+      }
+
+      if (!succeeded) {
+        results.push({ table: name, status: 'all_formats_failed', attempts });
       }
     }
 
-    res.json({ ok: true, results });
+    res.json({ ok: true, existingTables: existingTableNames, results });
   } catch (err: any) {
     res.status(500).json({ ok: false, error: err.message });
   }
