@@ -70,8 +70,7 @@ app.post('/api/setup-tables', async (req, res) => {
     try {
         const catalyst = require('zcatalyst-sdk-node');
         const catalystApp = catalyst.initialize(req, { scope: 'admin' });
-        const ds = catalystApp.datastore();
-        const zcql = ds.zcql();
+        const zcql = catalystApp.zcql();
         const results = [];
         // ZCQL DDL: CREATE TABLE statements for each required table.
         // Catalyst DataStore auto-adds ROWID (primary key) and CREATORID columns.
