@@ -64,8 +64,11 @@ function serialize(row) {
     catch {
         tags = [];
     }
-    const { priorityLevel, ...rest } = row;
-    return { ...rest, tags, priority: priorityLevel ?? row.priority };
+    // DataStore stores priority as "priorityLevel" (ZCQL reserved word workaround).
+    // Support both column names for local-dev (SQLite) and production (DataStore) compat.
+    const priorityValue = row.priorityLevel ?? row.priority;
+    const { priorityLevel, priority: _p, ...rest } = row;
+    return { ...rest, tags, priority: priorityValue };
 }
 // List project tasks (filter + search + sort)
 router.get('/', async (req, res) => {

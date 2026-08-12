@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS drawings (
   gridCols INTEGER NOT NULL DEFAULT 10,
   gridRows INTEGER NOT NULL DEFAULT 8,
   columnPositions TEXT DEFAULT '{}',
+  deletedNodes TEXT DEFAULT '[]',
   columnLabels TEXT DEFAULT '{}',
   elementTypeLabels TEXT DEFAULT '{}',
   lat REAL,
@@ -156,6 +157,23 @@ CREATE TABLE IF NOT EXISTS project_task_comments (
   createdAt TEXT NOT NULL,
   FOREIGN KEY (taskId) REFERENCES project_tasks(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS custom_modules (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  fields TEXT NOT NULL DEFAULT '[]',
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS custom_records (
+  id TEXT PRIMARY KEY,
+  moduleId TEXT NOT NULL,
+  data TEXT NOT NULL DEFAULT '{}',
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL,
+  FOREIGN KEY (moduleId) REFERENCES custom_modules(id) ON DELETE CASCADE
+);
 `);
 ignoreExistingColumn('ALTER TABLE tasks ADD COLUMN milestoneId TEXT REFERENCES milestones(id) ON DELETE SET NULL');
 ignoreExistingColumn('ALTER TABLE drawings ADD COLUMN milestoneId TEXT REFERENCES milestones(id) ON DELETE SET NULL');
@@ -168,6 +186,9 @@ ignoreExistingColumn("ALTER TABLE projects ADD COLUMN managerName TEXT DEFAULT '
 ignoreExistingColumn('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0');
 ignoreExistingColumn('ALTER TABLE projects ADD COLUMN updatedAt TEXT');
 ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN columnPositions TEXT DEFAULT '{}'");
+ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN deletedNodes TEXT DEFAULT '[]'");
+ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN customBeams TEXT DEFAULT '[]'");
+ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN deletedBeams TEXT DEFAULT '[]'");
 ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN columnLabels TEXT DEFAULT '{}'");
 ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN elementTypeLabels TEXT DEFAULT '{}'");
 ignoreExistingColumn('ALTER TABLE drawings ADD COLUMN lat REAL');

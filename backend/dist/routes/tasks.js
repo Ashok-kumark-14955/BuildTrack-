@@ -49,13 +49,16 @@ const upload = (0, multer_1.default)({
     storage: multer_1.default.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max per photo
 });
-// The DataStore column is named "priorityLevel" ("priority" collides with a
-// reserved word); map it back to "priority" for the API contract.
+// The DataStore column is named "priorityLevel" ("priority" is a ZCQL
+// reserved word that cannot be used as a column name).
+// We map it back to "priority" in the API response for the frontend contract.
 function serialize(row) {
     if (!row)
         return row;
-    const { priorityLevel, ...rest } = row;
-    return { ...rest, priority: priorityLevel };
+    // Support both column names: "priorityLevel" (DataStore) and "priority" (SQLite fallback)
+    const priorityValue = row.priorityLevel ?? row.priority;
+    const { priorityLevel, priority: _p, ...rest } = row;
+    return { ...rest, priority: priorityValue };
 }
 async function logActivity(req, message, taskId, drawingId) {
     await db.run(req, 'INSERT INTO activity (id, taskId, drawingId, message, createdAt) VALUES (?, ?, ?, ?, ?)', [(0, uuid_1.v4)(), taskId || null, drawingId || null, message, new Date().toISOString()]);

@@ -184,7 +184,8 @@ async function sendManualCliqReport(req, taskId) {
     if (!isCliqReportingConfigured()) {
         return {
             ok: false,
-            message: 'Zoho Cliq reporting is not configured. Set ZOHO_CLIQ_MCP_URL and ZOHO_CLIQ_CHANNEL.',
+            message: 'Cliq not configured. Please set ZOHO_CLIQ_MCP_URL and ZOHO_CLIQ_CHANNEL in your Catalyst environment variables.',
+            notConfigured: true,
         };
     }
     try {

@@ -9,9 +9,9 @@ import projectTasksRouter from './routes/projectTasks';
 import activityRouter from './routes/activity';
 import geocodeRouter from './routes/geocode';
 import mcpRouter from './routes/mcp';
+import zohoProjectsRouter from './routes/zohoProjects';
+import customModulesRouter from './routes/customModules';
 import { sendManualCliqReport } from './cliqReport';
-import { seedHouseProject } from './seed_house';
-import { seedSteelProject } from './seed_steel';
 
 const app = express();
 const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
@@ -47,6 +47,8 @@ app.use('/api/project-tasks', projectTasksRouter);
 app.use('/api/activity', activityRouter);
 app.use('/api/geocode', geocodeRouter);
 app.use('/mcp', mcpRouter);
+app.use('/api/zoho-projects', zohoProjectsRouter);
+app.use('/api/custom-modules', customModulesRouter);
 
 // Manual Cliq report endpoint — called from the frontend's "Send Report to Cliq" button.
 // Body: { taskId: string }
@@ -61,50 +63,66 @@ app.post('/api/cliq-report', async (req, res) => {
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-// ── Permanent sample data: House Building Project ──────────────────────────
-// Run once per cold-start; the seedHouseProject function is idempotent (skips
-// if the project already exists) so it is safe to call on every boot.
-app.get('/api/_seed-house', async (req, res) => {
+/**
+ * POST /api/setup-tables
+ * Creates the custom_modules and custom_records tables in Catalyst DataStore.
+ * This endpoint is meant to be called ONCE after deployment, from inside AppSail
+ * where the Catalyst SDK can authenticate with admin scope.
+ */
+app.post('/api/setup-tables', async (req, res) => {
   try {
-    await seedHouseProject(req);
-    res.json({ ok: true, message: 'House Building Project seed complete (or already existed).' });
+    const catalyst = require('zcatalyst-sdk-node');
+    const app = catalyst.initialize(req as any, { scope: 'admin' });
+    const ds = app.datastore();
+
+    const results: any[] = [];
+
+    const tables = [
+      {
+        table_name: 'custom_modules',
+        columns: [
+          { column_name: 'id',        data_type: 'varchar', max_size: 255  },
+          { column_name: 'name',      data_type: 'varchar', max_size: 255  },
+          { column_name: 'fields',    data_type: 'varchar', max_size: 5000 },
+          { column_name: 'createdAt', data_type: 'varchar', max_size: 255  },
+          { column_name: 'updatedAt', data_type: 'varchar', max_size: 255  },
+        ],
+      },
+      {
+        table_name: 'custom_records',
+        columns: [
+          { column_name: 'id',        data_type: 'varchar', max_size: 255   },
+          { column_name: 'moduleId',  data_type: 'varchar', max_size: 255   },
+          { column_name: 'data',      data_type: 'varchar', max_size: 10000 },
+          { column_name: 'createdAt', data_type: 'varchar', max_size: 255   },
+          { column_name: 'updatedAt', data_type: 'varchar', max_size: 255   },
+        ],
+      },
+    ];
+
+    for (const tableDef of tables) {
+      try {
+        const existing = await ds.getAllTables();
+        const alreadyExists = existing.some((t: any) =>
+          (t.table_name || t.tableName || t.name || '').toLowerCase() === tableDef.table_name.toLowerCase()
+        );
+        if (alreadyExists) {
+          results.push({ table: tableDef.table_name, status: 'already_exists' });
+          continue;
+        }
+        const created = await ds.createTable(tableDef);
+        results.push({ table: tableDef.table_name, status: 'created', result: created });
+      } catch (tableErr: any) {
+        results.push({ table: tableDef.table_name, status: 'error', error: tableErr.message });
+      }
+    }
+
+    res.json({ ok: true, results });
   } catch (err: any) {
-    console.error('[seed_house] error', err);
-    res.status(500).json({ ok: false, error: String(err?.message ?? err) });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// ── Permanent sample data: Industrial Steel Structure Project ──────────────
-// Also idempotent; safe to call repeatedly to ensure the live BuildTrack site
-// contains the full calibrated steel drawing package.
-app.get('/api/_seed-steel', async (req, res) => {
-  try {
-    await seedSteelProject(req);
-    res.json({ ok: true, message: 'Industrial Steel Structure Project seed complete (or already existed).' });
-  } catch (err: any) {
-    console.error('[seed_steel] error', err);
-    res.status(500).json({ ok: false, error: String(err?.message ?? err) });
-  }
-});
-
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
-  // Trigger house project seed via internal HTTP call so Catalyst SDK
-  // initialises correctly (it needs a real Express Request context).
-  const baseUrl = `http://localhost:${PORT}`;
-  try {
-    const response = await fetch(`${baseUrl}/api/_seed-house`, { method: 'GET' });
-    const body = await response.json() as any;
-    console.log('[seed_house] startup result:', body?.message ?? body);
-  } catch (err) {
-    console.warn('[seed_house] startup seed call failed (will retry on next boot):', err);
-  }
-
-  try {
-    const response = await fetch(`${baseUrl}/api/_seed-steel`, { method: 'GET' });
-    const body = await response.json() as any;
-    console.log('[seed_steel] startup result:', body?.message ?? body);
-  } catch (err) {
-    console.warn('[seed_steel] startup seed call failed (will retry on next boot):', err);
-  }
 });

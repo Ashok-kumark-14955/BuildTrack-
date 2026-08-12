@@ -73,6 +73,8 @@ async function projectStats(req, projectId) {
     };
 }
 function toBool(v) {
+    // DataStore stores booleans as strings "true" / "false".
+    // SQLite stores them as integers 1 / 0 or strings '1' / '0'.
     return v === true || v === 'true' || v === 1 || v === '1';
 }
 function serialize(row) {
@@ -174,7 +176,9 @@ router.delete('/:id', async (req, res, next) => {
         const existing = await db.get(req, 'SELECT * FROM projects WHERE id = ?', [req.params.id]);
         if (!existing)
             return res.status(404).json({ error: 'Not found' });
-        const countRow = await db.get(req, 'SELECT COUNT(id) as c FROM project_tasks WHERE projectId = ?', [req.params.id]);
+        // DataStore uses ROWID as the primary key — COUNT(id) refers to the app's
+        // UUID column which is also valid, but COUNT(ROWID) is more portable.
+        const countRow = await db.get(req, 'SELECT COUNT(ROWID) as c FROM project_tasks WHERE projectId = ?', [req.params.id]);
         const taskCount = Number(countRow?.c ?? 0);
         const force = req.query.force === 'true';
         if (taskCount > 0 && !force) {
