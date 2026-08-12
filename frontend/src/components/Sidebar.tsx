@@ -19,6 +19,7 @@ import {
   Milestone,
   Activity,
   BarChart2,
+  Package,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { useEffect, useMemo, useState } from 'react';
@@ -29,6 +30,7 @@ const navItems = [
   { to: '/', label: 'Drawing', icon: FileImage, accent: '#60a5fa', accentBg: 'rgba(96,165,250,0.14)', accentBorder: 'rgba(96,165,250,0.35)' },
   { to: '/tasks', label: 'Task List', icon: ListChecks, accent: '#4ade80', accentBg: 'rgba(74,222,128,0.14)', accentBorder: 'rgba(74,222,128,0.35)' },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, accent: '#fb923c', accentBg: 'rgba(251,146,60,0.14)', accentBorder: 'rgba(251,146,60,0.35)' },
+  { to: '/zoho-modules', label: 'Zoho Modules', icon: Package, accent: '#a78bfa', accentBg: 'rgba(167,139,250,0.14)', accentBorder: 'rgba(167,139,250,0.35)' },
 ];
 
 // Enhanced progress ring — maroon arc, white center text

@@ -153,6 +153,23 @@ CREATE TABLE IF NOT EXISTS project_task_comments (
   createdAt TEXT NOT NULL,
   FOREIGN KEY (taskId) REFERENCES project_tasks(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS custom_modules (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  fields TEXT NOT NULL DEFAULT '[]',
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS custom_records (
+  id TEXT PRIMARY KEY,
+  moduleId TEXT NOT NULL,
+  data TEXT NOT NULL DEFAULT '{}',
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL,
+  FOREIGN KEY (moduleId) REFERENCES custom_modules(id) ON DELETE CASCADE
+);
 `);
 
 ignoreExistingColumn('ALTER TABLE tasks ADD COLUMN milestoneId TEXT REFERENCES milestones(id) ON DELETE SET NULL');

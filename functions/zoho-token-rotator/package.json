@@ -1,0 +1,9 @@
+{
+	"name": "zoho-token-rotator",
+	"version": "1.0.0",
+	"main": "index.js",
+	"author": "ashok.kumark+mcp@zohotest.com",
+	"dependencies": {
+		"zcatalyst-sdk-node": "latest"
+	}
+}

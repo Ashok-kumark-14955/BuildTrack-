@@ -186,12 +186,13 @@ export async function reportTaskCompletion(req: any, task: TaskLike): Promise<vo
 export async function sendManualCliqReport(
   req: any,
   taskId: string,
-): Promise<{ ok: boolean; message: string }> {
+): Promise<{ ok: boolean; message: string; notConfigured?: boolean }> {
   if (!isCliqReportingConfigured()) {
     return {
       ok: false,
       message:
-        'Zoho Cliq reporting is not configured. Set ZOHO_CLIQ_MCP_URL and ZOHO_CLIQ_CHANNEL.',
+        'Cliq not configured. Please set ZOHO_CLIQ_MCP_URL and ZOHO_CLIQ_CHANNEL in your Catalyst environment variables.',
+      notConfigured: true,
     };
   }
 

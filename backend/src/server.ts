@@ -65,143 +65,151 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 /**
  * POST /api/setup-tables
- * Creates the custom_modules and custom_records tables in Catalyst DataStore
- * using the Catalyst REST Management API (POST /baas/v1/project/{id}/table).
- * The SDK's datastore requester is reused so auth headers are injected automatically.
+ * Ensures custom_modules and custom_records tables exist in Catalyst DataStore,
+ * along with their required columns. Uses the Catalyst REST Management API directly
+ * with the Zoho OAuth token from the CLI credentials.
  *
- * This endpoint is meant to be called ONCE after deployment from inside AppSail
- * where the Catalyst SDK can authenticate with admin scope.
+ * Confirmed working approach (discovered via direct REST API testing):
+ *  - Table creation: POST /baas/v1/project/{projectId}/table  body: {"table_name":"..."}
+ *  - Column creation: POST /baas/v1/project/{projectId}/table/{tableId}/column
+ *    body: [{"column_name":"...","data_type":"varchar","max_length":255}]
+ *    or [{"column_name":"...","data_type":"text"}] / [{"column_name":"...","data_type":"bigint"}]
+ *
+ * This endpoint is idempotent — it safely skips tables/columns that already exist.
  */
 app.post('/api/setup-tables', async (req, res) => {
   try {
-    const catalyst = require('zcatalyst-sdk-node');
-    const catalystApp = catalyst.initialize(req as any, { scope: 'admin' });
-    const ds = catalystApp.datastore();
-    const requester = (ds as any).requester;
+    const https = require('https');
+    const http = require('http');
 
-    // First, fetch all existing tables so we can skip ones that already exist.
-    let existingTableNames: string[] = [];
-    let rawTableObjects: any[] = [];
-    try {
-      const existing = await ds.getAllTables();
-      rawTableObjects = existing.map((t: any) => {
-        const j = t.toJSON ? t.toJSON() : t;
-        return j;
-      });
-      existingTableNames = rawTableObjects.map((t: any) =>
-        (t.table_name || t.tableName || t.name || t.TABLE_NAME || '').toLowerCase()
-      );
-    } catch (listErr: any) {
-      rawTableObjects = [{ listError: String(listErr) }];
+    // Catalyst project credentials (Development environment)
+    const PROJECT_ID = '59125000000013030';
+    const PROJECT_KEY = '50044693287';
+    const BASE_URL = 'https://api.catalyst.zoho.in';
+    const ENVIRONMENT = 'Development';
+
+    // Resolve OAuth token: prefer env var, fall back to SDK-provided token
+    let accessToken = process.env.ZOHO_ACCESS_TOKEN || '';
+    if (!accessToken) {
+      try {
+        const catalyst = require('zcatalyst-sdk-node');
+        const catalystApp = catalyst.initialize(req as any, { scope: 'admin' });
+        accessToken = (catalystApp as any).config?.accessToken || '';
+      } catch (_) { /* ignore */ }
     }
 
-    const results: any[] = [];
-    // Expose app config + debug info for diagnosing auth/URL
-    const appConfig: any = {};
-    try {
-      appConfig.projectId = (catalystApp as any).config?.projectId;
-      appConfig.projectKey = (catalystApp as any).config?.projectKey;
-      appConfig.environment = (catalystApp as any).config?.environment;
-      appConfig.projectDomain = (catalystApp as any).config?.projectDomain;
-    } catch (_) { /* ignore */ }
+    if (!accessToken) {
+      return res.status(400).json({
+        ok: false,
+        error: 'No access token available. Set ZOHO_ACCESS_TOKEN env var or call from an authenticated Catalyst context.',
+      });
+    }
 
-    const tableNames = ['custom_modules', 'custom_records'];
-    const colDefs: Record<string, string[]> = {
-      custom_modules: ['id', 'name', 'fields', 'createdAt', 'updatedAt'],
-      custom_records: ['id', 'moduleId', 'data', 'createdAt', 'updatedAt'],
+    const commonHeaders: Record<string, string> = {
+      'Authorization': `Zoho-oauthtoken ${accessToken}`,
+      'PROJECT_ID': PROJECT_KEY,
+      'X-Catalyst-Environment': ENVIRONMENT,
+      'X-CATALYST-USER': 'admin',
+      'Content-Type': 'application/json',
     };
 
-    // The SDK's FormData helper (exports.default)
-    const FormDataClass = require('zcatalyst-sdk-node/lib/utils/form-data.js').default;
-
-    for (const name of tableNames) {
-      const normalizedExisting = existingTableNames.map((n: string) => n.toLowerCase());
-      if (normalizedExisting.includes(name.toLowerCase())) {
-        results.push({ table: name, status: 'already_exists' });
-        continue;
-      }
-      const alreadyExists = rawTableObjects.some((t: any) => {
-        const tn = (t.table_name || t.tableName || t.name || t.TABLE_NAME || '');
-        return tn.toLowerCase() === name.toLowerCase();
+    /** Generic JSON REST call to the Catalyst Management API */
+    function catalystRequest(method: string, path: string, body?: any): Promise<any> {
+      return new Promise((resolve, reject) => {
+        const url = new URL(`${BASE_URL}/baas/v1/project/${PROJECT_ID}${path}`);
+        const bodyStr = body ? JSON.stringify(body) : undefined;
+        const options = {
+          hostname: url.hostname,
+          path: url.pathname + url.search,
+          method,
+          headers: {
+            ...commonHeaders,
+            ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
+          },
+        };
+        const lib = url.protocol === 'https:' ? https : http;
+        const request = lib.request(options, (resp: any) => {
+          let data = '';
+          resp.on('data', (chunk: any) => { data += chunk; });
+          resp.on('end', () => {
+            try { resolve(JSON.parse(data)); } catch { resolve(data); }
+          });
+        });
+        request.on('error', reject);
+        if (bodyStr) request.write(bodyStr);
+        request.end();
       });
-      if (alreadyExists) {
-        results.push({ table: name, status: 'already_exists_raw' });
-        continue;
-      }
-
-      const cols = colDefs[name];
-
-      // Build all payload variants
-      // v1: multipart with column_details (text)
-      const tdJson1 = JSON.stringify({ table_name: name, column_details: cols.map(c => ({ column_name: c, data_type: 'text' })) });
-      // v2: multipart with column_details (varchar)
-      const tdJson2 = JSON.stringify({ table_name: name, column_details: cols.map(c => ({ column_name: c, data_type: 'varchar', max_length: 255 })) });
-      // v3: multipart minimal single column
-      const tdJson3 = JSON.stringify({ table_name: name, column_details: [{ column_name: cols[0], data_type: 'text' }] });
-      // v4: JSON body - standard column_details
-      // v5: url-encoded
-      const urlEncoded1 = `table_details=${encodeURIComponent(tdJson1)}`;
-
-      const payloads: Array<{ label: string; data: any; type: string }> = [];
-
-      // Multipart variants (type: 'file' — SDK FormData)
-      for (const [label, json] of [
-        ['v1_mp_text_cols', tdJson1],
-        ['v2_mp_varchar_cols', tdJson2],
-        ['v3_mp_minimal', tdJson3],
-      ] as [string, string][]) {
-        try {
-          const fd = new FormDataClass();
-          fd.append('table_details', json);
-          payloads.push({ label, data: fd, type: 'file' });
-        } catch (fdErr: any) {
-          results.push({ table: name, format: label, status: 'fd_build_error', error: String(fdErr) });
-        }
-      }
-
-      // JSON variants (type: 'json')
-      payloads.push({ label: 'v4_json_text_cols', data: { table_name: name, column_details: cols.map(c => ({ column_name: c, data_type: 'text' })) }, type: 'json' });
-      payloads.push({ label: 'v5_json_varchar_cols', data: { table_name: name, column_details: cols.map(c => ({ column_name: c, data_type: 'varchar', max_length: 255 })) }, type: 'json' });
-      payloads.push({ label: 'v6_json_td_str', data: { table_details: tdJson1 }, type: 'json' });
-      payloads.push({ label: 'v7_json_name_only', data: { table_name: name }, type: 'json' });
-
-      // URL-encoded variant (type: 'form')
-      payloads.push({ label: 'v8_urlenc', data: urlEncoded1, type: 'form' });
-
-      let succeeded = false;
-      const attempts: any[] = [];
-
-      for (const p of payloads) {
-        if (succeeded) break;
-        try {
-          const sendOpts: any = {
-            method: 'POST',
-            path: '/table',
-            data: p.data,
-            type: p.type,
-            catalyst: true,
-            track: false,
-            user: 'admin',
-          };
-          const resp = await requester.send(sendOpts);
-          results.push({ table: name, status: 'created', format: p.label, result: resp.data });
-          succeeded = true;
-        } catch (e: any) {
-          attempts.push({ format: p.label, error: e.message, code: e.code, statusCode: e.statusCode });
-          const msg = (e.message || '').toLowerCase();
-          if (msg.includes('already exists') || msg.includes('duplicate')) {
-            results.push({ table: name, status: 'already_exists' });
-            succeeded = true;
-          }
-        }
-      }
-
-      if (!succeeded) {
-        results.push({ table: name, status: 'all_formats_failed', attempts });
-      }
     }
 
-    res.json({ ok: true, appConfig, rawTableObjects, existingTables: existingTableNames, results });
+    // Schema definition
+    // DataStore always auto-creates ROWID, CREATORID, CREATEDTIME, MODIFIEDTIME.
+    // We only need to add our application-level columns.
+    const schema: Record<string, Array<{ column_name: string; data_type: string; max_length?: number }>> = {
+      custom_modules: [
+        { column_name: 'name',      data_type: 'varchar', max_length: 255 },
+        { column_name: 'fields',    data_type: 'text' },
+        { column_name: 'createdAt', data_type: 'bigint' },
+        { column_name: 'updatedAt', data_type: 'bigint' },
+      ],
+      custom_records: [
+        { column_name: 'moduleId',  data_type: 'varchar', max_length: 255 },
+        { column_name: 'data',      data_type: 'text' },
+        { column_name: 'createdAt', data_type: 'bigint' },
+        { column_name: 'updatedAt', data_type: 'bigint' },
+      ],
+    };
+
+    // Fetch all existing tables
+    const existingTablesResp = await catalystRequest('GET', '/table');
+    const existingTables: Array<{ table_name: string; table_id: string }> =
+      (existingTablesResp?.data || []).map((t: any) => ({
+        table_name: (t.table_name || '').toLowerCase(),
+        table_id: String(t.table_id || ''),
+      }));
+
+    const results: any[] = [];
+
+    for (const [tableName, columns] of Object.entries(schema)) {
+      let tableId: string | undefined = existingTables.find(t => t.table_name === tableName)?.table_id;
+      let tableStatus = 'already_exists';
+
+      if (!tableId) {
+        // Create the table
+        const createResp = await catalystRequest('POST', '/table', { table_name: tableName });
+        if (createResp?.status === 'success') {
+          tableId = String(createResp.data?.table_id);
+          tableStatus = 'created';
+        } else {
+          results.push({ table: tableName, status: 'create_failed', response: createResp });
+          continue;
+        }
+      }
+
+      // Fetch existing columns for this table
+      const existingColsResp = await catalystRequest('GET', `/table/${tableId}/column`);
+      const existingCols: string[] = (existingColsResp?.data || [])
+        .map((c: any) => (c.column_name || '').toLowerCase());
+
+      const colResults: any[] = [];
+      for (const col of columns) {
+        if (existingCols.includes(col.column_name.toLowerCase())) {
+          colResults.push({ column: col.column_name, status: 'already_exists' });
+          continue;
+        }
+        const colBody: any[] = [{ column_name: col.column_name, data_type: col.data_type }];
+        if (col.max_length !== undefined) colBody[0].max_length = col.max_length;
+        const colResp = await catalystRequest('POST', `/table/${tableId}/column`, colBody);
+        colResults.push({
+          column: col.column_name,
+          status: colResp?.status === 'success' ? 'created' : 'failed',
+          response: colResp,
+        });
+      }
+
+      results.push({ table: tableName, status: tableStatus, tableId, columns: colResults });
+    }
+
+    res.json({ ok: true, results });
   } catch (err: any) {
     res.status(500).json({ ok: false, error: err.message, stack: err.stack });
   }

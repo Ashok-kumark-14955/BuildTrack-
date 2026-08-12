@@ -1,0 +1,15 @@
+{
+	"deployment": {
+		"name": "zoho-token-rotator",
+		"stack": "node20",
+		"type": "advancedio",
+		"env_variables": {
+			"ZOHO_CLIENT_ID": "1000.CDKRZ5XPM4JL0UJAARM9Q5UNZY7EOE",
+			"ZOHO_CLIENT_SECRET": "5c0c92d2e09b32fc544700b4199bf5d935237121b5",
+			"ZOHO_REFRESH_TOKEN": "1000.c9cfe70eaf4c57b587f2bb09455620ff.23ee499e8a53eccaed7c508524c06b52"
+		}
+	},
+	"execution": {
+		"main": "index.js"
+	}
+}

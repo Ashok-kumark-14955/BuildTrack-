@@ -4,5 +4,12 @@
       "name": "construction-drawing-frontend",
       "source": "/Users/ashok-14955/construction-drawing-app/frontend"
     }
-  ]
+  ],
+  "functions": {
+    "targets": [
+      "zoho-token-rotator"
+    ],
+    "ignore": [],
+    "source": "functions"
+  }
 }

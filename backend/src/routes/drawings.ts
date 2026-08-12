@@ -67,6 +67,7 @@ async function createTasksForGrid(req: any, drawingId: string, cols: number, row
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const code = gridCode(col, row);
+      // "priority" is a reserved word in ZCQL — column is named "priorityLevel" in DataStore.
       await db.run(
         req,
         `INSERT INTO tasks (id, drawingId, gridCode, name, description, category, priorityLevel, assignedTo, startDate, dueDate, status, progress, elementType, elementId, createdAt, updatedAt)

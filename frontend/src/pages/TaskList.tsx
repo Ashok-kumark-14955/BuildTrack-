@@ -534,8 +534,16 @@ export default function TaskList() {
                                               try {
                                                 const result = await CliqAPI.sendReport(t.id);
                                                 toast.dismiss(tid);
-                                                if (result.ok) toast.success(result.message);
-                                                else toast.error(result.message);
+                                                if (result.ok) {
+                                                  toast.success(result.message);
+                                                } else if ((result as any).notConfigured) {
+                                                  toast.error(
+                                                    '⚙️ Cliq not set up — add ZOHO_CLIQ_MCP_URL & ZOHO_CLIQ_CHANNEL in Catalyst Console → Environment Variables.',
+                                                    { duration: 6000 }
+                                                  );
+                                                } else {
+                                                  toast.error(result.message);
+                                                }
                                               } catch {
                                                 toast.dismiss(tid);
                                                 toast.error('Failed to send Cliq report');

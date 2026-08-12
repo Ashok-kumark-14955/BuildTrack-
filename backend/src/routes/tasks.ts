@@ -14,12 +14,15 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max per photo
 });
 
-// The DataStore column is named "priorityLevel" ("priority" collides with a
-// reserved word); map it back to "priority" for the API contract.
+// The DataStore column is named "priorityLevel" ("priority" is a ZCQL
+// reserved word that cannot be used as a column name).
+// We map it back to "priority" in the API response for the frontend contract.
 function serialize(row: any) {
   if (!row) return row;
-  const { priorityLevel, ...rest } = row;
-  return { ...rest, priority: priorityLevel };
+  // Support both column names: "priorityLevel" (DataStore) and "priority" (SQLite fallback)
+  const priorityValue = row.priorityLevel ?? row.priority;
+  const { priorityLevel, priority: _p, ...rest } = row;
+  return { ...rest, priority: priorityValue };
 }
 
 async function logActivity(req: any, message: string, taskId?: string, drawingId?: string) {

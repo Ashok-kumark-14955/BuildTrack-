@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/uuid": "^10.0.0",
     "axios": "^1.19.0",
     "clsx": "^2.1.1",
     "konva": "^10.3.0",
@@ -20,6 +21,7 @@
     "react-konva": "^19.2.5",
     "react-router-dom": "^7.18.2",
     "tesseract.js": "^7.0.0",
+    "uuid": "^14.0.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
