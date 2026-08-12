@@ -63,40 +63,85 @@ app.post('/api/cliq-report', async (req, res) => {
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+// ---------------------------------------------------------------------------
+// Catalyst Management API helper (shared by setup-tables and debug-tables)
+// ---------------------------------------------------------------------------
+
+function makeCatalystManagementApi(req: any) {
+  const https = require('https');
+  const http = require('http');
+
+  const PROJECT_ID = '59125000000013030';
+  const PROJECT_KEY = '50044693287';
+  const BASE_URL = 'https://api.catalyst.zoho.in';
+  const ENVIRONMENT = 'Development';
+
+  // Resolve token: try env var first, then SDK
+  let accessToken = process.env.ZOHO_ACCESS_TOKEN || '';
+  if (!accessToken) {
+    try {
+      const catalyst = require('zcatalyst-sdk-node');
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      // The SDK stores the token in various spots depending on version
+      accessToken =
+        (catalystApp as any).config?.accessToken ||
+        (catalystApp as any)._credentials?.accessToken ||
+        '';
+    } catch (_) { /* ignore */ }
+  }
+
+  const headers: Record<string, string> = {
+    'Authorization': `Zoho-oauthtoken ${accessToken}`,
+    'PROJECT_ID': PROJECT_KEY,
+    'X-Catalyst-Environment': ENVIRONMENT,
+    'X-CATALYST-USER': 'admin',
+    'Content-Type': 'application/json',
+  };
+
+  function catalystRequest(method: string, apiPath: string, body?: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const url = new URL(`${BASE_URL}/baas/v1/project/${PROJECT_ID}${apiPath}`);
+      const bodyStr = body ? JSON.stringify(body) : undefined;
+      const options = {
+        hostname: url.hostname,
+        path: url.pathname + url.search,
+        method,
+        headers: {
+          ...headers,
+          ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
+        },
+      };
+      const lib = url.protocol === 'https:' ? https : http;
+      const request = lib.request(options, (resp: any) => {
+        let data = '';
+        resp.on('data', (chunk: any) => { data += chunk; });
+        resp.on('end', () => {
+          try { resolve(JSON.parse(data)); } catch { resolve(data); }
+        });
+      });
+      request.on('error', reject);
+      if (bodyStr) request.write(bodyStr);
+      request.end();
+    });
+  }
+
+  return { accessToken, catalystRequest };
+}
+
 /**
  * POST /api/setup-tables
  * Ensures custom_modules and custom_records tables exist in Catalyst DataStore,
  * along with their required columns. Uses the Catalyst REST Management API directly
- * with the Zoho OAuth token from the CLI credentials.
- *
- * Confirmed working approach (discovered via direct REST API testing):
- *  - Table creation: POST /baas/v1/project/{projectId}/table  body: {"table_name":"..."}
- *  - Column creation: POST /baas/v1/project/{projectId}/table/{tableId}/column
- *    body: [{"column_name":"...","data_type":"varchar","max_length":255}]
- *    or [{"column_name":"...","data_type":"text"}] / [{"column_name":"...","data_type":"bigint"}]
+ * with the Zoho OAuth token from the SDK-provided runtime token.
  *
  * This endpoint is idempotent — it safely skips tables/columns that already exist.
  */
 app.post('/api/setup-tables', async (req, res) => {
   try {
-    const https = require('https');
-    const http = require('http');
+    const { accessToken, catalystRequest } = makeCatalystManagementApi(req);
 
-    // Catalyst project credentials (Development environment)
-    const PROJECT_ID = '59125000000013030';
-    const PROJECT_KEY = '50044693287';
-    const BASE_URL = 'https://api.catalyst.zoho.in';
-    const ENVIRONMENT = 'Development';
-
-    // Resolve OAuth token: prefer env var, fall back to SDK-provided token
-    let accessToken = process.env.ZOHO_ACCESS_TOKEN || '';
-    if (!accessToken) {
-      try {
-        const catalyst = require('zcatalyst-sdk-node');
-        const catalystApp = catalyst.initialize(req as any, { scope: 'admin' });
-        accessToken = (catalystApp as any).config?.accessToken || '';
-      } catch (_) { /* ignore */ }
-    }
+    // Debug: also fetch raw table list to include in response
+    const rawTableList = await catalystRequest('GET', '/table');
 
     if (!accessToken) {
       return res.status(400).json({
@@ -105,41 +150,12 @@ app.post('/api/setup-tables', async (req, res) => {
       });
     }
 
-    const commonHeaders: Record<string, string> = {
-      'Authorization': `Zoho-oauthtoken ${accessToken}`,
-      'PROJECT_ID': PROJECT_KEY,
-      'X-Catalyst-Environment': ENVIRONMENT,
-      'X-CATALYST-USER': 'admin',
-      'Content-Type': 'application/json',
+    const appConfig = {
+      projectId: '59125000000013030',
+      projectKey: '50044693287',
+      environment: 'Development',
+      projectDomain: 'https://project-rainfall-60081725173.development.catalystserverless.in',
     };
-
-    /** Generic JSON REST call to the Catalyst Management API */
-    function catalystRequest(method: string, path: string, body?: any): Promise<any> {
-      return new Promise((resolve, reject) => {
-        const url = new URL(`${BASE_URL}/baas/v1/project/${PROJECT_ID}${path}`);
-        const bodyStr = body ? JSON.stringify(body) : undefined;
-        const options = {
-          hostname: url.hostname,
-          path: url.pathname + url.search,
-          method,
-          headers: {
-            ...commonHeaders,
-            ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
-          },
-        };
-        const lib = url.protocol === 'https:' ? https : http;
-        const request = lib.request(options, (resp: any) => {
-          let data = '';
-          resp.on('data', (chunk: any) => { data += chunk; });
-          resp.on('end', () => {
-            try { resolve(JSON.parse(data)); } catch { resolve(data); }
-          });
-        });
-        request.on('error', reject);
-        if (bodyStr) request.write(bodyStr);
-        request.end();
-      });
-    }
 
     // Schema definition
     // DataStore always auto-creates ROWID, CREATORID, CREATEDTIME, MODIFIEDTIME.
@@ -161,8 +177,9 @@ app.post('/api/setup-tables', async (req, res) => {
 
     // Fetch all existing tables
     const existingTablesResp = await catalystRequest('GET', '/table');
+    const rawTableObjects = existingTablesResp?.data || [];
     const existingTables: Array<{ table_name: string; table_id: string }> =
-      (existingTablesResp?.data || []).map((t: any) => ({
+      rawTableObjects.map((t: any) => ({
         table_name: (t.table_name || '').toLowerCase(),
         table_id: String(t.table_id || ''),
       }));
@@ -209,7 +226,50 @@ app.post('/api/setup-tables', async (req, res) => {
       results.push({ table: tableName, status: tableStatus, tableId, columns: colResults });
     }
 
-    res.json({ ok: true, results });
+    res.json({
+      ok: true,
+      appConfig,
+      rawTableObjects,
+      existingTables: existingTables.map(t => t.table_name),
+      results,
+    });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message, stack: err.stack });
+  }
+});
+
+/**
+ * GET /api/debug-tables
+ * Returns the columns for custom_modules and custom_records tables.
+ * Used to diagnose schema issues — confirms what columns actually exist in DataStore.
+ */
+app.get('/api/debug-tables', async (req, res) => {
+  try {
+    const { accessToken, catalystRequest } = makeCatalystManagementApi(req);
+
+    if (!accessToken) {
+      return res.status(400).json({ ok: false, error: 'No access token available' });
+    }
+
+    const tableIds: Record<string, string> = {
+      custom_modules: '59125000000061005',
+      custom_records: '59125000000052013',
+    };
+
+    const tables: any = {};
+    for (const [name, id] of Object.entries(tableIds)) {
+      const resp = await catalystRequest('GET', `/table/${id}/column`);
+      tables[name] = {
+        tableId: id,
+        columns: (resp?.data || []).map((c: any) => ({
+          name: c.column_name,
+          type: c.data_type,
+        })),
+        rawResponse: resp,
+      };
+    }
+
+    res.json({ ok: true, tokenPrefix: accessToken.substring(0, 20), tables });
   } catch (err: any) {
     res.status(500).json({ ok: false, error: err.message, stack: err.stack });
   }
