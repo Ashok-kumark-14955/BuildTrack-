@@ -81,50 +81,83 @@ app.post('/api/setup-tables', async (req, res) => {
 
     // First, fetch all existing tables so we can skip ones that already exist.
     let existingTableNames: string[] = [];
-    let rawTables: any[] = [];
+    let rawTableObjects: any[] = [];
     try {
       const existing = await ds.getAllTables();
-      rawTables = existing.map((t: any) => t.toJSON ? t.toJSON() : t);
-      existingTableNames = existing.map((t: any) =>
-        (t.table_name || t.tableName || t.name || '').toLowerCase()
+      // Log the raw object shape to diagnose the table name field
+      rawTableObjects = existing.map((t: any) => {
+        const j = t.toJSON ? t.toJSON() : t;
+        return j;
+      });
+      existingTableNames = rawTableObjects.map((t: any) =>
+        (t.table_name || t.tableName || t.name || t.TABLE_NAME || '').toLowerCase()
       );
     } catch (listErr: any) {
-      // If listing fails, proceed anyway
+      rawTableObjects = [{ listError: String(listErr) }];
     }
 
     const results: any[] = [];
 
-    // We'll try multiple payload formats and capture raw errors to diagnose
     const tableNames = ['custom_modules', 'custom_records'];
-    const colDefs = {
+    const colDefs: Record<string, string[]> = {
       custom_modules: ['id', 'name', 'fields', 'createdAt', 'updatedAt'],
       custom_records: ['id', 'moduleId', 'data', 'createdAt', 'updatedAt'],
     };
 
     for (const name of tableNames) {
-      if (existingTableNames.includes(name.toLowerCase())) {
+      // Check both lower-cased and original names
+      const normalizedExisting = existingTableNames.map(n => n.toLowerCase());
+      if (normalizedExisting.includes(name.toLowerCase())) {
         results.push({ table: name, status: 'already_exists' });
         continue;
       }
+      // Also check in raw object for any name field
+      const alreadyExists = rawTableObjects.some((t: any) => {
+        const tn = (t.table_name || t.tableName || t.name || t.TABLE_NAME || '');
+        return tn.toLowerCase() === name.toLowerCase();
+      });
+      if (alreadyExists) {
+        results.push({ table: name, status: 'already_exists_raw' });
+        continue;
+      }
 
-      const cols = colDefs[name as keyof typeof colDefs];
+      const cols = colDefs[name];
       const columnArray = cols.map(c => ({ column_name: c, data_type: 'text' }));
 
-      // Try payload format 1: { table_name, columns: [...] }
-      const payloadV1 = { table_name: name, columns: columnArray };
-      // Try payload format 2: { table_name, column_details: [...] }
-      const payloadV2 = { table_name: name, column_details: columnArray };
-      // Try payload format 3: nested under table_details
-      const payloadV3 = { table_details: { table_name: name, column_details: columnArray } };
-      // Try payload format 4: columns with data_type: 'varchar', max_length: 255
-      const columnArrayVarchar = cols.map(c => ({ column_name: c, data_type: 'varchar', max_length: 255 }));
-      const payloadV4 = { table_name: name, columns: columnArrayVarchar };
+      // Build form-data payload: Zoho APIs often require multipart/form-data
+      // with table_details as a JSON string field
+      const tableDetailsJson = JSON.stringify({
+        table_name: name,
+        column_details: columnArray,
+      });
 
-      const payloads = [
-        { label: 'v1_text_columns', data: payloadV1 },
-        { label: 'v2_text_column_details', data: payloadV2 },
-        { label: 'v3_table_details_nested', data: payloadV3 },
-        { label: 'v4_varchar_columns', data: payloadV4 },
+      // Also try form-data with "columns" key
+      const tableDetailsJsonV2 = JSON.stringify({
+        table_name: name,
+        columns: columnArray,
+      });
+
+      // Minimal - just table name and one column
+      const tableDetailsJsonV3 = JSON.stringify({
+        table_name: name,
+        column_details: [{ column_name: cols[0], data_type: 'text' }],
+      });
+
+      // Try using node's https directly with the form-data approach
+      // The SDK's FormData helper builds multipart/form-data
+      const FormData = require('zcatalyst-sdk-node/lib/utils/form-data.js');
+
+      const payloads: Array<{ label: string; data: any; type?: string; headers?: any }> = [
+        // Multipart form-data with table_details JSON string (Zoho standard pattern)
+        { label: 'v7_multipart_table_details', data: { table_details: tableDetailsJson }, type: 'file' as any },
+        // Multipart form-data with columns key
+        { label: 'v8_multipart_columns', data: { table_details: tableDetailsJsonV2 }, type: 'file' as any },
+        // Minimal multipart
+        { label: 'v9_multipart_minimal', data: { table_details: tableDetailsJsonV3 }, type: 'file' as any },
+        // JSON with table_details as JSON string
+        { label: 'v10_json_table_details_str', data: { table_details: tableDetailsJson }, type: 'json' },
+        // JSON with column_details using varchar
+        { label: 'v11_json_varchar_col_details', data: { table_name: name, column_details: cols.map(c => ({ column_name: c, data_type: 'varchar', max_length: 255 })) }, type: 'json' },
       ];
 
       let succeeded = false;
@@ -132,21 +165,39 @@ app.post('/api/setup-tables', async (req, res) => {
 
       for (const p of payloads) {
         if (succeeded) break;
+
+        let sendData: any = p.data;
+
+        // For 'file' type, build multipart form-data
+        if (p.type === 'file') {
+          try {
+            const fd = new FormData();
+            for (const [k, v] of Object.entries(p.data)) {
+              fd.append(k, v);
+            }
+            sendData = fd;
+          } catch (_fdErr) {
+            // Can't build FormData; skip this attempt
+            attempts.push({ format: p.label, error: 'FormData build failed', code: 'FD_ERR', statusCode: 0 });
+            continue;
+          }
+        }
+
         try {
-          const resp = await requester.send({
+          const sendOpts: any = {
             method: 'POST',
             path: '/table',
-            data: p.data,
-            type: 'json',
+            data: sendData,
+            type: p.type || 'json',
             catalyst: true,
             track: false,
             user: 'admin',
-          });
+          };
+          const resp = await requester.send(sendOpts);
           results.push({ table: name, status: 'created', format: p.label, result: resp.data });
           succeeded = true;
         } catch (e: any) {
           attempts.push({ format: p.label, error: e.message, code: e.code, statusCode: e.statusCode });
-          // If "already exists", stop trying
           const msg = (e.message || '').toLowerCase();
           if (msg.includes('already exists') || msg.includes('duplicate')) {
             results.push({ table: name, status: 'already_exists' });
@@ -160,7 +211,7 @@ app.post('/api/setup-tables', async (req, res) => {
       }
     }
 
-    res.json({ ok: true, existingTables: existingTableNames, results });
+    res.json({ ok: true, rawTableObjects, existingTables: existingTableNames, results });
   } catch (err: any) {
     res.status(500).json({ ok: false, error: err.message });
   }
