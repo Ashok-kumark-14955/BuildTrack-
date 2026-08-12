@@ -90,21 +90,21 @@ app.post('/api/setup-tables', async (req, res) => {
             {
                 table_name: 'custom_modules',
                 columns: [
-                    { column_name: 'id', data_type: 'varchar', max_size: 255 },
-                    { column_name: 'name', data_type: 'varchar', max_size: 255 },
-                    { column_name: 'fields', data_type: 'varchar', max_size: 5000 },
-                    { column_name: 'createdAt', data_type: 'varchar', max_size: 255 },
-                    { column_name: 'updatedAt', data_type: 'varchar', max_size: 255 },
+                    { column_name: 'id', data_type: 'text' },
+                    { column_name: 'name', data_type: 'text' },
+                    { column_name: 'fields', data_type: 'text' },
+                    { column_name: 'createdAt', data_type: 'text' },
+                    { column_name: 'updatedAt', data_type: 'text' },
                 ],
             },
             {
                 table_name: 'custom_records',
                 columns: [
-                    { column_name: 'id', data_type: 'varchar', max_size: 255 },
-                    { column_name: 'moduleId', data_type: 'varchar', max_size: 255 },
-                    { column_name: 'data', data_type: 'varchar', max_size: 10000 },
-                    { column_name: 'createdAt', data_type: 'varchar', max_size: 255 },
-                    { column_name: 'updatedAt', data_type: 'varchar', max_size: 255 },
+                    { column_name: 'id', data_type: 'text' },
+                    { column_name: 'moduleId', data_type: 'text' },
+                    { column_name: 'data', data_type: 'text' },
+                    { column_name: 'createdAt', data_type: 'text' },
+                    { column_name: 'updatedAt', data_type: 'text' },
                 ],
             },
         ];
