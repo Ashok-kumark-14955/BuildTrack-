@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { Drawing, Task, Comment, Project, ActivityItem, Milestone, ProjectTask, ProjectTaskComment } from './types';
 import { resolveFileUrl as resolveIdb } from './utils/imageStorage';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:4000';
 
 export const api = axios.create({ baseURL: `${API_BASE}/api` });
 
@@ -139,7 +139,7 @@ export const GeocodeAPI = {
 export interface CustomField {
   id: string;        // uuid generated on client
   label: string;     // display name e.g. "Status"
-  type: 'text' | 'select' | 'multiuser' | 'number' | 'date' | 'attachment'; // field type
+  type: 'text' | 'name' | 'select' | 'multiuser' | 'number' | 'date' | 'attachment'; // field type
   options?: string[]; // for type="select"
 }
 

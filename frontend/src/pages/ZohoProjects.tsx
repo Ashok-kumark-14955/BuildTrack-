@@ -66,6 +66,7 @@ const XIcon = () => (
 type FieldType = CustomField['type'];
 
 const FIELD_TYPE_LABELS: Record<FieldType, string> = {
+  name: 'Name',
   text: 'Text',
   number: 'Number',
   date: 'Date',
@@ -114,27 +115,6 @@ function StatusBadge({ value }: { value: string }) {
   );
 }
 
-// Avatar circle for a name string
-function Avatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 'md' }) {
-  const initials = name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-  // Pick a colour from a palette based on char codes
-  const PALETTES = [
-    'bg-rose-700', 'bg-violet-700', 'bg-blue-700', 'bg-cyan-700',
-    'bg-emerald-700', 'bg-amber-700', 'bg-orange-700', 'bg-pink-700',
-  ];
-  const idx = (name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % PALETTES.length;
-  const szClass = size === 'md' ? 'w-9 h-9 text-sm' : 'w-7 h-7 text-xs';
-  return (
-    <span className={cn('inline-flex items-center justify-center rounded-full font-bold text-white flex-shrink-0', PALETTES[idx], szClass)}>
-      {initials || '?'}
-    </span>
-  );
-}
 
 // ─── Select Options Editor ───────────────────────────────────────────────────
 
@@ -399,68 +379,150 @@ function EditModuleModal({ module, onClose, onSaved }: EditModuleModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#120000] border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 flex-shrink-0">
-          <h2 className="text-white font-semibold text-lg flex items-center gap-2">
-            <EditIcon />
-            Edit Module
-          </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><XIcon /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}>
+      <div
+        className="w-full max-w-lg flex flex-col max-h-[90vh] rounded-2xl overflow-hidden"
+        style={{
+          background: 'linear-gradient(160deg, #1a0006 0%, #0f0003 60%, #0b0002 100%)',
+          border: '1px solid rgba(220,38,90,0.3)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(220,38,90,0.08), inset 0 1px 0 rgba(255,255,255,0.04)',
+        }}
+      >
+        {/* ── Header ── */}
+        <div
+          className="flex items-center justify-between px-6 py-4 flex-shrink-0"
+          style={{
+            background: 'linear-gradient(180deg, rgba(220,38,90,0.12) 0%, rgba(0,0,0,0) 100%)',
+            borderBottom: '1px solid rgba(220,38,90,0.2)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            {/* Icon badge */}
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{
+                background: 'linear-gradient(145deg, rgba(220,38,90,0.3) 0%, rgba(120,10,30,0.5) 100%)',
+                border: '1px solid rgba(220,38,90,0.35)',
+                boxShadow: '0 0 12px rgba(220,38,90,0.2)',
+              }}
+            >
+              <EditIcon />
+            </div>
+            <div>
+              <h2 className="text-white font-bold text-base leading-none">Edit Module</h2>
+              <p className="text-rose-400/60 text-[10px] mt-0.5 font-medium tracking-wide">{module.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-white transition-all duration-150"
+            style={{ border: '1px solid rgba(100,30,50,0.4)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(220,38,90,0.15)'; e.currentTarget.style.borderColor = 'rgba(220,38,90,0.4)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(100,30,50,0.4)'; }}
+          >
+            <XIcon />
+          </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-slate-700 flex-shrink-0">
-          <button
-            onClick={() => setActiveTab('info')}
-            className={cn(
-              'px-5 py-2.5 text-sm font-medium transition-colors border-b-2',
-              activeTab === 'info'
-                ? 'border-rose-600 text-rose-300'
-                : 'border-transparent text-slate-400 hover:text-white'
-            )}
-          >
-            Module Info
-          </button>
-          <button
-            onClick={() => setActiveTab('fields')}
-            className={cn(
-              'px-5 py-2.5 text-sm font-medium transition-colors border-b-2',
-              activeTab === 'fields'
-                ? 'border-rose-600 text-rose-300'
-                : 'border-transparent text-slate-400 hover:text-white'
-            )}
-          >
-            Fields <span className="ml-1 text-xs bg-slate-700 text-slate-300 rounded-full px-1.5 py-0.5">{fields.length}</span>
-          </button>
+        {/* ── Tabs ── */}
+        <div
+          className="flex flex-shrink-0 px-6 gap-0"
+          style={{ borderBottom: '1px solid rgba(220,38,90,0.15)' }}
+        >
+          {(['info', 'fields'] as const).map((tab) => {
+            const isActive = activeTab === tab;
+            const label = tab === 'info' ? 'Module Info' : 'Fields';
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className="relative px-4 py-3 text-sm font-semibold transition-all duration-150 flex items-center gap-2"
+                style={{ color: isActive ? '#fda4af' : 'rgba(148,163,184,0.7)' }}
+              >
+                {label}
+                {tab === 'fields' && (
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                    style={isActive
+                      ? { background: 'rgba(220,38,90,0.25)', color: '#fb7185', border: '1px solid rgba(220,38,90,0.3)' }
+                      : { background: 'rgba(255,255,255,0.06)', color: '#64748b' }
+                    }
+                  >
+                    {fields.length}
+                  </span>
+                )}
+                {/* Active underline */}
+                {isActive && (
+                  <span
+                    className="absolute bottom-0 left-2 right-2 h-[2px] rounded-t-full"
+                    style={{ background: 'linear-gradient(90deg, transparent, #fb7185 30%, #e11d48 70%, transparent)', boxShadow: '0 0 6px rgba(251,113,133,0.5)' }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        {/* ── Body ── */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
 
           {activeTab === 'info' && (
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Name field */}
               <div>
-                <label className="block text-slate-400 text-xs mb-1.5 font-medium uppercase tracking-wide">Module Name</label>
+                <label className="block text-[10px] font-black text-rose-400/70 mb-2 uppercase tracking-[0.18em]">Module Name</label>
                 <input
                   autoFocus
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                   placeholder="Module name"
-                  className="w-full bg-[#0a0000] border border-slate-600 rounded-lg px-3 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-rose-700 transition-colors"
+                  className="w-full rounded-xl px-4 py-3 text-white placeholder-slate-600 text-sm focus:outline-none transition-all"
+                  style={{
+                    background: 'rgba(220,38,90,0.05)',
+                    border: '1px solid rgba(220,38,90,0.25)',
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(220,38,90,0.6)'; e.currentTarget.style.background = 'rgba(220,38,90,0.08)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(220,38,90,0.1)'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(220,38,90,0.25)'; e.currentTarget.style.background = 'rgba(220,38,90,0.05)'; e.currentTarget.style.boxShadow = 'none'; }}
                 />
               </div>
-              <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                <p className="text-slate-400 text-xs">
-                  <span className="text-slate-300 font-medium">ID:</span> {module.id}
-                </p>
-                <p className="text-slate-400 text-xs mt-1">
-                  <span className="text-slate-300 font-medium">Fields:</span> {fields.length} &nbsp;•&nbsp;
-                  <span className="text-slate-300 font-medium">Created:</span> {new Date(Number(module.createdAt)).toLocaleDateString()}
-                </p>
+
+              {/* Meta info grid */}
+              <div
+                className="rounded-xl p-4 grid grid-cols-2 gap-3"
+                style={{ background: 'rgba(220,38,90,0.06)', border: '1px solid rgba(220,38,90,0.15)' }}
+              >
+                {[
+                  { label: 'Module ID', value: module.id },
+                  { label: 'Total Fields', value: `${fields.length} fields` },
+                  { label: 'Created', value: new Date(Number(module.createdAt)).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) },
+                  { label: 'Field Types', value: [...new Set(fields.map(f => f.type))].join(', ') || '—' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-[0.16em] text-rose-400/50">{label}</span>
+                    <span className="text-xs text-slate-300 truncate font-medium">{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Field type summary pills */}
+              <div>
+                <p className="text-[10px] font-black text-rose-400/50 uppercase tracking-[0.16em] mb-2">Field Composition</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(
+                    fields.reduce<Record<string, number>>((acc, f) => { acc[f.type] = (acc[f.type] ?? 0) + 1; return acc; }, {})
+                  ).map(([type, count]) => (
+                    <span
+                      key={type}
+                      className={cn('inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold', TYPE_PILL_COLOR[type as FieldType] ?? 'bg-slate-700/50 text-slate-400')}
+                      style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      <FieldTypeIcon type={type as FieldType} />
+                      {count} {FIELD_TYPE_LABELS[type as FieldType] ?? type}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -483,26 +545,34 @@ function EditModuleModal({ module, onClose, onSaved }: EditModuleModalProps) {
                     setDragOverIndex(null);
                   }}
                   onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }}
-                  className={cn(
-                    'flex flex-col gap-1.5 rounded-lg px-2 py-1.5 transition-colors',
-                    dragOverIndex === idx
-                      ? 'bg-rose-900/25 border border-rose-700/50'
-                      : 'border border-transparent hover:bg-slate-800/30',
-                  )}
+                  className="flex flex-col gap-1.5 rounded-xl px-3 py-2 transition-all duration-150"
+                  style={dragOverIndex === idx
+                    ? { background: 'rgba(220,38,90,0.12)', border: '1px solid rgba(220,38,90,0.4)' }
+                    : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }
+                  }
                 >
                   <div className="flex gap-2 items-center">
-                    {/* Drag handle — now functional */}
-                    <div className="flex flex-col gap-0.5 cursor-grab active:cursor-grabbing text-slate-500 hover:text-rose-400 flex-shrink-0 pt-0.5 transition-colors">
-                      <div className="w-3.5 h-0.5 bg-current rounded" />
-                      <div className="w-3.5 h-0.5 bg-current rounded" />
-                      <div className="w-3.5 h-0.5 bg-current rounded" />
+                    {/* Drag handle */}
+                    <div className="flex flex-col gap-[3px] cursor-grab active:cursor-grabbing text-slate-600 hover:text-rose-500 flex-shrink-0 transition-colors">
+                      <div className="w-3 h-0.5 bg-current rounded-full" />
+                      <div className="w-3 h-0.5 bg-current rounded-full" />
+                      <div className="w-3 h-0.5 bg-current rounded-full" />
                     </div>
-                    <span className="text-slate-500 text-xs w-5 text-center flex-shrink-0">{idx + 1}</span>
+                    {/* Index badge */}
+                    <span
+                      className="text-[9px] font-black w-5 h-5 flex items-center justify-center rounded flex-shrink-0"
+                      style={{ background: 'rgba(220,38,90,0.15)', color: 'rgba(251,113,133,0.7)' }}
+                    >
+                      {idx + 1}
+                    </span>
                     <input
                       value={field.label}
                       onChange={(e) => updateField(idx, { label: e.target.value })}
                       placeholder="Field label"
-                      className="flex-1 bg-[#0a0000] border border-slate-600 rounded-lg px-3 py-1.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-rose-700"
+                      className="flex-1 rounded-lg px-3 py-1.5 text-white placeholder-slate-600 text-sm focus:outline-none transition-all"
+                      style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(100,30,50,0.4)' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(220,38,90,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(220,38,90,0.08)'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(100,30,50,0.4)'; e.currentTarget.style.boxShadow = 'none'; }}
                     />
                     <select
                       value={field.type}
@@ -513,7 +583,8 @@ function EditModuleModal({ module, onClose, onSaved }: EditModuleModalProps) {
                           options: newType === 'select' ? (field.options ?? []) : undefined,
                         });
                       }}
-                      className="bg-[#0a0000] border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm focus:outline-none focus:border-rose-700 w-36"
+                      className="rounded-lg px-2 py-1.5 text-white text-sm focus:outline-none w-36"
+                      style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(100,30,50,0.4)' }}
                     >
                       {(Object.keys(FIELD_TYPE_LABELS) as FieldType[]).map((t) => (
                         <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>
@@ -522,7 +593,10 @@ function EditModuleModal({ module, onClose, onSaved }: EditModuleModalProps) {
                     <button
                       onClick={() => removeField(idx)}
                       disabled={fields.length <= 1}
-                      className="p-1.5 text-slate-500 hover:text-red-400 disabled:opacity-30 transition-colors flex-shrink-0"
+                      className="p-1.5 text-slate-600 hover:text-red-400 disabled:opacity-30 transition-colors flex-shrink-0 rounded-lg"
+                      style={{ border: '1px solid transparent' }}
+                      onMouseEnter={(e) => { if (fields.length > 1) e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                       title="Remove field"
                     >
                       <TrashIcon />
@@ -541,7 +615,10 @@ function EditModuleModal({ module, onClose, onSaved }: EditModuleModalProps) {
 
               <button
                 onClick={addField}
-                className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 transition-colors mt-3 pt-2 border-t border-slate-700/50 w-full"
+                className="flex items-center gap-2 text-xs font-semibold w-full mt-3 px-3 py-2.5 rounded-xl transition-all duration-150"
+                style={{ color: '#fb7185', border: '1px dashed rgba(220,38,90,0.3)', background: 'rgba(220,38,90,0.04)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(220,38,90,0.1)'; e.currentTarget.style.borderColor = 'rgba(220,38,90,0.5)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(220,38,90,0.04)'; e.currentTarget.style.borderColor = 'rgba(220,38,90,0.3)'; }}
               >
                 <PlusIcon /> Add new field
               </button>
@@ -556,15 +633,31 @@ function EditModuleModal({ module, onClose, onSaved }: EditModuleModalProps) {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-700 flex-shrink-0">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white transition-colors">
+        {/* ── Footer ── */}
+        <div
+          className="flex justify-between items-center px-6 py-4 flex-shrink-0"
+          style={{ borderTop: '1px solid rgba(220,38,90,0.15)', background: 'rgba(0,0,0,0.2)' }}
+        >
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white transition-colors"
+            style={{ border: '1px solid rgba(100,50,70,0.3)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(150,80,100,0.5)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(100,50,70,0.3)'; e.currentTarget.style.background = 'transparent'; }}
+          >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 rounded-lg bg-rose-800 hover:bg-rose-700 disabled:opacity-60 text-white text-sm font-medium transition-colors"
+            className="px-5 py-2 rounded-lg text-white text-sm font-semibold transition-all duration-150 disabled:opacity-50"
+            style={{
+              background: 'linear-gradient(135deg, #be123c 0%, #9f1239 100%)',
+              border: '1px solid rgba(220,38,90,0.5)',
+              boxShadow: '0 0 16px rgba(220,38,90,0.2)',
+            }}
+            onMouseEnter={(e) => { if (!saving) { e.currentTarget.style.background = 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(220,38,90,0.35)'; } }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg, #be123c 0%, #9f1239 100%)'; e.currentTarget.style.boxShadow = '0 0 16px rgba(220,38,90,0.2)'; }}
           >
             {saving ? 'Saving…' : 'Save Changes'}
           </button>
@@ -733,10 +826,7 @@ function RecordRow({ record, fields, rowIndex, onUpdate, onDelete }: RecordRowPr
       return (
         <span className="inline-flex items-center gap-1.5">
           {val ? (
-            <>
-              <Avatar name={String(val)} size="sm" />
-              <span className="text-slate-300 text-sm">{val}</span>
-            </>
+            <span className="text-slate-300 text-sm">{val}</span>
           ) : <span className="text-slate-500">—</span>}
         </span>
       );
@@ -744,47 +834,136 @@ function RecordRow({ record, fields, rowIndex, onUpdate, onDelete }: RecordRowPr
     if (field.type === 'attachment') {
       return <AttachmentCell val={val} />;
     }
-    // Name fields get an avatar prefix
+    // Name fields: show initials badge + "AK Ashok Kumar" format
     const isNameField = /name/i.test(field.label);
     if (isNameField && val) {
+      const nameStr = String(val);
+      const initials = nameStr
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((w) => w[0].toUpperCase())
+        .join('')
+        .slice(0, 3);
       return (
-        <span className="inline-flex items-center gap-2">
-          <Avatar name={String(val)} size="sm" />
-          <span className="text-sm text-slate-200">{val}</span>
+        <span className="inline-flex items-center gap-2 min-w-0">
+          <span className="inline-flex items-center gap-1.5 min-w-0">
+            <span
+              className="text-[10px] font-black tracking-wider flex-shrink-0 px-1 py-0.5 rounded"
+              style={{
+                color: '#fb7185',
+                background: 'rgba(220,38,90,0.12)',
+                border: '1px solid rgba(220,38,90,0.2)',
+                letterSpacing: '0.08em',
+                fontFamily: 'monospace',
+              }}
+            >
+              {initials}
+            </span>
+            <span className="text-sm text-slate-200 truncate">{nameStr}</span>
+          </span>
         </span>
       );
     }
     return <span className={cn('text-sm', val ? 'text-slate-200' : 'text-slate-500')}>{val || '—'}</span>;
   }
 
+  const isEven = rowIndex % 2 === 0;
+
   return (
-    <tr className="group border-b border-slate-700/50 hover:bg-slate-800/40 transition-colors">
-      {/* Row number */}
-      <td className="px-3 py-2.5 w-10 text-center text-xs text-slate-600 select-none tabular-nums">
-        {rowIndex + 1}
+    <tr
+      className="group transition-all duration-150"
+      style={{
+        background: isEven
+          ? 'rgba(12,0,3,0.55)'
+          : 'rgba(18,0,5,0.75)',
+        borderBottom: '1px solid rgba(60,5,18,0.3)',
+        backdropFilter: 'blur(0px)',
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.background = 'linear-gradient(135deg, rgba(220,38,90,0.09) 0%, rgba(30,3,10,0.95) 60%, rgba(18,0,5,0.9) 100%)';
+        el.style.borderBottomColor = 'rgba(220,38,90,0.3)';
+        el.style.boxShadow = 'inset 0 0 0 0.5px rgba(220,38,90,0.12), 0 1px 8px rgba(220,38,90,0.06)';
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.background = isEven ? 'rgba(12,0,3,0.55)' : 'rgba(18,0,5,0.75)';
+        el.style.borderBottomColor = 'rgba(60,5,18,0.3)';
+        el.style.boxShadow = 'none';
+      }}
+    >
+      {/* Row number gutter — luminous index */}
+      <td
+        className="px-0 py-0 w-10 text-center select-none tabular-nums"
+        style={{ borderRight: '1px solid rgba(60,5,18,0.4)' }}
+      >
+        <span
+          className="flex items-center justify-center h-full py-3 text-[10px] font-mono font-black tracking-wider"
+          style={{
+            color: 'rgba(220,38,90,0.28)',
+            textShadow: '0 0 8px rgba(220,38,90,0.15)',
+          }}
+        >
+          {String(rowIndex + 1).padStart(2, '0')}
+        </span>
       </td>
-      {fields.map((field) => (
+
+      {fields.map((field, fIdx) => (
         <td
           key={field.id}
-          className="px-4 py-2.5 cursor-pointer relative"
+          className="px-0 py-0 cursor-pointer relative overflow-hidden"
+          style={{
+            borderRight: fIdx < fields.length - 1 ? '1px solid rgba(45,3,13,0.6)' : 'none',
+          }}
           onClick={() => setEditingCell(field.id)}
         >
-          {editingCell === field.id ? (
-            <CellEditor
-              field={field}
-              value={data[field.id] ?? ''}
-              onCommit={(v) => commitCell(field.id, v)}
-              onCancel={() => setEditingCell(null)}
+          {/* Hover left-edge accent bar */}
+          <div
+            className="absolute left-0 top-[15%] bottom-[15%] w-[2px] opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-full pointer-events-none"
+            style={{ background: 'linear-gradient(180deg, transparent, rgba(220,38,90,0.6), transparent)' }}
+          />
+          {/* Active cell glow overlay */}
+          {editingCell === field.id && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'rgba(220,38,90,0.06)',
+                boxShadow: 'inset 0 0 0 1.5px rgba(220,38,90,0.35)',
+              }}
             />
-          ) : renderCellValue(field)}
+          )}
+          <div className="relative px-3 py-2.5">
+            {editingCell === field.id ? (
+              <CellEditor
+                field={field}
+                value={data[field.id] ?? ''}
+                onCommit={(v) => commitCell(field.id, v)}
+                onCancel={() => setEditingCell(null)}
+              />
+            ) : renderCellValue(field)}
+          </div>
         </td>
       ))}
 
       {/* Delete action */}
-      <td className="px-3 py-2.5 w-8">
+      <td
+        className="px-2 py-0 w-8"
+        style={{ borderLeft: '1px solid rgba(45,3,13,0.6)' }}
+      >
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-all"
+          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all duration-150"
+          style={{ color: 'rgba(100,116,139,0.7)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#fca5a5';
+            e.currentTarget.style.background = 'rgba(239,68,68,0.12)';
+            e.currentTarget.style.boxShadow = '0 0 8px rgba(239,68,68,0.15)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'rgba(100,116,139,0.7)';
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
           title="Delete record"
         >
           <TrashIcon />
@@ -1109,6 +1288,7 @@ function AddRecordRow({ fields, moduleName, onOpenDrawer }: AddRecordRowProps) {
 
 /** Default min-width per field type (in px) */
 const FIELD_DEFAULT_WIDTH: Record<FieldType, number> = {
+  name:        200,
   text:        180,
   number:      100,
   date:        120,
@@ -1209,6 +1389,70 @@ interface ResizableThProps {
   onResetWidth: () => void;
 }
 
+/** Maps field type → a small inline SVG icon element */
+function FieldTypeIcon({ type }: { type: FieldType }) {
+  const cls = 'flex-shrink-0';
+  switch (type) {
+    case 'name':
+      return (
+        <svg className={cls} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      );
+    case 'text':
+      return (
+        <svg className={cls} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>
+        </svg>
+      );
+    case 'number':
+      return (
+        <svg className={cls} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/>
+          <line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
+        </svg>
+      );
+    case 'date':
+      return (
+        <svg className={cls} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      );
+    case 'select':
+      return (
+        <svg className={cls} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M12 5v14M5 12l7 7 7-7"/>
+        </svg>
+      );
+    case 'multiuser':
+      return (
+        <svg className={cls} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      );
+    case 'attachment':
+      return (
+        <svg className={cls} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.34a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+        </svg>
+      );
+    default:
+      return <span className="text-[10px] font-mono leading-none">T</span>;
+  }
+}
+
+/** Background tint per field type for the type-icon pill */
+const TYPE_PILL_COLOR: Record<FieldType, string> = {
+  name:       'bg-emerald-800/50 text-emerald-300',
+  text:       'bg-slate-600/60 text-slate-300',
+  number:     'bg-blue-800/50 text-blue-300',
+  date:       'bg-violet-800/50 text-violet-300',
+  select:     'bg-amber-800/50 text-amber-300',
+  multiuser:  'bg-cyan-800/50 text-cyan-300',
+  attachment: 'bg-rose-800/50 text-rose-300',
+};
+
 function ResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth }: ResizableThProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -1225,67 +1469,129 @@ function ResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth
     return () => window.removeEventListener('mousedown', handler);
   }, [showMenu]);
 
-  // Field type icon
-  const TYPE_ICONS: Partial<Record<FieldType, string>> = {
-    text: 'T',
-    number: '#',
-    date: '📅',
-    select: '▾',
-    multiuser: '👤',
-    attachment: '📎',
-  };
+  const pillColor = TYPE_PILL_COLOR[field.type] ?? 'bg-slate-600/60 text-slate-300';
 
   return (
     <th
-      style={{ width, minWidth: width, maxWidth: width }}
-      className="relative px-3 py-0 text-left bg-[#100000] select-none group/th"
+      style={{ width, minWidth: width, maxWidth: width, background: 'linear-gradient(180deg, #1a0005 0%, #130003 100%)' }}
+      className="relative px-0 py-0 text-left select-none group/th"
     >
-      <div className="flex items-center gap-1.5 py-3 overflow-hidden">
-        {/* Type icon */}
-        <span className="text-slate-600 text-[10px] font-mono flex-shrink-0 leading-none">
-          {TYPE_ICONS[field.type] ?? 'T'}
+      {/* Top accent line — glows on hover */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] z-20 transition-all duration-200"
+        style={{ background: showMenu ? 'linear-gradient(90deg, transparent, #fb7185 30%, #e11d48 70%, transparent)' : 'transparent' }}
+      />
+      <div className="absolute top-0 left-0 right-0 h-[2px] z-20 opacity-0 group-hover/th:opacity-100 transition-opacity duration-150"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(251,113,133,0.6) 30%, rgba(225,29,72,0.8) 70%, transparent)' }}
+      />
+
+      {/* Hover shimmer overlay */}
+      <div className="absolute inset-0 opacity-0 group-hover/th:opacity-100 transition-opacity duration-150 pointer-events-none"
+        style={{ background: 'linear-gradient(180deg, rgba(220,38,90,0.08) 0%, rgba(100,10,30,0.04) 100%)' }}
+      />
+
+      {/* Main header content */}
+      <div className="relative flex items-center gap-2 px-3 py-2.5 overflow-hidden">
+        {/* Type icon pill — glows when active */}
+        <span
+          className={cn(
+            'inline-flex items-center justify-center w-[18px] h-[18px] rounded flex-shrink-0 transition-all duration-150',
+            showMenu ? 'bg-rose-700/60 text-rose-200' : pillColor,
+          )}
+          style={showMenu ? { boxShadow: '0 0 8px rgba(251,113,133,0.4)' } : undefined}
+        >
+          <FieldTypeIcon type={field.type} />
         </span>
+
         {/* Label */}
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide truncate flex-1">
+        <span className="text-[11px] font-bold text-slate-300 group-hover/th:text-white uppercase tracking-widest truncate flex-1 transition-colors duration-150"
+          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
           {field.label}
         </span>
-        {/* Context menu trigger (chevron) */}
+
+        {/* Chevron / context-menu trigger */}
         <button
           onMouseDown={(e) => { e.stopPropagation(); setShowMenu((v) => !v); }}
-          className="opacity-0 group-hover/th:opacity-100 flex-shrink-0 text-slate-500 hover:text-slate-300 transition-opacity"
+          className={cn(
+            'flex-shrink-0 w-5 h-5 flex items-center justify-center rounded transition-all duration-150',
+            showMenu
+              ? 'opacity-100 text-rose-200'
+              : 'opacity-0 group-hover/th:opacity-100 text-slate-400 hover:text-white',
+          )}
+          style={showMenu
+            ? { background: 'rgba(225,29,72,0.4)', boxShadow: '0 0 6px rgba(251,113,133,0.3)' }
+            : undefined}
           title="Column options"
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
         </button>
       </div>
 
-      {/* Context menu */}
+      {/* Right divider line between columns */}
+      <div className="absolute top-[20%] right-0 bottom-[20%] w-px pointer-events-none"
+        style={{ background: 'linear-gradient(180deg, transparent, rgba(220,38,90,0.2) 40%, rgba(220,38,90,0.2) 60%, transparent)' }}
+      />
+
+      {/* Context menu — polished dropdown */}
       {showMenu && (
         <div
           ref={menuRef}
-          className="absolute top-full left-0 z-50 mt-1 w-44 bg-[#1a0000] border border-slate-700 rounded-lg shadow-xl overflow-hidden"
+          className="absolute top-full left-0 z-50 mt-1 w-48 rounded-lg shadow-2xl overflow-hidden"
+          style={{
+            background: 'linear-gradient(145deg, #1e0008, #160005)',
+            border: '1px solid rgba(220,38,90,0.35)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(220,38,90,0.1)',
+          }}
         >
-          <button
-            className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2"
-            onMouseDown={(e) => { e.preventDefault(); onFitToContent(); setShowMenu(false); }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-            Fit to Content
-          </button>
-          <button
-            className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2"
-            onMouseDown={(e) => { e.preventDefault(); onResetWidth(); setShowMenu(false); }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-            Reset Width
-          </button>
+          {/* Menu header */}
+          <div className="px-3 py-2 border-b border-rose-900/40"
+            style={{ background: 'rgba(220,38,90,0.08)' }}>
+            <p className="text-[10px] font-bold text-rose-300/70 uppercase tracking-widest truncate">{field.label}</p>
+          </div>
+
+          <div className="py-1">
+            <button
+              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5 group/btn"
+              onMouseDown={(e) => { e.preventDefault(); onFitToContent(); setShowMenu(false); }}
+            >
+              <span className="w-4 h-4 flex items-center justify-center text-slate-500 group-hover/btn:text-rose-400 transition-colors flex-shrink-0">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+              </span>
+              Fit to Content
+            </button>
+
+            <button
+              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5 group/btn"
+              onMouseDown={(e) => { e.preventDefault(); onResetWidth(); setShowMenu(false); }}
+            >
+              <span className="w-4 h-4 flex items-center justify-center text-slate-500 group-hover/btn:text-rose-400 transition-colors flex-shrink-0">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 12h18M3 6h18M3 18h18"/>
+                </svg>
+              </span>
+              Reset Width
+            </button>
+
+            <div className="mx-3 my-1 border-t border-rose-900/30" />
+
+            <div className="px-3 py-1.5 flex items-center gap-2">
+              <span className={cn('w-4 h-4 inline-flex items-center justify-center rounded flex-shrink-0', pillColor)}>
+                <FieldTypeIcon type={field.type} />
+              </span>
+              <span className="text-[10px] text-slate-500 capitalize">{field.type} field</span>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Drag resize handle */}
       <div
         onMouseDown={onResizeStart}
-        className="absolute top-0 right-0 bottom-0 w-1 cursor-col-resize group-hover/th:bg-rose-800/60 hover:!bg-rose-600 transition-colors z-10"
+        className="absolute top-0 right-0 bottom-0 w-[3px] cursor-col-resize hover:!bg-rose-400 transition-colors duration-100 z-10"
+        style={{ background: 'transparent' }}
         title="Drag to resize"
       />
     </th>
@@ -1397,7 +1703,15 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-700/60 overflow-auto bg-[#0c0000] max-h-[calc(100vh-220px)]">
+      <div
+        className="rounded-2xl overflow-auto max-h-[calc(100vh-220px)]"
+        style={{
+          border: '1px solid rgba(140,10,40,0.4)',
+          background: 'linear-gradient(160deg, #0d0002 0%, #080001 100%)',
+          boxShadow:
+            '0 8px 48px rgba(0,0,0,0.7), 0 2px 0 rgba(220,38,90,0.06), inset 0 1px 0 rgba(255,255,255,0.03)',
+        }}
+      >
         <table style={{ width: totalWidth, minWidth: '100%', tableLayout: 'fixed' }}>
           {/* colgroup for explicit widths */}
           <colgroup>
@@ -1409,10 +1723,29 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
           </colgroup>
 
           <thead className="sticky top-0 z-10">
-            <tr className="border-b border-slate-700 bg-[#100000]">
+            <tr
+              style={{
+                background: 'linear-gradient(180deg, #200008 0%, #160004 50%, #0f0002 100%)',
+                borderBottom: '1px solid rgba(220,38,90,0.3)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.6), 0 1px 0 rgba(220,38,90,0.15)',
+              }}
+            >
               {/* Row # column */}
-              <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide select-none bg-[#100000]">
-                #
+              <th
+                className="px-0 py-0 text-center select-none"
+                style={{
+                  background: 'linear-gradient(180deg, #200008 0%, #160004 100%)',
+                  borderRight: '1px solid rgba(60,5,18,0.5)',
+                  width: 40,
+                  minWidth: 40,
+                }}
+              >
+                <span
+                  className="flex items-center justify-center py-3 text-[9px] font-black uppercase tracking-[0.25em]"
+                  style={{ color: 'rgba(220,38,90,0.4)', textShadow: '0 0 10px rgba(220,38,90,0.2)' }}
+                >
+                  #
+                </span>
               </th>
               {module.fields.map((field) => (
                 <ResizableTh
@@ -1424,7 +1757,7 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
                   onResetWidth={() => resetWidth(field.id)}
                 />
               ))}
-              <th className="bg-[#100000]" />
+              <th style={{ background: 'linear-gradient(180deg, #200008 0%, #160004 100%)', width: 40, minWidth: 40 }} />
             </tr>
           </thead>
           <tbody>
@@ -1560,21 +1893,40 @@ export default function CustomModulesPage() {
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a] text-white">
       {/* ── Top navigation — module tabs ── */}
-      <div className="flex-shrink-0 border-b border-slate-800" style={{ background: 'linear-gradient(180deg, #130000 0%, #0e0000 100%)' }}>
-        <div className="flex items-stretch px-4 gap-0 h-12">
+      <div
+        className="flex-shrink-0 border-b border-rose-950/60"
+        style={{
+          background: 'linear-gradient(180deg, #160305 0%, #0e0001 100%)',
+          boxShadow: '0 1px 0 rgba(220,38,90,0.12), 0 4px 16px rgba(0,0,0,0.4)',
+        }}
+      >
+        <div className="flex items-stretch px-3 gap-0 h-11">
 
           {/* Page label — left anchor */}
-          <div className="flex items-center pr-4 mr-2 border-r border-slate-700/50 flex-shrink-0">
+          <div className="flex items-center pr-3 mr-1 border-r border-rose-900/30 flex-shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded bg-rose-900/60 border border-rose-800/60 flex items-center justify-center flex-shrink-0">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-rose-400">
-                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                  <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+              {/* Glyph */}
+              <div
+                className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: 'linear-gradient(145deg, rgba(220,38,90,0.35) 0%, rgba(100,10,30,0.5) 100%)',
+                  border: '1px solid rgba(220,38,90,0.3)',
+                  boxShadow: '0 0 8px rgba(220,38,90,0.15)',
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-rose-400">
+                  <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                  <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                  <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1.5"/>
                 </svg>
               </div>
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                Modules
-              </span>
+              <div className="flex flex-col leading-none">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.18em] whitespace-nowrap">
+                  Workforce & Safety
+                </span>
+                <span className="text-[8px] text-slate-600 font-medium mt-0.5">Custom Modules</span>
+              </div>
             </div>
           </div>
 
@@ -1584,12 +1936,12 @@ export default function CustomModulesPage() {
             style={{ scrollbarWidth: 'none' }}
           >
             {loading ? (
-              <div className="flex items-center gap-2 px-3 text-slate-500 text-xs">
+              <div className="flex items-center gap-2 px-4 text-slate-500 text-xs">
                 <div className="w-3 h-3 rounded-full border-2 border-rose-800 border-t-transparent animate-spin" />
-                Loading modules…
+                Loading…
               </div>
             ) : modules.length === 0 ? (
-              <div className="flex items-center px-3 text-slate-600 text-xs italic">
+              <div className="flex items-center px-4 text-slate-600 text-xs italic">
                 No modules yet — create your first one →
               </div>
             ) : (
@@ -1600,26 +1952,49 @@ export default function CustomModulesPage() {
                     key={m.id}
                     onClick={() => setActiveModuleId(m.id)}
                     className={cn(
-                      'relative flex items-center gap-2 px-4 text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 select-none',
+                      'group/tab relative flex items-center gap-2 px-4 text-[13px] font-medium transition-all duration-150 whitespace-nowrap flex-shrink-0 select-none',
                       isActive
-                        ? 'text-rose-200'
-                        : 'text-slate-500 hover:text-slate-200 hover:bg-white/[0.03]',
+                        ? 'text-white'
+                        : 'text-slate-500 hover:text-slate-300',
                     )}
                   >
-                    {/* Active: tinted background strip */}
+                    {/* Active: pill background */}
                     {isActive && (
-                      <span className="absolute inset-0 bg-rose-900/20 border-x border-slate-700/30" />
+                      <span
+                        className="absolute inset-x-0 inset-y-[6px] rounded-lg pointer-events-none"
+                        style={{
+                          background: 'linear-gradient(180deg, rgba(220,38,90,0.18) 0%, rgba(150,10,40,0.1) 100%)',
+                          border: '1px solid rgba(220,38,90,0.22)',
+                        }}
+                      />
                     )}
-                    {/* Dot */}
-                    <span className={cn(
-                      'relative w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors',
-                      isActive ? 'bg-rose-400' : 'bg-slate-700',
-                    )} />
+                    {/* Hover: subtle bg for inactive */}
+                    {!isActive && (
+                      <span className="absolute inset-0 rounded-none bg-white/0 group-hover/tab:bg-white/[0.03] transition-colors pointer-events-none" />
+                    )}
+
+                    {/* Status dot */}
+                    <span
+                      className="relative w-[7px] h-[7px] rounded-full flex-shrink-0 transition-all duration-200"
+                      style={
+                        isActive
+                          ? { background: 'radial-gradient(circle, #fb7185 0%, #e11d48 100%)', boxShadow: '0 0 6px rgba(251,113,133,0.7)' }
+                          : { background: '#374151' }
+                      }
+                    />
+
                     {/* Label */}
-                    <span className="relative">{m.name}</span>
+                    <span className="relative font-semibold tracking-tight">{m.name}</span>
+
                     {/* Bottom active bar */}
                     {isActive && (
-                      <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-rose-600 via-rose-400 to-rose-600" />
+                      <span
+                        className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full"
+                        style={{
+                          background: 'linear-gradient(90deg, transparent, #fb7185 30%, #e11d48 70%, transparent)',
+                          boxShadow: '0 0 8px rgba(251,113,133,0.5)',
+                        }}
+                      />
                     )}
                   </button>
                 );
@@ -1627,18 +2002,30 @@ export default function CustomModulesPage() {
             )}
           </nav>
 
-          {/* Spacer */}
-          <div className="flex-shrink-0 w-2" />
-
-          {/* New Module button */}
-          <div className="flex items-center flex-shrink-0">
+          {/* Divider + New Module button */}
+          <div className="flex items-center gap-0 flex-shrink-0 pl-2 border-l border-rose-900/30 ml-1">
             <button
               onClick={() => setShowNewModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all
-                         bg-rose-900/50 hover:bg-rose-800/80 text-rose-200 hover:text-white
-                         border border-rose-800/60 hover:border-rose-600/80 shadow-sm"
+              className="group/new flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(145deg, rgba(220,38,90,0.2) 0%, rgba(100,10,30,0.3) 100%)',
+                border: '1px solid rgba(220,38,90,0.3)',
+                color: '#fda4af',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(145deg, rgba(220,38,90,0.35) 0%, rgba(120,10,35,0.45) 100%)';
+                e.currentTarget.style.borderColor = 'rgba(220,38,90,0.55)';
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(145deg, rgba(220,38,90,0.2) 0%, rgba(100,10,30,0.3) 100%)';
+                e.currentTarget.style.borderColor = 'rgba(220,38,90,0.3)';
+                e.currentTarget.style.color = '#fda4af';
+              }}
             >
-              <PlusIcon />
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
               <span>New Module</span>
             </button>
           </div>
