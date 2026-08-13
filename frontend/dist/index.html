@@ -11,10 +11,24 @@
       rel="stylesheet"
     />
     <title>SiteTrack — Construction Task Management</title>
+    <script>
+      // The app is served from AppSail (same-origin as the backend) so Zoho's
+      // login session cookie works. The old Slate domain can't validate that
+      // cookie cross-domain and its embedded-auth SDK bounces to a legacy
+      // /app/ path Slate 404s on — so bounce any Slate visitor straight to
+      // the working AppSail URL before any of that runs.
+      if (window.location.hostname.endsWith('.onslate.in')) {
+        window.location.replace(
+          'https://construction-backend-50044693287.development.catalystappsail.in' +
+            window.location.pathname.replace(/^\/app(\/|$)/, '/') +
+            window.location.search
+        );
+      }
+    </script>
     <script src="https://static.zohocdn.com/catalyst/sdk/js/4.6.1/catalystWebSDK.js"></script>
     <script src="/__catalyst/sdk/init.js"></script>
-    <script type="module" crossorigin src="/assets/index-22DpXVjc.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DTSfVUF3.css">
+    <script type="module" crossorigin src="/assets/index-lgyn6aEF.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-sf02j5Wa.css">
   </head>
   <body>
     <div id="root"></div>

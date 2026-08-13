@@ -798,7 +798,7 @@ function AttachmentCell({ val }: { val: any }) {
   );
 }
 
-// ─── Record row ───────────────────────────────────────────────────────────────
+// ─── Record row props (shared interface) ─────────────────────────────────────
 
 interface RecordRowProps {
   record: CustomRecord;
@@ -808,170 +808,6 @@ interface RecordRowProps {
   onDelete: () => void;
 }
 
-function RecordRow({ record, fields, rowIndex, onUpdate, onDelete }: RecordRowProps) {
-  const [editingCell, setEditingCell] = useState<string | null>(null);
-  const [data, setData] = useState<Record<string, any>>(record.data);
-
-  function commitCell(fieldId: string, value: any) {
-    const newData = { ...data, [fieldId]: value };
-    setData(newData);
-    onUpdate(newData);
-    setEditingCell(null);
-  }
-
-  function renderCellValue(field: CustomField) {
-    const val = data[field.id] ?? '';
-    if (field.type === 'select') return <StatusBadge value={val} />;
-    if (field.type === 'multiuser') {
-      return (
-        <span className="inline-flex items-center gap-1.5">
-          {val ? (
-            <span className="text-slate-300 text-sm">{val}</span>
-          ) : <span className="text-slate-500">—</span>}
-        </span>
-      );
-    }
-    if (field.type === 'attachment') {
-      return <AttachmentCell val={val} />;
-    }
-    // Name fields: show initials badge + "AK Ashok Kumar" format
-    const isNameField = /name/i.test(field.label);
-    if (isNameField && val) {
-      const nameStr = String(val);
-      const initials = nameStr
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((w) => w[0].toUpperCase())
-        .join('')
-        .slice(0, 3);
-      return (
-        <span className="inline-flex items-center gap-2 min-w-0">
-          <span className="inline-flex items-center gap-1.5 min-w-0">
-            <span
-              className="text-[10px] font-black tracking-wider flex-shrink-0 px-1 py-0.5 rounded"
-              style={{
-                color: '#fb7185',
-                background: 'rgba(220,38,90,0.12)',
-                border: '1px solid rgba(220,38,90,0.2)',
-                letterSpacing: '0.08em',
-                fontFamily: 'monospace',
-              }}
-            >
-              {initials}
-            </span>
-            <span className="text-sm text-slate-200 truncate">{nameStr}</span>
-          </span>
-        </span>
-      );
-    }
-    return <span className={cn('text-sm', val ? 'text-slate-200' : 'text-slate-500')}>{val || '—'}</span>;
-  }
-
-  const isEven = rowIndex % 2 === 0;
-
-  return (
-    <tr
-      className="group transition-all duration-150"
-      style={{
-        background: isEven
-          ? 'rgba(12,0,3,0.55)'
-          : 'rgba(18,0,5,0.75)',
-        borderBottom: '1px solid rgba(60,5,18,0.3)',
-        backdropFilter: 'blur(0px)',
-      }}
-      onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.background = 'linear-gradient(135deg, rgba(220,38,90,0.09) 0%, rgba(30,3,10,0.95) 60%, rgba(18,0,5,0.9) 100%)';
-        el.style.borderBottomColor = 'rgba(220,38,90,0.3)';
-        el.style.boxShadow = 'inset 0 0 0 0.5px rgba(220,38,90,0.12), 0 1px 8px rgba(220,38,90,0.06)';
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.background = isEven ? 'rgba(12,0,3,0.55)' : 'rgba(18,0,5,0.75)';
-        el.style.borderBottomColor = 'rgba(60,5,18,0.3)';
-        el.style.boxShadow = 'none';
-      }}
-    >
-      {/* Row number gutter — luminous index */}
-      <td
-        className="px-0 py-0 w-10 text-center select-none tabular-nums"
-        style={{ borderRight: '1px solid rgba(60,5,18,0.4)' }}
-      >
-        <span
-          className="flex items-center justify-center h-full py-3 text-[10px] font-mono font-black tracking-wider"
-          style={{
-            color: 'rgba(220,38,90,0.28)',
-            textShadow: '0 0 8px rgba(220,38,90,0.15)',
-          }}
-        >
-          {String(rowIndex + 1).padStart(2, '0')}
-        </span>
-      </td>
-
-      {fields.map((field, fIdx) => (
-        <td
-          key={field.id}
-          className="px-0 py-0 cursor-pointer relative overflow-hidden"
-          style={{
-            borderRight: fIdx < fields.length - 1 ? '1px solid rgba(45,3,13,0.6)' : 'none',
-          }}
-          onClick={() => setEditingCell(field.id)}
-        >
-          {/* Hover left-edge accent bar */}
-          <div
-            className="absolute left-0 top-[15%] bottom-[15%] w-[2px] opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-full pointer-events-none"
-            style={{ background: 'linear-gradient(180deg, transparent, rgba(220,38,90,0.6), transparent)' }}
-          />
-          {/* Active cell glow overlay */}
-          {editingCell === field.id && (
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: 'rgba(220,38,90,0.06)',
-                boxShadow: 'inset 0 0 0 1.5px rgba(220,38,90,0.35)',
-              }}
-            />
-          )}
-          <div className="relative px-3 py-2.5">
-            {editingCell === field.id ? (
-              <CellEditor
-                field={field}
-                value={data[field.id] ?? ''}
-                onCommit={(v) => commitCell(field.id, v)}
-                onCancel={() => setEditingCell(null)}
-              />
-            ) : renderCellValue(field)}
-          </div>
-        </td>
-      ))}
-
-      {/* Delete action */}
-      <td
-        className="px-2 py-0 w-8"
-        style={{ borderLeft: '1px solid rgba(45,3,13,0.6)' }}
-      >
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all duration-150"
-          style={{ color: 'rgba(100,116,139,0.7)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#fca5a5';
-            e.currentTarget.style.background = 'rgba(239,68,68,0.12)';
-            e.currentTarget.style.boxShadow = '0 0 8px rgba(239,68,68,0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'rgba(100,116,139,0.7)';
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-          title="Delete record"
-        >
-          <TrashIcon />
-        </button>
-      </td>
-    </tr>
-  );
-}
 
 // ─── New Entry Slide-in Drawer ────────────────────────────────────────────────
 // Mirrors the Zoho Projects "New <module>" form exactly:
@@ -1271,8 +1107,8 @@ interface AddRecordRowProps {
 function AddRecordRow({ fields, moduleName, onOpenDrawer }: AddRecordRowProps) {
   return (
     <tr>
-      {/* +2: one for row number column, one for the action column */}
-      <td colSpan={fields.length + 2} className="px-4 py-2">
+      {/* +3: checkbox col + row number col + action col */}
+      <td colSpan={fields.length + 3} className="px-4 py-2">
         <button
           onClick={onOpenDrawer}
           className="flex items-center gap-2 text-slate-500 hover:text-rose-400 text-sm transition-colors"
@@ -1453,17 +1289,21 @@ const TYPE_PILL_COLOR: Record<FieldType, string> = {
   attachment: 'bg-rose-800/50 text-rose-300',
 };
 
-function ResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth }: ResizableThProps) {
+// ─── Sortable + Resizable column header ──────────────────────────────────────
+
+interface SortableResizableThProps extends ResizableThProps {
+  sortDir: 'asc' | 'desc' | null;
+  onSort: () => void;
+}
+
+function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth, sortDir, onSort }: SortableResizableThProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close menu on outside click
   useEffect(() => {
     if (!showMenu) return;
     function handler(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
     }
     window.addEventListener('mousedown', handler);
     return () => window.removeEventListener('mousedown', handler);
@@ -1476,22 +1316,22 @@ function ResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth
       style={{ width, minWidth: width, maxWidth: width, background: 'linear-gradient(180deg, #1a0005 0%, #130003 100%)' }}
       className="relative px-0 py-0 text-left select-none group/th"
     >
-      {/* Top accent line — glows on hover */}
+      {/* Top accent line */}
       <div className="absolute top-0 left-0 right-0 h-[2px] z-20 transition-all duration-200"
-        style={{ background: showMenu ? 'linear-gradient(90deg, transparent, #fb7185 30%, #e11d48 70%, transparent)' : 'transparent' }}
+        style={{ background: showMenu || sortDir ? 'linear-gradient(90deg, transparent, #fb7185 30%, #e11d48 70%, transparent)' : 'transparent' }}
       />
       <div className="absolute top-0 left-0 right-0 h-[2px] z-20 opacity-0 group-hover/th:opacity-100 transition-opacity duration-150"
         style={{ background: 'linear-gradient(90deg, transparent, rgba(251,113,133,0.6) 30%, rgba(225,29,72,0.8) 70%, transparent)' }}
       />
-
-      {/* Hover shimmer overlay */}
       <div className="absolute inset-0 opacity-0 group-hover/th:opacity-100 transition-opacity duration-150 pointer-events-none"
         style={{ background: 'linear-gradient(180deg, rgba(220,38,90,0.08) 0%, rgba(100,10,30,0.04) 100%)' }}
       />
 
-      {/* Main header content */}
-      <div className="relative flex items-center gap-2 px-3 py-2.5 overflow-hidden">
-        {/* Type icon pill — glows when active */}
+      {/* Header content — click label to sort */}
+      <div
+        className="relative flex items-center gap-2 px-3 py-2.5 overflow-hidden cursor-pointer"
+        onClick={onSort}
+      >
         <span
           className={cn(
             'inline-flex items-center justify-center w-[18px] h-[18px] rounded flex-shrink-0 transition-all duration-150',
@@ -1502,24 +1342,31 @@ function ResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth
           <FieldTypeIcon type={field.type} />
         </span>
 
-        {/* Label */}
         <span className="text-[11px] font-bold text-slate-300 group-hover/th:text-white uppercase tracking-widest truncate flex-1 transition-colors duration-150"
           style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
           {field.label}
         </span>
 
-        {/* Chevron / context-menu trigger */}
+        {/* Sort indicator */}
+        {sortDir ? (
+          <span className="flex-shrink-0 text-rose-400 text-[10px] font-black">
+            {sortDir === 'asc' ? '↑' : '↓'}
+          </span>
+        ) : (
+          <span className="flex-shrink-0 text-slate-700 text-[10px] opacity-0 group-hover/th:opacity-100 transition-opacity">↕</span>
+        )}
+
+        {/* Context menu trigger — stop click from triggering sort */}
         <button
           onMouseDown={(e) => { e.stopPropagation(); setShowMenu((v) => !v); }}
+          onClick={(e) => e.stopPropagation()}
           className={cn(
             'flex-shrink-0 w-5 h-5 flex items-center justify-center rounded transition-all duration-150',
             showMenu
               ? 'opacity-100 text-rose-200'
               : 'opacity-0 group-hover/th:opacity-100 text-slate-400 hover:text-white',
           )}
-          style={showMenu
-            ? { background: 'rgba(225,29,72,0.4)', boxShadow: '0 0 6px rgba(251,113,133,0.3)' }
-            : undefined}
+          style={showMenu ? { background: 'rgba(225,29,72,0.4)', boxShadow: '0 0 6px rgba(251,113,133,0.3)' } : undefined}
           title="Column options"
         >
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -1528,55 +1375,56 @@ function ResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth
         </button>
       </div>
 
-      {/* Right divider line between columns */}
+      {/* Right divider */}
       <div className="absolute top-[20%] right-0 bottom-[20%] w-px pointer-events-none"
         style={{ background: 'linear-gradient(180deg, transparent, rgba(220,38,90,0.2) 40%, rgba(220,38,90,0.2) 60%, transparent)' }}
       />
 
-      {/* Context menu — polished dropdown */}
+      {/* Context menu */}
       {showMenu && (
         <div
           ref={menuRef}
-          className="absolute top-full left-0 z-50 mt-1 w-48 rounded-lg shadow-2xl overflow-hidden"
+          className="absolute top-full left-0 z-50 mt-1 w-52 rounded-lg shadow-2xl overflow-hidden"
           style={{
             background: 'linear-gradient(145deg, #1e0008, #160005)',
             border: '1px solid rgba(220,38,90,0.35)',
             boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(220,38,90,0.1)',
           }}
         >
-          {/* Menu header */}
-          <div className="px-3 py-2 border-b border-rose-900/40"
-            style={{ background: 'rgba(220,38,90,0.08)' }}>
+          <div className="px-3 py-2 border-b border-rose-900/40" style={{ background: 'rgba(220,38,90,0.08)' }}>
             <p className="text-[10px] font-bold text-rose-300/70 uppercase tracking-widest truncate">{field.label}</p>
           </div>
-
           <div className="py-1">
             <button
-              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5 group/btn"
+              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5"
+              onMouseDown={(e) => { e.preventDefault(); onSort(); setShowMenu(false); }}
+            >
+              <span className="w-4 h-4 flex items-center justify-center text-slate-500 flex-shrink-0 text-sm">↑↓</span>
+              Sort {sortDir === 'asc' ? 'Descending' : 'Ascending'}
+            </button>
+            <button
+              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5"
               onMouseDown={(e) => { e.preventDefault(); onFitToContent(); setShowMenu(false); }}
             >
-              <span className="w-4 h-4 flex items-center justify-center text-slate-500 group-hover/btn:text-rose-400 transition-colors flex-shrink-0">
+              <span className="w-4 h-4 flex items-center justify-center text-slate-500 flex-shrink-0">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
                 </svg>
               </span>
               Fit to Content
             </button>
-
             <button
-              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5 group/btn"
+              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5"
               onMouseDown={(e) => { e.preventDefault(); onResetWidth(); setShowMenu(false); }}
             >
-              <span className="w-4 h-4 flex items-center justify-center text-slate-500 group-hover/btn:text-rose-400 transition-colors flex-shrink-0">
+              <span className="w-4 h-4 flex items-center justify-center text-slate-500 flex-shrink-0">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 12h18M3 6h18M3 18h18"/>
                 </svg>
               </span>
               Reset Width
             </button>
-
             <div className="mx-3 my-1 border-t border-rose-900/30" />
-
             <div className="px-3 py-1.5 flex items-center gap-2">
               <span className={cn('w-4 h-4 inline-flex items-center justify-center rounded flex-shrink-0', pillColor)}>
                 <FieldTypeIcon type={field.type} />
@@ -1598,21 +1446,170 @@ function ResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth
   );
 }
 
+// ─── Selectable Record Row ────────────────────────────────────────────────────
+
+interface SelectableRecordRowProps extends RecordRowProps {
+  selected: boolean;
+  onToggleSelect: () => void;
+}
+
+function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelect, onUpdate, onDelete }: SelectableRecordRowProps) {
+  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [data, setData] = useState<Record<string, any>>(record.data);
+
+  function commitCell(fieldId: string, value: any) {
+    const newData = { ...data, [fieldId]: value };
+    setData(newData);
+    onUpdate(newData);
+    setEditingCell(null);
+  }
+
+  function renderCellValue(field: CustomField) {
+    const val = data[field.id] ?? '';
+    if (field.type === 'select') return <StatusBadge value={val} />;
+    if (field.type === 'multiuser') {
+      return val
+        ? <span className="text-slate-300 text-sm">{val}</span>
+        : <span className="text-slate-500">—</span>;
+    }
+    if (field.type === 'attachment') return <AttachmentCell val={val} />;
+    const isNameField = /name/i.test(field.label);
+    if (isNameField && val) {
+      const nameStr = String(val);
+      const initials = nameStr.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).join('').slice(0, 3);
+      return (
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+          <span
+            className="text-[10px] font-black tracking-wider flex-shrink-0 px-1 py-0.5 rounded"
+            style={{ color: '#fb7185', background: 'rgba(220,38,90,0.12)', border: '1px solid rgba(220,38,90,0.2)', fontFamily: 'monospace' }}
+          >{initials}</span>
+          <span className="text-sm text-slate-200 truncate">{nameStr}</span>
+        </span>
+      );
+    }
+    return <span className={cn('text-sm', val ? 'text-slate-200' : 'text-slate-500')}>{val || '—'}</span>;
+  }
+
+  const isEven = rowIndex % 2 === 0;
+  const rowBg = selected
+    ? 'rgba(220,38,90,0.12)'
+    : isEven ? 'rgba(12,0,3,0.55)' : 'rgba(18,0,5,0.75)';
+
+  return (
+    <tr
+      className="group transition-all duration-150"
+      style={{ background: rowBg, borderBottom: '1px solid rgba(60,5,18,0.3)' }}
+      onMouseEnter={(e) => {
+        if (!selected) {
+          (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(220,38,90,0.09) 0%, rgba(30,3,10,0.95) 60%, rgba(18,0,5,0.9) 100%)';
+        }
+        (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(220,38,90,0.3)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = rowBg;
+        (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(60,5,18,0.3)';
+      }}
+    >
+      {/* Checkbox */}
+      <td
+        className="px-0 py-0 w-9 text-center select-none"
+        style={{ borderRight: '1px solid rgba(60,5,18,0.4)' }}
+        onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+      >
+        <span className="flex items-center justify-center py-2.5">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            onClick={(e) => e.stopPropagation()}
+            className="w-3.5 h-3.5 accent-rose-600 cursor-pointer"
+          />
+        </span>
+      </td>
+
+      {/* Row number */}
+      <td
+        className="px-0 py-0 w-10 text-center select-none tabular-nums"
+        style={{ borderRight: '1px solid rgba(60,5,18,0.4)' }}
+      >
+        <span
+          className="flex items-center justify-center h-full py-3 text-[10px] font-mono font-black tracking-wider"
+          style={{ color: 'rgba(220,38,90,0.28)', textShadow: '0 0 8px rgba(220,38,90,0.15)' }}
+        >
+          {String(rowIndex + 1).padStart(2, '0')}
+        </span>
+      </td>
+
+      {fields.map((field, fIdx) => (
+        <td
+          key={field.id}
+          className="px-0 py-0 cursor-pointer relative overflow-hidden"
+          style={{ borderRight: fIdx < fields.length - 1 ? '1px solid rgba(45,3,13,0.6)' : 'none' }}
+          onClick={() => setEditingCell(field.id)}
+        >
+          {editingCell === field.id && (
+            <div className="absolute inset-0 pointer-events-none"
+              style={{ background: 'rgba(220,38,90,0.06)', boxShadow: 'inset 0 0 0 1.5px rgba(220,38,90,0.35)' }}
+            />
+          )}
+          <div className="relative px-3 py-2.5">
+            {editingCell === field.id ? (
+              <CellEditor
+                field={field}
+                value={data[field.id] ?? ''}
+                onCommit={(v) => commitCell(field.id, v)}
+                onCancel={() => setEditingCell(null)}
+              />
+            ) : renderCellValue(field)}
+          </div>
+        </td>
+      ))}
+
+      {/* Delete */}
+      <td className="px-2 py-0 w-8" style={{ borderLeft: '1px solid rgba(45,3,13,0.6)' }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all duration-150"
+          style={{ color: 'rgba(100,116,139,0.7)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#fca5a5'; e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(100,116,139,0.7)'; e.currentTarget.style.background = 'transparent'; }}
+          title="Delete record"
+        >
+          <TrashIcon />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 // ─── Module Table view ────────────────────────────────────────────────────────
 
 interface ModuleTableProps {
   module: CustomModule;
   onModuleUpdated: (m: CustomModule) => void;
   onModuleDeleted: (id: string) => void;
+  /** Callback to report record count up to parent (for tab badges) */
+  onRecordCountChange?: (count: number) => void;
 }
 
-function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTableProps) {
+function ModuleTable({ module, onModuleUpdated, onModuleDeleted, onRecordCountChange }: ModuleTableProps) {
   const [records, setRecords] = useState<CustomRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showEntryDrawer, setShowEntryDrawer] = useState(false);
+
+  // ── Search & Sort ──────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  type SortDir = 'asc' | 'desc';
+  const [sortCol, setSortCol] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  // ── Bulk Select ────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const { colWidths, onResizeStart, resetWidth, resetAllWidths, fitToContent } =
     useResizableColumns(module.fields);
@@ -1622,12 +1619,37 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
     try {
       const data = await CustomModulesAPI.listRecords(module.id);
       setRecords(data);
+      onRecordCountChange?.(data.length);
     } finally {
       setLoading(false);
     }
   }, [module.id]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+  // Report count whenever records change
+  useEffect(() => { onRecordCountChange?.(records.length); }, [records.length]);
+
+  // ── Keyboard shortcut: N → open drawer, / → focus search, Escape → clear search ──
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.isContentEditable;
+      if (e.key === 'n' && !isInput && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setShowEntryDrawer(true);
+      }
+      if (e.key === '/' && !isInput) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (e.key === 'Escape' && searchQuery) {
+        setSearchQuery('');
+      }
+    }
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [searchQuery]);
 
   async function handleAddRecord(data: Record<string, any>) {
     const created = await CustomModulesAPI.createRecord(module.id, data);
@@ -1642,6 +1664,7 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
   async function handleDeleteRecord(record: CustomRecord) {
     await CustomModulesAPI.deleteRecord(module.id, record.id);
     setRecords((r) => r.filter((x) => x.id !== record.id));
+    setSelectedIds((s) => { const n = new Set(s); n.delete(record.id); return n; });
   }
 
   async function handleDeleteModule() {
@@ -1649,24 +1672,181 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
     onModuleDeleted(module.id);
   }
 
-  // Total table width for colgroup
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    await Promise.all(ids.map((id) => {
+      const rec = records.find((r) => r.id === id);
+      if (rec) return CustomModulesAPI.deleteRecord(module.id, id);
+    }));
+    setRecords((r) => r.filter((x) => !selectedIds.has(x.id)));
+    setSelectedIds(new Set());
+    setConfirmBulkDelete(false);
+  }
+
+  // ── Column sort toggle ────────────────────────────────────
+  function handleSortClick(fieldId: string) {
+    if (sortCol === fieldId) {
+      setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(fieldId);
+      setSortDir('asc');
+    }
+  }
+
+  // ── Export CSV ────────────────────────────────────────────
+  function exportCSV() {
+    const headers = module.fields.map((f) => f.label);
+    const rows = filteredSortedRecords.map((rec) =>
+      module.fields.map((f) => {
+        const val = rec.data[f.id] ?? '';
+        if (typeof val === 'object') return val?.name ?? JSON.stringify(val);
+        return String(val);
+      })
+    );
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${module.name.replace(/\s+/g, '_')}_export.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Filtered + sorted records ─────────────────────────────
+  const filteredSortedRecords = useMemo(() => {
+    let result = records;
+    // Filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((rec) =>
+        module.fields.some((f) => {
+          const val = rec.data[f.id];
+          if (!val) return false;
+          const str = typeof val === 'object' ? (val?.name ?? JSON.stringify(val)) : String(val);
+          return str.toLowerCase().includes(q);
+        })
+      );
+    }
+    // Sort
+    if (sortCol) {
+      result = [...result].sort((a, b) => {
+        const aVal = a.data[sortCol] ?? '';
+        const bVal = b.data[sortCol] ?? '';
+        const aStr = typeof aVal === 'object' ? (aVal?.name ?? '') : String(aVal);
+        const bStr = typeof bVal === 'object' ? (bVal?.name ?? '') : String(bVal);
+        const cmp = aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' });
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [records, searchQuery, sortCol, sortDir, module.fields]);
+
+  // Total table width for colgroup (extra 36px for checkbox column)
   const totalWidth = useMemo(() => {
-    return 40 + module.fields.reduce((sum, f) => sum + (colWidths[f.id] ?? defaultColWidth(f)), 0) + 40;
+    return 36 + 40 + module.fields.reduce((sum, f) => sum + (colWidths[f.id] ?? defaultColWidth(f)), 0) + 40;
   }, [colWidths, module.fields]);
+
+  const allSelected = filteredSortedRecords.length > 0 && filteredSortedRecords.every((r) => selectedIds.has(r.id));
+  const someSelected = selectedIds.size > 0;
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredSortedRecords.map((r) => r.id)));
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
 
   return (
     <>
       {/* Module header */}
-      <div className="flex items-center justify-between mb-3 px-1">
+      <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-rose-700" />
+          <div className="w-2 h-2 rounded-full bg-rose-700 flex-shrink-0" />
           <h2 className="text-white font-semibold text-base">{module.name}</h2>
-          <span className="text-slate-500 text-xs">({records.length} records)</span>
+          <span
+            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+            style={{ background: 'rgba(220,38,90,0.15)', color: '#fb7185', border: '1px solid rgba(220,38,90,0.25)' }}
+          >
+            {records.length}
+          </span>
+          {searchQuery && (
+            <span className="text-slate-500 text-xs">
+              · {filteredSortedRecords.length} match{filteredSortedRecords.length !== 1 ? 'es' : ''}
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Search bar */}
+          <div className="relative">
+            <svg
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+              width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            >
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder='Search… ( / )'
+              className="pl-7 pr-7 py-1.5 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none transition-all w-44 focus:w-56"
+              style={{
+                background: 'rgba(220,38,90,0.06)',
+                border: '1px solid rgba(220,38,90,0.2)',
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(220,38,90,0.5)'; e.currentTarget.style.background = 'rgba(220,38,90,0.1)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(220,38,90,0.2)'; e.currentTarget.style.background = 'rgba(220,38,90,0.06)'; }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+              >
+                <XIcon />
+              </button>
+            )}
+          </div>
+
+          {/* Bulk delete (shown only when items selected) */}
+          {someSelected && (
+            <button
+              onClick={() => setConfirmBulkDelete(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-400 hover:text-white hover:bg-red-900/30 text-xs transition-colors"
+              style={{ border: '1px solid rgba(220,38,90,0.3)' }}
+            >
+              <TrashIcon /> Delete {selectedIds.size}
+            </button>
+          )}
+
+          {/* Export CSV */}
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 text-xs transition-colors"
+            title="Export to CSV"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export
+          </button>
+
           <button
             onClick={() => setShowEntryDrawer(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs font-medium transition-colors"
+            title="New entry (press N)"
           >
             <PlusIcon /> New Entry
           </button>
@@ -1676,7 +1856,7 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
             title="Reset all column widths"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-            Fit Columns
+            Fit Cols
           </button>
           <button
             onClick={() => setShowEditModal(true)}
@@ -1704,7 +1884,7 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
 
       {/* Table */}
       <div
-        className="rounded-2xl overflow-auto max-h-[calc(100vh-220px)]"
+        className="rounded-2xl overflow-auto max-h-[calc(100vh-230px)]"
         style={{
           border: '1px solid rgba(140,10,40,0.4)',
           background: 'linear-gradient(160deg, #0d0002 0%, #080001 100%)',
@@ -1715,6 +1895,8 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
         <table style={{ width: totalWidth, minWidth: '100%', tableLayout: 'fixed' }}>
           {/* colgroup for explicit widths */}
           <colgroup>
+            {/* Checkbox col */}
+            <col style={{ width: 36, minWidth: 36 }} />
             <col style={{ width: 40, minWidth: 40 }} />
             {module.fields.map((f) => (
               <col key={f.id} style={{ width: colWidths[f.id] ?? defaultColWidth(f), minWidth: colWidths[f.id] ?? defaultColWidth(f) }} />
@@ -1730,6 +1912,24 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
                 boxShadow: '0 4px 20px rgba(0,0,0,0.6), 0 1px 0 rgba(220,38,90,0.15)',
               }}
             >
+              {/* Checkbox header */}
+              <th
+                className="px-0 py-0 text-center select-none"
+                style={{
+                  background: 'linear-gradient(180deg, #200008 0%, #160004 100%)',
+                  borderRight: '1px solid rgba(60,5,18,0.5)',
+                  width: 36, minWidth: 36,
+                }}
+              >
+                <span className="flex items-center justify-center py-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="w-3.5 h-3.5 accent-rose-600 cursor-pointer"
+                  />
+                </span>
+              </th>
               {/* Row # column */}
               <th
                 className="px-0 py-0 text-center select-none"
@@ -1748,13 +1948,15 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
                 </span>
               </th>
               {module.fields.map((field) => (
-                <ResizableTh
+                <SortableResizableTh
                   key={field.id}
                   field={field}
                   width={colWidths[field.id] ?? defaultColWidth(field)}
                   onResizeStart={(e) => onResizeStart(e, field.id)}
                   onFitToContent={() => fitToContent(field.id, records)}
                   onResetWidth={() => resetWidth(field.id)}
+                  sortDir={sortCol === field.id ? sortDir : null}
+                  onSort={() => handleSortClick(field.id)}
                 />
               ))}
               <th style={{ background: 'linear-gradient(180deg, #200008 0%, #160004 100%)', width: 40, minWidth: 40 }} />
@@ -1763,11 +1965,11 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={module.fields.length + 2} className="px-4 py-8 text-center text-slate-500 text-sm">Loading…</td>
+                <td colSpan={module.fields.length + 3} className="px-4 py-8 text-center text-slate-500 text-sm">Loading…</td>
               </tr>
-            ) : records.length === 0 ? (
+            ) : filteredSortedRecords.length === 0 ? (
               <tr>
-                <td colSpan={module.fields.length + 2} className="px-4 py-10 text-center">
+                <td colSpan={module.fields.length + 3} className="px-4 py-10 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-500">
@@ -1775,23 +1977,31 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
                         <rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
                       </svg>
                     </div>
-                    <p className="text-slate-500 text-sm">No records yet.</p>
-                    <button
-                      onClick={() => setShowEntryDrawer(true)}
-                      className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 transition-colors"
-                    >
-                      <PlusIcon /> Add first {module.name}
-                    </button>
+                    {searchQuery ? (
+                      <p className="text-slate-500 text-sm">No records match "<span className="text-rose-400">{searchQuery}</span>"</p>
+                    ) : (
+                      <>
+                        <p className="text-slate-500 text-sm">No records yet.</p>
+                        <button
+                          onClick={() => setShowEntryDrawer(true)}
+                          className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 transition-colors"
+                        >
+                          <PlusIcon /> Add first {module.name}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
             ) : (
-              records.map((record, idx) => (
-                <RecordRow
+              filteredSortedRecords.map((record, idx) => (
+                <SelectableRecordRow
                   key={record.id}
                   record={record}
                   fields={module.fields}
                   rowIndex={idx}
+                  selected={selectedIds.has(record.id)}
+                  onToggleSelect={() => toggleSelect(record.id)}
                   onUpdate={(data) => handleUpdateRecord(record, data)}
                   onDelete={() => handleDeleteRecord(record)}
                 />
@@ -1801,6 +2011,22 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
           </tbody>
         </table>
       </div>
+
+      {/* Status bar */}
+      {!loading && records.length > 0 && (
+        <div className="flex items-center justify-between px-2 pt-2 text-[10px] text-slate-600">
+          <span>
+            {someSelected ? <span className="text-rose-400">{selectedIds.size} selected · </span> : null}
+            {filteredSortedRecords.length} of {records.length} records
+            {sortCol && (
+              <span className="ml-2 text-slate-700">
+                · sorted by <span className="text-slate-500">{module.fields.find(f => f.id === sortCol)?.label}</span> {sortDir === 'asc' ? '↑' : '↓'}
+              </span>
+            )}
+          </span>
+          <span className="text-slate-700">N · new entry &nbsp;|&nbsp; / · search &nbsp;|&nbsp; Esc · clear</span>
+        </div>
+      )}
 
       {/* Edit module modal (rename + fields) */}
       {showEditModal && (
@@ -1820,7 +2046,7 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
         />
       )}
 
-      {/* Confirm delete */}
+      {/* Confirm delete module */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#120000] border border-slate-700 rounded-xl shadow-2xl p-6 w-full max-w-sm">
@@ -1829,6 +2055,20 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted }: ModuleTablePr
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(false)} className="px-4 py-2 text-sm text-slate-300 hover:text-white">Cancel</button>
               <button onClick={handleDeleteModule} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-medium">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm bulk delete */}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#120000] border border-slate-700 rounded-xl shadow-2xl p-6 w-full max-w-sm">
+            <h3 className="text-white font-semibold text-base mb-2">Delete {selectedIds.size} record{selectedIds.size !== 1 ? 's' : ''}?</h3>
+            <p className="text-slate-400 text-sm mb-5">This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmBulkDelete(false)} className="px-4 py-2 text-sm text-slate-300 hover:text-white">Cancel</button>
+              <button onClick={handleBulkDelete} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-medium">Delete</button>
             </div>
           </div>
         </div>
