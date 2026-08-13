@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { DrawingsAPI, TasksAPI, ActivityAPI, ProjectsAPI, MilestonesAPI } from './api';
+import { DrawingsAPI, TasksAPI, ActivityAPI, ZohoBackboneAPI, MilestonesAPI } from './api';
 import type { ActivityItem, CatalystUser, Drawing, Milestone, Project, Task } from './types';
 import { ensureSampleData } from './utils/seedData';
 
@@ -180,7 +180,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   }, []);
 
   const refreshProjects = useCallback(async () => {
-    const list = await ProjectsAPI.list();
+    const list = await ZohoBackboneAPI.listProjects();
     setProjects(list);
   }, []);
 
@@ -189,7 +189,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     console.log('[AppContext] Starting data initialization...');
     ensureSampleData().then(() => {
       console.log('[AppContext] ensureSampleData completed successfully');
-      ProjectsAPI.list().then((p) => { console.log('[AppContext] Projects loaded:', p.length); setProjects(p); }).catch((e) => console.error('[AppContext] Projects load failed:', e));
+      ZohoBackboneAPI.listProjects().then((p) => { console.log('[AppContext] Projects loaded:', p.length); setProjects(p); }).catch((e) => console.error('[AppContext] Projects load failed:', e));
       refreshDrawings().then((d) => console.log('[AppContext] Drawings loaded:', d?.length ?? 0));
       refreshTasks().then(() => console.log('[AppContext] Tasks loaded'));
       refreshMilestones().then(() => console.log('[AppContext] Milestones loaded'));
@@ -197,7 +197,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     }).catch((err) => {
       // Even if ensureSampleData fails, still try to load what's in the DB
       console.error('[AppContext] ensureSampleData FAILED:', err);
-      ProjectsAPI.list().then(setProjects).catch(() => {});
+      ZohoBackboneAPI.listProjects().then(setProjects).catch(() => {});
       refreshDrawings();
       refreshTasks();
       refreshMilestones();

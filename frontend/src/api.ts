@@ -209,6 +209,46 @@ export const CustomModulesAPI = {
   },
 };
 
+// ─── Zoho Projects — BACKBONE (Projects, Milestones, Tasks via REST API) ──────
+
+export const ZohoBackboneAPI = {
+  // Projects
+  listProjects: () =>
+    api.get<Project[]>('/zoho-projects/projects').then((r) => r.data),
+  getProject: (zpId: string) =>
+    api.get<Project>(`/zoho-projects/projects/${zpId}`).then((r) => r.data),
+  createProject: (data: Partial<Project>) =>
+    api.post<Project>('/zoho-projects/projects', data).then((r) => r.data),
+  updateProject: (zpId: string, data: Partial<Project>) =>
+    api.put<Project>(`/zoho-projects/projects/${zpId}`, data).then((r) => r.data),
+  removeProject: (zpId: string) =>
+    api.delete(`/zoho-projects/projects/${zpId}`),
+
+  // Milestones
+  listMilestones: (zpId: string) =>
+    api.get<Milestone[]>(`/zoho-projects/projects/${zpId}/milestones`).then((r) => r.data),
+  createMilestone: (zpId: string, data: Partial<Milestone>) =>
+    api.post<Milestone>(`/zoho-projects/projects/${zpId}/milestones`, data).then((r) => r.data),
+  updateMilestone: (zpId: string, milestoneId: string, data: Partial<Milestone>) =>
+    api.put<Milestone>(`/zoho-projects/projects/${zpId}/milestones/${milestoneId}`, data).then((r) => r.data),
+  removeMilestone: (zpId: string, milestoneId: string) =>
+    api.delete(`/zoho-projects/projects/${zpId}/milestones/${milestoneId}`),
+
+  // Tasks
+  listTasks: (zpId: string) =>
+    api.get<Task[]>(`/zoho-projects/projects/${zpId}/tasks`).then((r) => r.data),
+  createTask: (zpId: string, data: Partial<Task>) =>
+    api.post<Task>(`/zoho-projects/projects/${zpId}/tasks`, data).then((r) => r.data),
+  updateTask: (zpId: string, taskId: string, data: Partial<Task>) =>
+    api.put<Task>(`/zoho-projects/projects/${zpId}/tasks/${taskId}`, data).then((r) => r.data),
+  removeTask: (zpId: string, taskId: string) =>
+    api.delete(`/zoho-projects/projects/${zpId}/tasks/${taskId}`),
+
+  // Seed demo data (creates "Prestige Heights – Phase 1" with realistic tasks)
+  seed: () =>
+    api.post('/zoho-projects/seed').then((r) => r.data),
+};
+
 // ─── Zoho Projects — Custom Modules (via Task Lists + Tasks) ─────────────────
 
 export interface ZohoTaskList {

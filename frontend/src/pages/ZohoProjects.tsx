@@ -106,6 +106,91 @@ const BADGE_COLORS: Record<string, string> = {
   'Pending':  'bg-amber-900/60 text-amber-300 border border-amber-700/60',
 };
 
+// ─── Styled Checkbox ─────────────────────────────────────────────────────────
+
+function StyledCheckbox({
+  checked,
+  onChange,
+  indeterminate,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  indeterminate?: boolean;
+}) {
+  const ref = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = indeterminate ?? false;
+    }
+  }, [indeterminate]);
+
+  return (
+    <label
+      className="relative flex items-center justify-center cursor-pointer"
+      style={{ width: 16, height: 16 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="sr-only"
+      />
+      {/* Custom box */}
+      <span
+        className="flex items-center justify-center rounded transition-all duration-150"
+        style={{
+          width: 15,
+          height: 15,
+          background: checked
+            ? 'linear-gradient(135deg, #e11d48 0%, #9f1239 100%)'
+            : indeterminate
+            ? 'linear-gradient(135deg, #be123c 0%, #881337 100%)'
+            : 'rgba(220,38,90,0.06)',
+          border: checked || indeterminate
+            ? '1.5px solid rgba(251,113,133,0.7)'
+            : '1.5px solid rgba(220,38,90,0.3)',
+          boxShadow: checked
+            ? '0 0 8px rgba(225,29,72,0.45), inset 0 1px 0 rgba(255,255,255,0.15)'
+            : indeterminate
+            ? '0 0 6px rgba(190,18,60,0.3)'
+            : 'none',
+        }}
+      >
+        {checked && (
+          <svg
+            width="9"
+            height="9"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="white"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="2,6 5,9 10,3" />
+          </svg>
+        )}
+        {!checked && indeterminate && (
+          <svg
+            width="8"
+            height="2"
+            viewBox="0 0 8 2"
+            fill="none"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <line x1="1" y1="1" x2="7" y2="1" />
+          </svg>
+        )}
+      </span>
+    </label>
+  );
+}
+
 function StatusBadge({ value }: { value: string }) {
   const color = BADGE_COLORS[value] ?? 'bg-slate-700/80 text-slate-300 border border-slate-600';
   return (
@@ -1525,13 +1610,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
       >
         <span className="flex items-center justify-center py-4">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={onToggleSelect}
-            onClick={(e) => e.stopPropagation()}
-            className="w-3.5 h-3.5 accent-rose-600 cursor-pointer"
-          />
+          <StyledCheckbox checked={selected} onChange={onToggleSelect} />
         </span>
       </td>
 
@@ -1930,11 +2009,10 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted, onRecordCountCh
                 }}
               >
                 <span className="flex items-center justify-center py-3">
-                  <input
-                    type="checkbox"
+                  <StyledCheckbox
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="w-3.5 h-3.5 accent-rose-600 cursor-pointer"
+                    indeterminate={someSelected && !allSelected}
                   />
                 </span>
               </th>

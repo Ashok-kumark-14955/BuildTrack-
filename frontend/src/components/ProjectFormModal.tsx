@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Save, FolderKanban, Calendar, User, Hash, AlignLeft, Briefcase, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { ProjectsAPI } from '../api';
+import { ZohoBackboneAPI } from '../api';
 import { PROJECT_STATUS_OPTIONS, PROJECT_STATUS_COLORS, type Project, type ProjectStatus } from '../types';
 
 interface Props {
@@ -37,10 +37,10 @@ export default function ProjectFormModal({ project, managers, onClose, onSaved }
     setSaving(true);
     try {
       if (isEdit) {
-        await ProjectsAPI.update(project.id, form);
+        await ZohoBackboneAPI.updateProject(project.id, form);
         toast.success('Project updated');
       } else {
-        await ProjectsAPI.create(form);
+        await ZohoBackboneAPI.createProject(form);
         toast.success('Project created');
       }
       onSaved();
