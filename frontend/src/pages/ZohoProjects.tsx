@@ -1492,31 +1492,39 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
 
   const isEven = rowIndex % 2 === 0;
   const rowBg = selected
-    ? 'rgba(220,38,90,0.12)'
-    : isEven ? 'rgba(12,0,3,0.55)' : 'rgba(18,0,5,0.75)';
+    ? 'linear-gradient(135deg, rgba(220,38,90,0.18) 0%, rgba(120,5,30,0.25) 100%)'
+    : isEven
+      ? 'linear-gradient(135deg, rgba(18,0,4,0.95) 0%, rgba(10,0,2,0.98) 100%)'
+      : 'linear-gradient(135deg, rgba(26,0,7,0.97) 0%, rgba(16,0,4,0.99) 100%)';
 
   return (
     <tr
       className="group transition-all duration-150"
-      style={{ background: rowBg, borderBottom: '1px solid rgba(60,5,18,0.3)' }}
+      style={{
+        background: rowBg,
+        borderBottom: '1px solid rgba(80,5,25,0.4)',
+      }}
       onMouseEnter={(e) => {
         if (!selected) {
-          (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(220,38,90,0.09) 0%, rgba(30,3,10,0.95) 60%, rgba(18,0,5,0.9) 100%)';
+          (e.currentTarget as HTMLElement).style.background =
+            'linear-gradient(135deg, rgba(220,38,90,0.13) 0%, rgba(40,3,12,0.97) 50%, rgba(20,0,5,0.95) 100%)';
         }
-        (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(220,38,90,0.3)';
+        (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(220,38,90,0.5)';
+        (e.currentTarget as HTMLElement).style.boxShadow = 'inset 3px 0 0 rgba(220,38,90,0.6), 0 1px 12px rgba(220,38,90,0.08)';
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.background = rowBg;
-        (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(60,5,18,0.3)';
+        (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(80,5,25,0.4)';
+        (e.currentTarget as HTMLElement).style.boxShadow = 'none';
       }}
     >
       {/* Checkbox */}
       <td
         className="px-0 py-0 w-9 text-center select-none"
-        style={{ borderRight: '1px solid rgba(60,5,18,0.4)' }}
+        style={{ borderRight: '1px solid rgba(80,5,25,0.5)' }}
         onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
       >
-        <span className="flex items-center justify-center py-2.5">
+        <span className="flex items-center justify-center py-4">
           <input
             type="checkbox"
             checked={selected}
@@ -1530,11 +1538,11 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
       {/* Row number */}
       <td
         className="px-0 py-0 w-10 text-center select-none tabular-nums"
-        style={{ borderRight: '1px solid rgba(60,5,18,0.4)' }}
+        style={{ borderRight: '1px solid rgba(80,5,25,0.5)' }}
       >
         <span
-          className="flex items-center justify-center h-full py-3 text-[10px] font-mono font-black tracking-wider"
-          style={{ color: 'rgba(220,38,90,0.28)', textShadow: '0 0 8px rgba(220,38,90,0.15)' }}
+          className="flex items-center justify-center h-full py-4 text-[10px] font-mono font-black tracking-wider"
+          style={{ color: 'rgba(220,38,90,0.45)', textShadow: '0 0 10px rgba(220,38,90,0.3)' }}
         >
           {String(rowIndex + 1).padStart(2, '0')}
         </span>
@@ -1544,15 +1552,15 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         <td
           key={field.id}
           className="px-0 py-0 cursor-pointer relative overflow-hidden"
-          style={{ borderRight: fIdx < fields.length - 1 ? '1px solid rgba(45,3,13,0.6)' : 'none' }}
+          style={{ borderRight: fIdx < fields.length - 1 ? '1px solid rgba(60,5,20,0.5)' : 'none' }}
           onClick={() => setEditingCell(field.id)}
         >
           {editingCell === field.id && (
             <div className="absolute inset-0 pointer-events-none"
-              style={{ background: 'rgba(220,38,90,0.06)', boxShadow: 'inset 0 0 0 1.5px rgba(220,38,90,0.35)' }}
+              style={{ background: 'rgba(220,38,90,0.1)', boxShadow: 'inset 0 0 0 2px rgba(220,38,90,0.5)' }}
             />
           )}
-          <div className="relative px-3 py-2.5">
+          <div className="relative px-3 py-4">
             {editingCell === field.id ? (
               <CellEditor
                 field={field}
@@ -1566,13 +1574,13 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
       ))}
 
       {/* Delete */}
-      <td className="px-2 py-0 w-8" style={{ borderLeft: '1px solid rgba(45,3,13,0.6)' }}>
+      <td className="px-2 py-0 w-8" style={{ borderLeft: '1px solid rgba(60,5,20,0.5)' }}>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all duration-150"
-          style={{ color: 'rgba(100,116,139,0.7)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#fca5a5'; e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(100,116,139,0.7)'; e.currentTarget.style.background = 'transparent'; }}
+          style={{ color: 'rgba(150,80,100,0.6)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#fca5a5'; e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; e.currentTarget.style.boxShadow = '0 0 8px rgba(239,68,68,0.2)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(150,80,100,0.6)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.boxShadow = 'none'; }}
           title="Delete record"
         >
           <TrashIcon />
