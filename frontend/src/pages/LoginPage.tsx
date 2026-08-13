@@ -3,25 +3,18 @@
  *
  * Shown when the user is not authenticated via Zoho Catalyst.
  * Clicking "Sign in with Zoho" redirects to Catalyst's built-in
- * OAuth login flow at /__catalyst/login on the AppSail backend,
- * which handles the full OAuth cycle and then redirects back to the app.
+ * OAuth login flow at /__catalyst/login.
  *
- * IMPORTANT: The frontend is hosted on Catalyst Slate (*.onslate.com) while
- * the backend runs on AppSail (*.catalystappsail.in). The /__catalyst/login
- * endpoint only exists on the AppSail domain, so we must use the absolute
- * VITE_API_BASE URL — not a relative path on the Slate origin.
+ * IMPORTANT: /__catalyst/login is served by the Catalyst Slate gateway
+ * at the Slate origin (*.onslate.in), NOT by the AppSail backend.
+ * So we always redirect to `window.location.origin + /__catalyst/login`.
  */
-
-// The AppSail backend base URL (set in .env.production).
-// Falls back to the same origin for local dev (never shown locally anyway).
-const API_BASE =
-  import.meta.env.VITE_API_BASE || window.location.origin;
 
 export default function LoginPage() {
   function handleLogin() {
-    // Redirect to /__catalyst/login on the AppSail backend.
-    // Catalyst will handle OAuth and redirect the browser back to the app.
-    window.location.href = `${API_BASE}/__catalyst/login`;
+    // /__catalyst/login is available on the Slate domain (*.onslate.in).
+    // After OAuth completes, Catalyst redirects back to this same origin.
+    window.location.href = `${window.location.origin}/__catalyst/login`;
   }
 
   return (
