@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, ArrowUp, ArrowDown, FolderKanban, Archive, ArchiveRestore, User } from 'lucide-react';
+import { Plus, Search, ArrowUp, ArrowDown, FolderKanban, Archive, ArchiveRestore, User, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProjectsAPI } from '../api';
 import { PROJECT_STATUS_COLORS, PROJECT_STATUS_OPTIONS, type Project } from '../types';
 import ProjectFormModal from '../components/ProjectFormModal';
+import FieldsModal from '../components/FieldsModal';
 import { useApp } from '../AppContext';
 
 type SortKey = 'name' | 'createdAt' | 'updatedAt';
@@ -21,6 +22,7 @@ export default function Projects() {
   const [sortAsc, setSortAsc] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
+  const [fieldsProject, setFieldsProject] = useState<Project | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -183,6 +185,13 @@ export default function Projects() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     <button onClick={(e) => openEdit(p, e)} className="btn-ghost text-xs px-2 py-1 rounded-md">Edit</button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setFieldsProject(p); }}
+                      className="icon-btn w-7 h-7"
+                      title="Manage custom fields"
+                    >
+                      <Layers size={13} />
+                    </button>
                     <button onClick={(e) => toggleArchive(p, e)} className="icon-btn w-7 h-7" title={p.archived ? 'Unarchive' : 'Archive'}>
                       {p.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                     </button>
@@ -210,6 +219,14 @@ export default function Projects() {
           managers={managers}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); load(); }}
+        />
+      )}
+
+      {fieldsProject && (
+        <FieldsModal
+          projectId={fieldsProject.id}
+          projectName={fieldsProject.name}
+          onClose={() => setFieldsProject(null)}
         />
       )}
     </div>

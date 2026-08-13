@@ -63,6 +63,54 @@ app.post('/api/cliq-report', async (req, res) => {
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+/**
+ * GET /api/me
+ * Returns the currently authenticated Catalyst user.
+ * - In production (AppSail), Catalyst injects the user via SDK.
+ * - In local dev (no Catalyst env), returns a mock user so the app still works.
+ * Frontend uses this to decide whether to show the login page.
+ *
+ * Note: catalyst.initialize(req) may throw "INVALID_URL_PATTERN" when the
+ * request comes cross-domain from the Slate frontend (*.onslate.com →
+ * *.catalystappsail.in). We catch all SDK errors and return 401 so the
+ * frontend's auth guard can redirect to the login page cleanly.
+ */
+app.get('/api/me', async (req, res) => {
+  // Local dev: no Catalyst env — return a mock user so the app loads normally.
+  if (!process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
+    return res.json({
+      user_id: 'local-dev',
+      email_id: 'dev@localhost',
+      first_name: 'Dev',
+      last_name: 'User',
+      display_name: 'Dev User',
+    });
+  }
+
+  try {
+    const catalyst = require('zcatalyst-sdk-node');
+    // Use { scope: 'admin' } — same as the rest of the app — so the SDK
+    // does not attempt to re-validate the Host header as a Slate origin.
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const userManagement = catalystApp.userManagement();
+    const user = await userManagement.getCurrentUser();
+    return res.json({
+      user_id: user.user_id || user.userId,
+      email_id: user.email_id || user.email,
+      first_name: user.first_name || user.firstName || '',
+      last_name: user.last_name || user.lastName || '',
+      display_name:
+        user.display_name ||
+        `${user.first_name || user.firstName || ''} ${user.last_name || user.lastName || ''}`.trim(),
+    });
+  } catch (err: any) {
+    // SDK throws INVALID_URL_PATTERN (cross-domain), NOT_AUTHENTICATED, or
+    // similar when the user has no valid Catalyst session cookie.
+    console.warn('[/api/me] Auth check failed:', err?.message || err);
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Catalyst Management API helper (shared by setup-tables and debug-tables)
 // ---------------------------------------------------------------------------

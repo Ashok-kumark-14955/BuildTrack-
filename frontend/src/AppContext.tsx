@@ -56,7 +56,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentDrawingId, setCurrentDrawingId] = useState<string | null>(null);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [focusElementRequest, setFocusElementRequest] = useState<string | null>(null);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectIdRaw] = useState<string | null>(
+    () => localStorage.getItem('activeProjectId')
+  );
+
+  const setActiveProjectId = useCallback((id: string | null) => {
+    setActiveProjectIdRaw(id);
+    if (id) localStorage.setItem('activeProjectId', id);
+    else localStorage.removeItem('activeProjectId');
+  }, []);
 
   const refreshDrawings = useCallback(async () => {
     const list = await DrawingsAPI.list();
@@ -65,7 +73,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Also sync activeProjectId so the sidebar shows the correct project's drawings.
     if (!currentDrawingId && list.length > 0) {
       setCurrentDrawingId(list[0].id);
-      setActiveProjectId((prev) => prev ?? list[0].projectId ?? null);
+      // Only set if not already persisted (don't override localStorage value)
+      setActiveProjectIdRaw((prev) => {
+        const next = prev ?? list[0].projectId ?? null;
+        if (next && !prev) localStorage.setItem('activeProjectId', next);
+        return next;
+      });
     }
     return list; // allow callers to act on the fresh list
   }, [currentDrawingId]);

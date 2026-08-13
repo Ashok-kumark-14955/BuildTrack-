@@ -139,7 +139,7 @@ export const GeocodeAPI = {
 export interface CustomField {
   id: string;        // uuid generated on client
   label: string;     // display name e.g. "Status"
-  type: 'text' | 'select' | 'multiuser' | 'number' | 'date'; // field type
+  type: 'text' | 'select' | 'multiuser' | 'number' | 'date' | 'attachment'; // field type
   options?: string[]; // for type="select"
 }
 
@@ -168,10 +168,13 @@ function parseModuleRow(row: any): CustomModule {
 }
 
 function parseRecordRow(row: any): CustomRecord {
-  return {
-    ...row,
-    data: typeof row.data === 'string' ? JSON.parse(row.data) : (row.data ?? {}),
-  };
+  let data: Record<string, any> = {};
+  try {
+    data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data ?? {});
+  } catch {
+    data = {};
+  }
+  return { ...row, data };
 }
 
 export const CustomModulesAPI = {
@@ -194,6 +197,16 @@ export const CustomModulesAPI = {
     api.put<any>(`/custom-modules/${moduleId}/records/${recordId}`, data).then((r) => parseRecordRow(r.data)),
   deleteRecord: (moduleId: string, recordId: string) =>
     api.delete(`/custom-modules/${moduleId}/records/${recordId}`),
+
+  // Upload a file attachment to Catalyst Stratus; returns { url, name, type, size }
+  uploadAttachment: (file: File): Promise<{ url: string; name: string; type: string; size: number }> => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post<{ url: string; name: string; type: string; size: number }>(
+      '/custom-modules/upload-attachment',
+      form,
+    ).then((r) => r.data);
+  },
 };
 
 // ─── Zoho Projects — Custom Modules (via Task Lists + Tasks) ─────────────────

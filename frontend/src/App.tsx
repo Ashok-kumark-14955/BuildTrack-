@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Sidebar from './components/Sidebar';
@@ -6,17 +7,98 @@ import Dashboard from './pages/Dashboard';
 import TaskList from './pages/TaskList';
 import Projects from './pages/Projects';
 import ZohoProjectsPage from './pages/ZohoProjects';
+import LoginPage from './pages/LoginPage';
 import { AppProvider } from './AppContext';
 
+// ─── Auth state ──────────────────────────────────────────────────────────────
+
+type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+
+interface CatalystUser {
+  user_id: string;
+  email_id: string;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+
 export default function App() {
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
+  const [_user, setUser] = useState<CatalystUser | null>(null);
+
+  useEffect(() => {
+    const isLocalDev = window.location.hostname === 'localhost' ||
+                       window.location.hostname === '127.0.0.1';
+
+    // Call /api/me to check authentication.
+    // In local dev, the Vite proxy targets the remote Catalyst backend which
+    // requires a Catalyst session cookie — not available locally. So in local
+    // dev we bypass auth entirely and go straight into the app.
+    fetch('/api/me', { credentials: 'include' })
+      .then(async (res) => {
+        if (res.ok) {
+          const data: CatalystUser = await res.json();
+          setUser(data);
+          setAuthStatus('authenticated');
+        } else {
+          // 401: Catalyst session missing.
+          // In local dev → bypass auth (no Catalyst session possible).
+          // In production (AppSail) → show login page.
+          if (isLocalDev) {
+            setAuthStatus('authenticated');
+          } else {
+            setAuthStatus('unauthenticated');
+          }
+        }
+      })
+      .catch(() => {
+        // Network error or backend unreachable.
+        // In local dev → bypass auth so the app still loads.
+        // In production → show login page.
+        if (isLocalDev) {
+          setAuthStatus('authenticated');
+        } else {
+          setAuthStatus('unauthenticated');
+        }
+      });
+  }, []);
+
+  // ── Loading splash ──
+  if (authStatus === 'loading') {
+    return (
+      <div
+        className="flex items-center justify-center min-h-screen w-screen"
+        style={{
+          background:
+            'radial-gradient(ellipse 80% 60% at 10% 20%, rgba(190,24,93,0.45) 0%, transparent 55%), radial-gradient(ellipse 60% 50% at 90% 80%, rgba(157,23,77,0.35) 0%, transparent 60%), linear-gradient(135deg, #4a0020 0%, #6b0030 35%, #5a0028 65%, #3d001a 100%)',
+        }}
+      >
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-4 border-rose-700 border-t-transparent animate-spin" />
+          <span className="text-rose-300/70 text-sm font-medium tracking-wide">
+            Authenticating…
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Not authenticated → show login page ──
+  if (authStatus === 'unauthenticated') {
+    return <LoginPage />;
+  }
+
+  // ── Authenticated → show app ──
   return (
     <AppProvider>
-        <div
-          className="flex h-screen w-screen p-3 gap-3 overflow-hidden relative"
-          style={{
-            background: 'radial-gradient(ellipse 80% 60% at 10% 20%, rgba(190,24,93,0.45) 0%, transparent 55%), radial-gradient(ellipse 60% 50% at 90% 80%, rgba(157,23,77,0.35) 0%, transparent 60%), linear-gradient(135deg, #4a0020 0%, #6b0030 35%, #5a0028 65%, #3d001a 100%)',
-          }}
-        >
+      <div
+        className="flex h-screen w-screen p-3 gap-3 overflow-hidden relative"
+        style={{
+          background: 'radial-gradient(ellipse 80% 60% at 10% 20%, rgba(190,24,93,0.45) 0%, transparent 55%), radial-gradient(ellipse 60% 50% at 90% 80%, rgba(157,23,77,0.35) 0%, transparent 60%), linear-gradient(135deg, #4a0020 0%, #6b0030 35%, #5a0028 65%, #3d001a 100%)',
+        }}
+      >
         {/* Sidebar with rounded corners */}
         <div className="rounded-2xl overflow-hidden shrink-0 shadow-2xl">
           <Sidebar />
