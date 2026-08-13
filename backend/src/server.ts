@@ -89,11 +89,17 @@ app.get('/api/me', async (req, res) => {
 
   try {
     const catalyst = require('zcatalyst-sdk-node');
-    // Use { scope: 'admin' } — same as the rest of the app — so the SDK
-    // does not attempt to re-validate the Host header as a Slate origin.
-    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    // getCurrentUser() requires the default (User) scope — { scope: 'admin' }
+    // is for DataStore/ZCQL/Cache operations and does not carry the caller's
+    // session identity, so it always resolved to no user here.
+    const catalystApp = catalyst.initialize(req);
     const userManagement = catalystApp.userManagement();
     const user = await userManagement.getCurrentUser();
+    if (!user || !(user.user_id || user.userId)) {
+      // Project collaborators/admins aren't registered "app users" and get
+      // no user record back even though their session is valid.
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
     return res.json({
       user_id: user.user_id || user.userId,
       email_id: user.email_id || user.email,
@@ -321,6 +327,17 @@ app.get('/api/debug-tables', async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ ok: false, error: err.message, stack: err.stack });
   }
+});
+
+// Serve the built frontend from this same AppSail service (same-origin).
+// Slate and AppSail live on different Catalyst domains, so a Slate-hosted
+// frontend can't have its Zoho login session cookie recognized by this
+// backend's catalyst.initialize(req) call across domains. Serving the
+// frontend from here instead makes auth cookies same-origin.
+const frontendDist = path.join(__dirname, '../public');
+app.use(express.static(frontendDist));
+app.get('/*splat', (_req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
 app.listen(PORT, () => {

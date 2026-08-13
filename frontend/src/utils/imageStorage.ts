@@ -20,7 +20,7 @@
 import { openBuildTrackDb } from './browserDb';
 
 const STORE = 'images';
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:4000';
 
 /** Convert a File/Blob to a base64 data URL. */
 export function fileToDataUrl(file: File | Blob): Promise<string> {

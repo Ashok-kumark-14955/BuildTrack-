@@ -1,6 +1,14 @@
 export type TaskStatus = 'No Task' | 'Assigned' | 'In Progress' | 'Completed' | 'Blocked' | 'Delayed';
 export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Critical';
 
+export interface CatalystUser {
+  user_id: string;
+  email_id: string;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+}
+
 // Extensible structural element types recognized by the drawing engine.
 // Adding a new type (e.g. 'slab', 'wall') only requires a geometry generator
 // and a render component — no changes to the task/status model below.

@@ -8,25 +8,21 @@ import TaskList from './pages/TaskList';
 import Projects from './pages/Projects';
 import ZohoProjectsPage from './pages/ZohoProjects';
 import LoginPage from './pages/LoginPage';
+import SettingsPage from './pages/SettingsPage';
 import { AppProvider } from './AppContext';
+import type { CatalystUser } from './types';
 
 // ─── Auth state ──────────────────────────────────────────────────────────────
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
-interface CatalystUser {
-  user_id: string;
-  email_id: string;
-  first_name: string;
-  last_name: string;
-  display_name: string;
-}
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:4000';
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
-  const [_user, setUser] = useState<CatalystUser | null>(null);
+  const [user, setUser] = useState<CatalystUser | null>(null);
 
   useEffect(() => {
     const isLocalDev = window.location.hostname === 'localhost' ||
@@ -36,7 +32,7 @@ export default function App() {
     // In local dev, the Vite proxy targets the remote Catalyst backend which
     // requires a Catalyst session cookie — not available locally. So in local
     // dev we bypass auth entirely and go straight into the app.
-    fetch('/api/me', { credentials: 'include' })
+    fetch(`${API_BASE}/api/me`, { credentials: 'include' })
       .then(async (res) => {
         if (res.ok) {
           const data: CatalystUser = await res.json();
@@ -92,7 +88,7 @@ export default function App() {
 
   // ── Authenticated → show app ──
   return (
-    <AppProvider>
+    <AppProvider user={user}>
       <div
         className="flex h-screen w-screen p-3 gap-3 overflow-hidden relative"
         style={{
@@ -111,6 +107,7 @@ export default function App() {
             <Route path="/tasks" element={<TaskList />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/zoho-modules" element={<ZohoProjectsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </div>
       </div>

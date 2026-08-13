@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DrawingsAPI, TasksAPI, ActivityAPI, ProjectsAPI, MilestonesAPI } from './api';
-import type { ActivityItem, Drawing, Milestone, Project, Task } from './types';
+import type { ActivityItem, CatalystUser, Drawing, Milestone, Project, Task } from './types';
 import { ensureSampleData } from './utils/seedData';
 
 interface AppState {
+  user: CatalystUser | null;
+  signOut: () => void;
   projects: Project[];
   drawings: Drawing[];
   tasks: Task[];
@@ -47,7 +49,13 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null);
 
-export function AppProvider({ children }: { children: ReactNode }) {
+export function AppProvider({ children, user }: { children: ReactNode; user: CatalystUser | null }) {
+  const signOut = useCallback(() => {
+    // catalyst.auth.signOut() requires the Web SDK (loaded in index.html) and
+    // a redirect URL — it crashes without one and does not return a promise.
+    (window as any).catalyst?.auth?.signOut(window.location.origin);
+  }, []);
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -318,6 +326,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const value: AppState = useMemo(() => ({
+    user,
+    signOut,
     projects,
     drawings,
     tasks,
@@ -354,6 +364,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addCustomBeam,
     removeCustomBeam,
   }), [
+    user, signOut,
     projects, drawings, tasks, milestones, activity,
     currentDrawingId, selectedElementId,
     setCurrentDrawingId, setSelectedElementId,

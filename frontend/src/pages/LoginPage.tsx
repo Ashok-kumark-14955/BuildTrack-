@@ -3,18 +3,19 @@
  *
  * Shown when the user is not authenticated via Zoho Catalyst.
  * Clicking "Sign in with Zoho" redirects to Catalyst's built-in
- * OAuth login flow at /__catalyst/login.
+ * Hosted Login route at /__catalyst/auth/login (NOT /__catalyst/login —
+ * that path doesn't exist and trips the gateway's INVALID_URL_PATTERN error).
  *
- * IMPORTANT: /__catalyst/login is served by the Catalyst Slate gateway
+ * IMPORTANT: /__catalyst/auth/login is served by the Catalyst Slate gateway
  * at the Slate origin (*.onslate.in), NOT by the AppSail backend.
- * So we always redirect to `window.location.origin + /__catalyst/login`.
+ * So we always redirect to `window.location.origin + /__catalyst/auth/login`.
  */
 
 export default function LoginPage() {
   function handleLogin() {
-    // /__catalyst/login is available on the Slate domain (*.onslate.in).
+    // /__catalyst/auth/login is available on the Slate domain (*.onslate.in).
     // After OAuth completes, Catalyst redirects back to this same origin.
-    window.location.href = `${window.location.origin}/__catalyst/login`;
+    window.location.href = `${window.location.origin}/__catalyst/auth/login`;
   }
 
   return (
