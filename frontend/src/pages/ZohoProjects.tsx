@@ -2150,34 +2150,6 @@ export default function CustomModulesPage() {
       >
         <div className="flex items-stretch px-3 gap-0 h-11">
 
-          {/* Page label — left anchor */}
-          <div className="flex items-center pr-3 mr-1 border-r border-rose-900/30 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              {/* Glyph */}
-              <div
-                className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-                style={{
-                  background: 'linear-gradient(145deg, rgba(220,38,90,0.35) 0%, rgba(100,10,30,0.5) 100%)',
-                  border: '1px solid rgba(220,38,90,0.3)',
-                  boxShadow: '0 0 8px rgba(220,38,90,0.15)',
-                }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-rose-400">
-                  <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-                  <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-                  <rect x="14" y="14" width="7" height="7" rx="1.5"/>
-                  <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-                </svg>
-              </div>
-              <div className="flex flex-col leading-none">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.18em] whitespace-nowrap">
-                  Workforce & Safety
-                </span>
-                <span className="text-[8px] text-slate-600 font-medium mt-0.5">Custom Modules</span>
-              </div>
-            </div>
-          </div>
-
           {/* Module tabs — scrollable, underline style */}
           <nav
             className="flex items-stretch gap-0 overflow-x-auto flex-1 min-w-0"
