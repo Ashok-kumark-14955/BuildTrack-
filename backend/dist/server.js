@@ -318,6 +318,10 @@ app.use(express_1.default.static(frontendDist));
 app.get('/*splat', (_req, res) => {
     res.sendFile(path_1.default.join(frontendDist, 'index.html'));
 });
+app.use((err, _req, res, _next) => {
+    console.error('[unhandled]', err);
+    res.status(500).json({ error: err?.message || String(err), detail: err?.toString?.() });
+});
 app.listen(PORT, () => {
     console.log(`Backend running on http://localhost:${PORT}`);
 });

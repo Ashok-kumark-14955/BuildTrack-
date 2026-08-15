@@ -198,32 +198,55 @@ export default function TaskList() {
 
   // ─── Build hierarchy: Milestone → Drawing → Tasks ───────────────────────
   // Uses project-scoped arrays so only the active project's data is shown.
+  //
+  // Strategy: group tasks by task.milestoneId first (tasks can span milestones
+  // even within the same drawing). Each milestone section shows all drawings
+  // that have at least one task assigned to that milestone, with those tasks.
   const hierarchy = useMemo(() => {
     type DrawingNode = { drawing: Drawing; tasks: Task[] };
     type MilestoneNode = { milestone: Milestone | null; drawings: DrawingNode[] };
     const nodes: MilestoneNode[] = [];
 
-    // Each milestone (scoped to active project): drawings that belong to it
     projectMilestones.forEach((ms) => {
-      const msDrawings = projectDrawings.filter((d) => d.milestoneId === ms.id);
-      nodes.push({
-        milestone: ms,
-        drawings: msDrawings.map((d) => ({
-          drawing: d,
-          tasks: sortTasks(projectTasks.filter((t) => t.drawingId === d.id && filterTask(t))),
-        })),
-      });
+      // Get all tasks for this milestone (scoped to project drawings)
+      const msTasks = projectTasks.filter((t) => t.milestoneId === ms.id && filterTask(t));
+      // Group those tasks by drawing
+      const drawingIds = [...new Set(msTasks.map((t) => t.drawingId))];
+      const drawingNodes: DrawingNode[] = drawingIds
+        .map((dId) => {
+          const drawing = projectDrawings.find((d) => d.id === dId);
+          if (!drawing) return null;
+          return {
+            drawing,
+            tasks: sortTasks(msTasks.filter((t) => t.drawingId === dId)),
+          };
+        })
+        .filter(Boolean) as DrawingNode[];
+
+      // Include milestone even if it has no tasks (so user can add tasks / see it exists)
+      if (drawingNodes.length === 0) {
+        nodes.push({ milestone: ms, drawings: [] });
+      } else {
+        nodes.push({ milestone: ms, drawings: drawingNodes });
+      }
     });
 
-    // Unassigned drawings (no milestoneId) — still scoped to active project
-    const unassigned = projectDrawings.filter((d) => !d.milestoneId);
-    if (unassigned.length > 0) {
+    // Unassigned tasks (no milestoneId) — still scoped to active project
+    const unassignedTasks = projectTasks.filter((t) => !t.milestoneId && filterTask(t));
+    if (unassignedTasks.length > 0) {
+      const drawingIds = [...new Set(unassignedTasks.map((t) => t.drawingId))];
       nodes.push({
         milestone: null,
-        drawings: unassigned.map((d) => ({
-          drawing: d,
-          tasks: sortTasks(projectTasks.filter((t) => t.drawingId === d.id && filterTask(t))),
-        })),
+        drawings: drawingIds
+          .map((dId) => {
+            const drawing = projectDrawings.find((d) => d.id === dId);
+            if (!drawing) return null;
+            return {
+              drawing,
+              tasks: sortTasks(unassignedTasks.filter((t) => t.drawingId === dId)),
+            };
+          })
+          .filter(Boolean) as DrawingNode[],
       });
     }
     return nodes;
@@ -850,10 +873,7 @@ export default function TaskList() {
                     onChange={(e) => setTaskForm({ ...taskForm, drawingId: e.target.value })}
                   >
                     <option value="">— Select drawing —</option>
-                    {drawings
-                      .filter((d) => addTaskMsId ? d.milestoneId === addTaskMsId : true)
-                      .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)
-                    }
+                    {projectDrawings.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
 

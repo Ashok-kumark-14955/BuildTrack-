@@ -54,51 +54,29 @@ function gridCode(col, row) {
     const letter = String.fromCharCode(65 + col);
     return `${letter}${row + 1}`;
 }
+// The Catalyst Data Store SDK returns JSON-typed columns already parsed,
+// while local SQLite stores them as TEXT — accept either shape here.
+function parseMaybeJson(value, fallback) {
+    if (value == null)
+        return fallback;
+    if (typeof value !== 'string')
+        return value;
+    try {
+        return JSON.parse(value);
+    }
+    catch {
+        return fallback;
+    }
+}
 function serialize(row) {
     if (!row)
         return row;
-    let columnPositions = {};
-    try {
-        columnPositions = row.columnPositions ? JSON.parse(row.columnPositions) : {};
-    }
-    catch {
-        columnPositions = {};
-    }
-    let deletedNodes = [];
-    try {
-        deletedNodes = row.deletedNodes ? JSON.parse(row.deletedNodes) : [];
-    }
-    catch {
-        deletedNodes = [];
-    }
-    let customBeams = [];
-    try {
-        customBeams = row.customBeams ? JSON.parse(row.customBeams) : [];
-    }
-    catch {
-        customBeams = [];
-    }
-    let deletedBeams = [];
-    try {
-        deletedBeams = row.deletedBeams ? JSON.parse(row.deletedBeams) : [];
-    }
-    catch {
-        deletedBeams = [];
-    }
-    let columnLabels = {};
-    try {
-        columnLabels = row.columnLabels ? JSON.parse(row.columnLabels) : {};
-    }
-    catch {
-        columnLabels = {};
-    }
-    let elementTypeLabels = {};
-    try {
-        elementTypeLabels = row.elementTypeLabels ? JSON.parse(row.elementTypeLabels) : {};
-    }
-    catch {
-        elementTypeLabels = {};
-    }
+    const columnPositions = parseMaybeJson(row.columnPositions, {});
+    const deletedNodes = parseMaybeJson(row.deletedNodes, []);
+    const customBeams = parseMaybeJson(row.customBeams, []);
+    const deletedBeams = parseMaybeJson(row.deletedBeams, []);
+    const columnLabels = parseMaybeJson(row.columnLabels, {});
+    const elementTypeLabels = parseMaybeJson(row.elementTypeLabels, {});
     return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels };
 }
 /**
@@ -210,138 +188,68 @@ router.patch('/:id', async (req, res) => {
     const newMilestoneId = 'milestoneId' in req.body ? (milestoneId || null) : existing.milestoneId;
     const newLat = 'lat' in req.body ? (lat ?? null) : existing.lat;
     const newLng = 'lng' in req.body ? (lng ?? null) : existing.lng;
-    let newColumnPositions = existing.columnPositions;
-    if (resetColumnPositions) {
-        newColumnPositions = '{}';
-    }
-    else if (columnPositions && typeof columnPositions === 'object') {
-        let current = {};
-        try {
-            current = existing.columnPositions ? JSON.parse(existing.columnPositions) : {};
-        }
-        catch {
-            current = {};
-        }
-        newColumnPositions = JSON.stringify({ ...current, ...columnPositions });
-    }
-    // deletedNodes patch: { [code]: true } adds the code; { [code]: false } removes it.
-    let newDeletedNodes = existing.deletedNodes || '[]';
-    if (resetDeletedNodes) {
-        newDeletedNodes = '[]';
-    }
-    else if (deletedNodes && typeof deletedNodes === 'object') {
-        let current = [];
-        try {
-            current = existing.deletedNodes ? JSON.parse(existing.deletedNodes) : [];
-        }
-        catch {
-            current = [];
-        }
-        for (const [code, remove] of Object.entries(deletedNodes)) {
-            if (remove) {
-                if (!current.includes(code))
-                    current.push(code);
-            }
-            else {
-                current = current.filter((c) => c !== code);
-            }
-        }
-        newDeletedNodes = JSON.stringify(current);
-    }
-    let newColumnLabels = existing.columnLabels || '{}';
-    if (resetColumnLabels) {
-        newColumnLabels = '{}';
-    }
-    else if (columnLabels && typeof columnLabels === 'object') {
-        let current = {};
-        try {
-            current = existing.columnLabels ? JSON.parse(existing.columnLabels) : {};
-        }
-        catch {
-            current = {};
-        }
-        newColumnLabels = JSON.stringify({ ...current, ...columnLabels });
-    }
-    // customBeams: { add?: {from,to}[], remove?: {from,to}[] }
-    let newCustomBeams = existing.customBeams || '[]';
-    if (resetCustomBeams) {
-        newCustomBeams = '[]';
-    }
-    else if (customBeamsPatch && typeof customBeamsPatch === 'object') {
-        let current = [];
-        try {
-            current = existing.customBeams ? JSON.parse(existing.customBeams) : [];
-        }
-        catch {
-            current = [];
-        }
-        const { add, remove: rem } = customBeamsPatch;
-        if (add) {
-            for (const b of add) {
-                const exists = current.some((c) => (c.from === b.from && c.to === b.to) || (c.from === b.to && c.to === b.from));
-                if (!exists)
-                    current.push(b);
-            }
-        }
-        if (rem) {
-            current = current.filter((c) => !rem.some((r) => (r.from === c.from && r.to === c.to) || (r.from === c.to && r.to === c.from)));
-        }
-        newCustomBeams = JSON.stringify(current);
-    }
-    // deletedBeams patch: { [beamId]: true } adds the id; { [beamId]: false } removes it.
-    let newDeletedBeams = existing.deletedBeams || '[]';
-    if (resetDeletedBeams) {
-        newDeletedBeams = '[]';
-    }
-    else if (deletedBeams && typeof deletedBeams === 'object') {
-        let current = [];
-        try {
-            current = existing.deletedBeams ? JSON.parse(existing.deletedBeams) : [];
-        }
-        catch {
-            current = [];
-        }
-        for (const [beamId, remove] of Object.entries(deletedBeams)) {
-            if (remove) {
-                if (!current.includes(beamId))
-                    current.push(beamId);
-            }
-            else {
-                current = current.filter((c) => c !== beamId);
-            }
-        }
-        newDeletedBeams = JSON.stringify(current);
-    }
-    let newElementTypeLabels = existing.elementTypeLabels || '{}';
-    if (resetElementTypeLabels) {
-        newElementTypeLabels = '{}';
-    }
-    else if (elementTypeLabels && typeof elementTypeLabels === 'object') {
-        let current = {};
-        try {
-            current = existing.elementTypeLabels ? JSON.parse(existing.elementTypeLabels) : {};
-        }
-        catch {
-            current = {};
-        }
-        newElementTypeLabels = JSON.stringify({ ...current, ...elementTypeLabels });
-    }
-    await db.run(req, 'UPDATE drawings SET gridCols = ?, gridRows = ?, name = ?, milestoneId = ?, columnPositions = ?, deletedNodes = ?, customBeams = ?, deletedBeams = ?, columnLabels = ?, elementTypeLabels = ?, lat = ?, lng = ?, fileUrl = ? WHERE id = ?', [
+    const sets = ['gridCols = ?', 'gridRows = ?', 'name = ?', 'milestoneId = ?', 'lat = ?', 'lng = ?', 'fileUrl = ?'];
+    const params = [
         gridCols ?? existing.gridCols,
         gridRows ?? existing.gridRows,
         name ?? existing.name,
         newMilestoneId,
-        newColumnPositions,
-        newDeletedNodes,
-        newCustomBeams,
-        newDeletedBeams,
-        newColumnLabels,
-        newElementTypeLabels,
         newLat,
         newLng,
         fileUrl ?? existing.fileUrl,
-        req.params.id,
-    ]);
+    ];
+    // These grid-editor columns aren't present in every environment's DataStore
+    // table yet, so only touch a column when this request actually changes it —
+    // an unconditional blanket UPDATE fails the whole request with "Invalid
+    // column name X" if any one of them is missing.
+    function mergeJsonField(col, patch, resetFlag, applyPatch, emptyValue) {
+        if (resetFlag) {
+            sets.push(`${col} = ?`);
+            params.push(JSON.stringify(emptyValue));
+        }
+        else if (patch && typeof patch === 'object') {
+            const current = parseMaybeJson(existing[col], emptyValue);
+            sets.push(`${col} = ?`);
+            params.push(JSON.stringify(applyPatch(current)));
+        }
+    }
+    mergeJsonField('columnPositions', columnPositions, resetColumnPositions, (current) => ({ ...current, ...columnPositions }), {});
+    // deletedNodes patch: { [code]: true } adds the code; { [code]: false } removes it.
+    mergeJsonField('deletedNodes', deletedNodes, resetDeletedNodes, (current) => {
+        let next = [...current];
+        for (const [code, remove] of Object.entries(deletedNodes)) {
+            next = remove ? (next.includes(code) ? next : [...next, code]) : next.filter((c) => c !== code);
+        }
+        return next;
+    }, []);
+    mergeJsonField('columnLabels', columnLabels, resetColumnLabels, (current) => ({ ...current, ...columnLabels }), {});
+    // customBeams: { add?: {from,to}[], remove?: {from,to}[] }
+    mergeJsonField('customBeams', customBeamsPatch, resetCustomBeams, (current) => {
+        let next = [...current];
+        const { add, remove: rem } = customBeamsPatch;
+        if (add) {
+            for (const b of add) {
+                const exists = next.some((c) => (c.from === b.from && c.to === b.to) || (c.from === b.to && c.to === b.from));
+                if (!exists)
+                    next.push(b);
+            }
+        }
+        if (rem) {
+            next = next.filter((c) => !rem.some((r) => (r.from === c.from && r.to === c.to) || (r.from === c.to && r.to === c.from)));
+        }
+        return next;
+    }, []);
+    // deletedBeams patch: { [beamId]: true } adds the id; { [beamId]: false } removes it.
+    mergeJsonField('deletedBeams', deletedBeams, resetDeletedBeams, (current) => {
+        let next = [...current];
+        for (const [beamId, remove] of Object.entries(deletedBeams)) {
+            next = remove ? (next.includes(beamId) ? next : [...next, beamId]) : next.filter((c) => c !== beamId);
+        }
+        return next;
+    }, []);
+    mergeJsonField('elementTypeLabels', elementTypeLabels, resetElementTypeLabels, (current) => ({ ...current, ...elementTypeLabels }), {});
+    params.push(req.params.id);
+    await db.run(req, `UPDATE drawings SET ${sets.join(', ')} WHERE id = ?`, params);
     res.json(await serializeWithUrl(req, await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id])));
 });
 // Replace the file for an existing drawing (used by seeding/update scripts).

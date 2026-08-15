@@ -340,6 +340,11 @@ app.get('/*splat', (_req, res) => {
   res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[unhandled]', err);
+  res.status(500).json({ error: err?.message || String(err), detail: err?.toString?.() });
+});
+
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
 });

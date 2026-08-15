@@ -20,7 +20,7 @@ import FormData from 'form-data';
 import fetch from 'node-fetch';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BASE = 'http://localhost:4000/api';
+const BASE = process.env.SEED_BASE || 'http://localhost:4000/api';
 
 // ─── Calibration data ────────────────────────────────────────────────────────
 // SVG size: 1200 × 900
