@@ -257,7 +257,7 @@ export default function TaskList() {
   const openEditMs = (ms: Milestone, e: React.MouseEvent) => { e.stopPropagation(); setEditingMs(ms); setMsForm({ name: ms.name, description: ms.description, dueDate: ms.dueDate, status: ms.status }); setShowMsModal(true); };
   const saveMilestone = async () => {
     if (!msForm.name.trim()) { toast.error('Milestone name required'); return; }
-    const projectId = projects[0]?.id;
+    const projectId = activeProject?.id;
     if (!projectId) { toast.error('No project found'); return; }
     try {
       if (editingMs) { await updateMilestone(editingMs.id, msForm); toast.success('Milestone updated'); }
@@ -309,7 +309,7 @@ export default function TaskList() {
             </span>
           </h1>
           <p className="text-sm text-rose-300/60 mt-0.5">
-            {projects[0]?.name ?? 'Project'} · {milestones.length} milestones · {drawings.length} drawings · {totalFiltered} tasks
+            {activeProject?.name ?? 'Project'} · {projectMilestones.length} milestones · {projectDrawings.length} drawings · {totalFiltered} tasks
           </p>
         </div>
         <div className="flex items-center gap-2">
