@@ -398,9 +398,9 @@ export default function Sidebar() {
       </nav>
 
       {/* ── Drawings section ── */}
-      <div className="relative flex-1 min-h-0 px-2.5 overflow-y-auto scrollbar-thin">
+      <div className="relative flex-1 min-h-0 px-2.5 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(216,72,110,0.35) transparent' }}>
         {!collapsed && (
-          <div className="pt-3 pb-2">
+          <div className="pt-3 pb-2 min-h-0">
             {/* Section header */}
             <div className="px-1 mb-2 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
