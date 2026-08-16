@@ -504,12 +504,27 @@ function normalizeMilestone(zm) {
   };
 }
 
+// Zoho Projects HTML-escapes description fields on the way out (e.g. `"` -> `&quot;`),
+// so JSON stored there must be unescaped before parsing.
+function decodeHtmlEntities(str) {
+  return str.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+function safeParseMeta(description) {
+  if (!description) return {};
+  try {
+    return JSON.parse(decodeHtmlEntities(description));
+  } catch {
+    return {};
+  }
+}
+
 // Drawing = Task List with metadata stored in description as JSON
 // Metadata shape: { gridCols, gridRows, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, lat, lng, fileUrl, milestoneId }
 function parseDrawingMeta(taskList) {
   let meta = {};
   try {
-    if (taskList.description) meta = JSON.parse(taskList.description);
+    if (taskList.description) meta = safeParseMeta(taskList.description);
   } catch { /* no meta */ }
   return {
     id: String(taskList.id_string || taskList.id),
@@ -532,7 +547,7 @@ function parseDrawingMeta(taskList) {
 
 function normalizeTask(zt, drawingId) {
   let meta = {};
-  try { if (zt.description) meta = JSON.parse(zt.description); } catch { /* no meta */ }
+  try { if (zt.description) meta = safeParseMeta(zt.description); } catch { /* no meta */ }
   return {
     id: String(zt.id_string || zt.id),
     drawingId: drawingId || meta.drawingId || '',
@@ -555,7 +570,7 @@ function normalizeTask(zt, drawingId) {
 
 function normalizeProjectTask(zt) {
   let meta = {};
-  try { if (zt.description) meta = JSON.parse(zt.description); } catch { /* no meta */ }
+  try { if (zt.description) meta = safeParseMeta(zt.description); } catch { /* no meta */ }
   const tagsRaw = meta.tags || [];
   return {
     id: String(zt.id_string || zt.id),
@@ -578,7 +593,7 @@ function normalizeProjectTask(zt) {
 // Record data stored as JSON in task description.
 function parseModuleMeta(taskList) {
   let meta = {};
-  try { if (taskList.description) meta = JSON.parse(taskList.description); } catch {}
+  try { if (taskList.description) meta = safeParseMeta(taskList.description); } catch {}
   return {
     id: String(taskList.id_string || taskList.id),
     name: taskList.name || '',
@@ -589,7 +604,7 @@ function parseModuleMeta(taskList) {
 
 function parseRecordMeta(task) {
   let data = {};
-  try { if (task.description) data = JSON.parse(task.description); } catch {}
+  try { if (task.description) data = safeParseMeta(task.description); } catch {}
   return {
     id: String(task.id_string || task.id),
     moduleId: data._moduleId || '',
@@ -815,7 +830,7 @@ async function getDrawingTaskLists(projectId) {
   const all = data.tasklists || [];
   return all.filter((tl) => {
     try {
-      const meta = JSON.parse(tl.description || '{}');
+      const meta = safeParseMeta(tl.description);
       return meta._type === DRAWING_TAG;
     } catch { return false; }
   });
@@ -903,7 +918,7 @@ async function handleUpdateDrawing(req, res, params) {
     if (!tl) return sendError(res, 404, 'Drawing not found');
 
     let meta = {};
-    try { meta = JSON.parse(tl.description || '{}'); } catch {}
+    try { meta = safeParseMeta(tl.description); } catch {}
 
     // Merge updates
     const merged = {
@@ -963,7 +978,7 @@ async function handleDrawingFile(req, res, params) {
     if (!tl) return sendError(res, 404, 'Drawing not found');
 
     let meta = {};
-    try { meta = JSON.parse(tl.description || '{}'); } catch {}
+    try { meta = safeParseMeta(tl.description); } catch {}
 
     const fileUrl = meta.fileUrl || '';
 
@@ -1058,7 +1073,7 @@ async function handleUpdateTask(req, res, params) {
     if (!zt) return sendError(res, 404, 'Task not found');
 
     let meta = {};
-    try { meta = JSON.parse(zt.description || '{}'); } catch {}
+    try { meta = safeParseMeta(zt.description); } catch {}
 
     const newMeta = {
       ...meta,
@@ -1169,7 +1184,7 @@ async function ensureProjectTasksList(projectId) {
   const data = await zohoGet(`/projects/${projectId}/tasklists/`);
   const all = data.tasklists || [];
   const existing = all.find((tl) => {
-    try { return JSON.parse(tl.description || '{}')._type === PROJECT_TASK_TAG; } catch { return false; }
+    try { return safeParseMeta(tl.description)._type === PROJECT_TASK_TAG; } catch { return false; }
   });
   if (existing) return String(existing.id_string || existing.id);
 
@@ -1244,7 +1259,7 @@ async function handleUpdateProjectTask(req, res, params) {
     if (!zt) return sendError(res, 404, 'Task not found');
 
     let meta = {};
-    try { meta = JSON.parse(zt.description || '{}'); } catch {}
+    try { meta = safeParseMeta(zt.description); } catch {}
 
     const newMeta = {
       ...meta,
@@ -1363,7 +1378,7 @@ async function handleUpdateCustomModule(req, res, params) {
     if (!tl) return sendError(res, 404, 'Module not found');
 
     let meta = {};
-    try { meta = JSON.parse(tl.description || '{}'); } catch {}
+    try { meta = safeParseMeta(tl.description); } catch {}
 
     const newMeta = { ...meta, _isCustomModule: true, fields: fields ?? meta.fields ?? [] };
     await zohoPut(`/projects/${projectId}/tasklists/${params.id}/`, {
@@ -1437,7 +1452,7 @@ async function handleUpdateCustomRecord(req, res, params) {
     if (!zt) return sendError(res, 404, 'Record not found');
 
     let meta = {};
-    try { meta = JSON.parse(zt.description || '{}'); } catch {}
+    try { meta = safeParseMeta(zt.description); } catch {}
 
     const newMeta = { ...meta, _data: { ...meta._data, ...(recordData || {}) } };
     const name = newMeta._data[Object.keys(newMeta._data)[0]] || zt.name;
