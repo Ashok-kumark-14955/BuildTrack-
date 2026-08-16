@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Settings, User, LogOut, Shield, Bell, Palette, Info,
+  Settings, Shield, Bell, Palette, Info,
   ChevronRight, Mail, Building2, CheckCircle2,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -116,7 +116,7 @@ function AvatarInitials({ name, email }: { name?: string; email?: string }) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const { user, signOut, projects } = useApp();
+  const { user, projects } = useApp();
 
   const [notifTasks, setNotifTasks] = useState(true);
   const [notifMilestones, setNotifMilestones] = useState(true);
@@ -278,17 +278,6 @@ export default function SettingsPage() {
         <SettingRow
           label="Canvas Engine"
           value="Konva.js"
-        />
-      </SectionCard>
-
-      {/* ── Account actions ── */}
-      <SectionCard title="Account" icon={<User size={15} />}>
-        <SettingRow
-          label="Sign Out"
-          sub="End current Catalyst session"
-          onClick={signOut}
-          danger
-          right={<LogOut size={14} className="text-red-400" />}
         />
       </SectionCard>
 
