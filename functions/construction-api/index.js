@@ -662,7 +662,8 @@ async function handleMe(req, res) {
 
 async function handleListProjects(req, res) {
   try {
-    const data = await zohoGet('/projects/?status=all');
+    const data = await zohoGet('/projects/');
+    if (data.error) return sendError(res, 502, 'Failed to list projects', data.error);
     const projects = (data.projects || []).map(normalizeProject);
     return sendJSON(res, 200, projects);
   } catch (e) {

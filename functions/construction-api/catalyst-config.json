@@ -6,8 +6,8 @@
 		"memory": 256,
 		"env_variables": {
 			"STRATUS_BUCKET": "",
-			"TOKEN_ROTATOR_URL": "",
-			"ZOHO_PORTAL_ID": ""
+			"TOKEN_ROTATOR_URL": "https://project-rainfall-60081725173.development.catalystserverless.in/server/zoho-token-rotator/",
+			"ZOHO_PORTAL_ID": "60082733574"
 		}
 	},
 	"execution": {
