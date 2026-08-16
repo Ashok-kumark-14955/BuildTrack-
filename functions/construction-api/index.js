@@ -11,7 +11,10 @@
  *   ─────────────     ──────────────────────
  *   Project           → Zoho Project (under portal)
  *   Milestone         → Zoho Milestone
- *   Drawing           → Task List  (name = drawing name, description = JSON metadata)
+ *   Drawing           → Task List  (name = drawing name; JSON metadata lives in a
+ *                                    hidden "__drawing_meta__" task inside it -
+ *                                    Zoho's Task List API never returns a
+ *                                    description field, so it can't live there)
  *   Drawing Task      → Zoho Task  (inside drawing's task list, custom fields)
  *   ProjectTask       → Zoho Task  (in a dedicated "Project Tasks" task list)
  *   Custom Module     → Task List  (name = module name, description = JSON schema)
@@ -519,13 +522,11 @@ function safeParseMeta(description) {
   }
 }
 
-// Drawing = Task List with metadata stored in description as JSON
+// Drawing = Task List, with metadata stored as JSON in a hidden meta task
+// (see DRAWING_META_TASK_NAME above).
 // Metadata shape: { gridCols, gridRows, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, lat, lng, fileUrl, milestoneId }
-function parseDrawingMeta(taskList) {
-  let meta = {};
-  try {
-    if (taskList.description) meta = safeParseMeta(taskList.description);
-  } catch { /* no meta */ }
+function parseDrawingMeta(taskList, metaTask) {
+  const meta = metaTask ? safeParseMeta(metaTask.description) : {};
   return {
     id: String(taskList.id_string || taskList.id),
     projectId: String(taskList.project_id || ''),
@@ -630,6 +631,15 @@ function logActivity(message, taskId, drawingId) {
 const DRAWING_TAG = '__drawing__';
 const PROJECT_TASK_TAG = '__project_tasks__';
 const CUSTOM_MODULE_TAG = '__custom_module__';
+
+// Zoho's Task List API never returns a description field (confirmed absent on
+// create, get, and list responses, even with an explicit fields param), so a
+// drawing's JSON metadata can't live on the task list itself. Tasks *do*
+// round-trip description correctly, so metadata lives in a hidden task named
+// DRAWING_META_TASK_NAME inside the drawing's task list instead. Its presence
+// is also what marks a task list as a drawing (in place of the old
+// description._type === DRAWING_TAG check).
+const DRAWING_META_TASK_NAME = '__drawing_meta__';
 
 // ─── Route matching helper ────────────────────────────────────────────────────
 function matchRoute(method, pattern, reqMethod, reqPath) {
@@ -823,25 +833,42 @@ async function handleDeleteMilestone(req, res, params) {
   }
 }
 
-// ─── Drawings (= Task Lists with DRAWING_TAG in description) ─────────────────
+// ─── Drawings (= Task Lists carrying a hidden DRAWING_META_TASK_NAME task) ───
 
+async function getDrawingMetaTask(projectId, drawingId) {
+  const data = await zohoGet(`/projects/${projectId}/tasklists/${drawingId}/tasks/`);
+  const tasks = data.tasks || [];
+  return tasks.find((t) => t.name === DRAWING_META_TASK_NAME) || null;
+}
+
+// Fetches every task list plus every task in the project in one shot (Zoho's
+// project-wide /tasks/ endpoint includes each task's tasklist id), then pairs
+// each task list with its meta task, if any. Avoids an N+1 fetch per drawing.
 async function getDrawingTaskLists(projectId) {
-  const data = await zohoGet(`/projects/${projectId}/tasklists/`);
-  const all = data.tasklists || [];
-  return all.filter((tl) => {
-    try {
-      const meta = safeParseMeta(tl.description);
-      return meta._type === DRAWING_TAG;
-    } catch { return false; }
-  });
+  const [tlData, taskData] = await Promise.all([
+    zohoGet(`/projects/${projectId}/tasklists/`),
+    zohoGet(`/projects/${projectId}/tasks/`),
+  ]);
+  const allTaskLists = tlData.tasklists || [];
+  const allTasks = taskData.tasks || [];
+  const metaTaskByTaskListId = new Map();
+  for (const t of allTasks) {
+    if (t.name !== DRAWING_META_TASK_NAME) continue;
+    const tlId = String(t.tasklist?.id_string || t.tasklist?.id || '');
+    if (tlId) metaTaskByTaskListId.set(tlId, t);
+  }
+  return allTaskLists
+    .map((tl) => ({ tl, metaTask: metaTaskByTaskListId.get(String(tl.id_string || tl.id)) }))
+    .filter((entry) => entry.metaTask);
 }
 
 async function handleListDrawings(req, res, qs) {
   try {
     const projectId = qs.projectId;
     if (!projectId) return sendJSON(res, 200, []);
-    const tls = await getDrawingTaskLists(projectId);
-    return sendJSON(res, 200, tls.map(parseDrawingMeta));
+    const entries = await getDrawingTaskLists(projectId);
+    return sendJSON(res, 200, entries.map(({ tl, metaTask }) =>
+      parseDrawingMeta({ ...tl, project_id: projectId }, metaTask)));
   } catch (e) {
     return sendError(res, 500, 'Failed to list drawings', e.message);
   }
@@ -882,12 +909,20 @@ async function handleUploadDrawing(req, res) {
 
     const data = await zohoPost(`/projects/${projectId}/tasklists/`, {
       name: fields.name || `Drawing-${Date.now()}`,
-      description: JSON.stringify(meta),
     });
     const tl = data.tasklists?.[0];
     if (!tl) return sendError(res, 400, 'Drawing creation failed', data);
+    const drawingId = String(tl.id_string || tl.id);
+
+    const metaTaskData = await zohoPost(`/projects/${projectId}/tasks/`, {
+      name: DRAWING_META_TASK_NAME,
+      tasklist_id: drawingId,
+      description: JSON.stringify(meta),
+    });
+    const metaTask = metaTaskData.tasks?.[0];
+
     logActivity(`Drawing "${tl.name}" uploaded`);
-    return sendJSON(res, 201, parseDrawingMeta({ ...tl, project_id: projectId }));
+    return sendJSON(res, 201, parseDrawingMeta({ ...tl, project_id: projectId }, metaTask));
   } catch (e) {
     return sendError(res, 500, 'Failed to upload drawing', e.message);
   }
@@ -900,7 +935,8 @@ async function handleGetDrawing(req, res, params, qs) {
     const data = await zohoGet(`/projects/${projectId}/tasklists/${params.id}/`);
     const tl = data.tasklists?.[0];
     if (!tl) return sendError(res, 404, 'Drawing not found');
-    return sendJSON(res, 200, parseDrawingMeta({ ...tl, project_id: projectId }));
+    const metaTask = await getDrawingMetaTask(projectId, params.id);
+    return sendJSON(res, 200, parseDrawingMeta({ ...tl, project_id: projectId }, metaTask));
   } catch (e) {
     return sendError(res, 500, 'Failed to get drawing', e.message);
   }
@@ -912,13 +948,13 @@ async function handleUpdateDrawing(req, res, params) {
     const projectId = body.projectId;
     if (!projectId) return sendError(res, 400, 'projectId required');
 
-    // Fetch current meta first
+    // Fetch current task list (for its name) and meta task (for its metadata)
     const existing = await zohoGet(`/projects/${projectId}/tasklists/${params.id}/`);
     const tl = existing.tasklists?.[0];
     if (!tl) return sendError(res, 404, 'Drawing not found');
 
-    let meta = {};
-    try { meta = safeParseMeta(tl.description); } catch {}
+    const metaTask = await getDrawingMetaTask(projectId, params.id);
+    const meta = metaTask ? safeParseMeta(metaTask.description) : {};
 
     // Merge updates
     const merged = {
@@ -940,8 +976,19 @@ async function handleUpdateDrawing(req, res, params) {
 
     await zohoPut(`/projects/${projectId}/tasklists/${params.id}/`, {
       name: body.name || tl.name,
-      description: JSON.stringify(merged),
     });
+
+    if (metaTask) {
+      await zohoPut(`/projects/${projectId}/tasks/${metaTask.id_string || metaTask.id}/`, {
+        description: JSON.stringify(merged),
+      });
+    } else {
+      await zohoPost(`/projects/${projectId}/tasks/`, {
+        name: DRAWING_META_TASK_NAME,
+        tasklist_id: params.id,
+        description: JSON.stringify(merged),
+      });
+    }
 
     return sendJSON(res, 200, {
       id: params.id,
@@ -977,8 +1024,8 @@ async function handleDrawingFile(req, res, params) {
     const tl = data.tasklists?.[0];
     if (!tl) return sendError(res, 404, 'Drawing not found');
 
-    let meta = {};
-    try { meta = safeParseMeta(tl.description); } catch {}
+    const metaTask = await getDrawingMetaTask(projectId, params.id);
+    const meta = metaTask ? safeParseMeta(metaTask.description) : {};
 
     const fileUrl = meta.fileUrl || '';
 
@@ -1016,7 +1063,9 @@ async function handleListTasks(req, res, qs) {
     const { drawingId, projectId, milestoneId } = qs;
     if (!drawingId || !projectId) return sendJSON(res, 200, []);
     const data = await zohoGet(`/projects/${projectId}/tasklists/${drawingId}/tasks/`);
-    let tasks = (data.tasks || []).map((t) => normalizeTask(t, drawingId));
+    let tasks = (data.tasks || [])
+      .filter((t) => t.name !== DRAWING_META_TASK_NAME)
+      .map((t) => normalizeTask(t, drawingId));
     if (milestoneId) tasks = tasks.filter((t) => t.milestoneId === milestoneId);
     return sendJSON(res, 200, tasks);
   } catch (e) {
@@ -1045,7 +1094,7 @@ async function handleCreateTask(req, res) {
 
     const data = await zohoPost(`/projects/${projectId}/tasks/`, {
       name: body.name,
-      tasklist: { id: drawingId },
+      tasklist_id: drawingId,
       priority: body.priority || 'medium',
       start_date: body.startDate || '',
       due_date: body.dueDate || '',
@@ -1233,7 +1282,7 @@ async function handleCreateProjectTask(req, res) {
 
     const data = await zohoPost(`/projects/${projectId}/tasks/`, {
       name: body.name,
-      tasklist: { id: taskListId },
+      tasklist_id: taskListId,
       priority: body.priority || 'medium',
       due_date: body.dueDate || '',
       description: JSON.stringify(meta),
@@ -1430,7 +1479,7 @@ async function handleCreateCustomRecord(req, res, params) {
     const name = recordData?.[Object.keys(recordData || {})[0]] || `Record-${Date.now()}`;
     const data = await zohoPost(`/projects/${projectId}/tasks/`, {
       name: String(name).slice(0, 100),
-      tasklist: { id: params.id },
+      tasklist_id: params.id,
       description: JSON.stringify(meta),
     });
     const t = data.tasks?.[0];
@@ -1554,7 +1603,7 @@ async function handleSeed(req, res) {
         const meta = { drawingId, milestoneId: drawingMeta.milestoneId, ...td, notes: '', category: 'inspection', status: 'pending', progress: 0, comments: [] };
         await zohoPost(`/projects/${projectId}/tasks/`, {
           name: td.name,
-          tasklist: { id: drawingId },
+          tasklist_id: drawingId,
           priority: td.priority,
           description: JSON.stringify(meta),
         });
