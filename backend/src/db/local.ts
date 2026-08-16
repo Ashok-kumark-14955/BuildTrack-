@@ -140,9 +140,11 @@ CREATE TABLE IF NOT EXISTS project_tasks (
   dueDate TEXT,
   estimatedHours REAL,
   tags TEXT,
+  milestoneId TEXT,
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL,
-  FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
+  FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (milestoneId) REFERENCES milestones(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS project_task_comments (
@@ -194,6 +196,7 @@ ignoreExistingColumn("ALTER TABLE tasks ADD COLUMN elementType TEXT DEFAULT 'col
 ignoreExistingColumn('ALTER TABLE tasks ADD COLUMN elementId TEXT');
 ignoreExistingColumn('ALTER TABLE project_tasks ADD COLUMN estimatedHours REAL');
 ignoreExistingColumn('ALTER TABLE project_tasks ADD COLUMN tags TEXT');
+ignoreExistingColumn('ALTER TABLE project_tasks ADD COLUMN milestoneId TEXT REFERENCES milestones(id) ON DELETE SET NULL');
 
 rawDb.exec("UPDATE projects SET updatedAt = createdAt WHERE updatedAt IS NULL");
 rawDb.exec("UPDATE tasks SET status = 'Delayed' WHERE status = 'Waiting'");

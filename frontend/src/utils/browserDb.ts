@@ -559,6 +559,7 @@ export async function projectTaskCreate(data: Partial<ProjectTask>): Promise<Pro
   const task: ProjectTask = {
     id: newId(),
     projectId: data.projectId ?? '',
+    milestoneId: data.milestoneId ?? null,
     name: data.name ?? 'New Task',
     description: data.description ?? '',
     priority: data.priority ?? 'Medium',

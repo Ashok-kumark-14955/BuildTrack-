@@ -4,7 +4,7 @@
   "stack": "node22",
   "memory": 512,
   "scripts": {
-    "predeploy": "echo 'Skipping build - dist/ is pre-compiled and committed to git'"
+    "predeploy": "npm install --omit=dev"
   },
   "env_variables": {
     "ZOHO_CLIENT_ID": "1000.CDKRZ5XPM4JL0UJAARM9Q5UNZY7EOE",

@@ -103,7 +103,7 @@ export default function ProjectDetail() {
       const taskCount = err?.response?.data?.taskCount;
       if (err?.response?.status === 409 && taskCount != null) {
         if (confirm(`This project has ${taskCount} task(s). Delete the project and all its tasks anyway?`)) {
-          await ProjectsAPI.remove(project.id, true);
+          await ProjectsAPI.remove(project.id);
           toast.success('Project and its tasks deleted');
           navigate('/projects');
         }

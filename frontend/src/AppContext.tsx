@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { DrawingsAPI, TasksAPI, ActivityAPI, ZohoBackboneAPI, MilestonesAPI } from './api';
-import type { ActivityItem, CatalystUser, Drawing, Milestone, Project, Task } from './types';
+import { DrawingsAPI, TasksAPI, ActivityAPI, ZohoBackboneAPI, MilestonesAPI, ProjectTasksAPI } from './api';
+import type { ActivityItem, CatalystUser, Drawing, Milestone, Project, ProjectTask, Task } from './types';
 import { ensureSampleData } from './utils/seedData';
 
 interface AppState {
@@ -9,6 +9,7 @@ interface AppState {
   projects: Project[];
   drawings: Drawing[];
   tasks: Task[];
+  projectTasks: ProjectTask[];
   milestones: Milestone[];
   activity: ActivityItem[];
   currentDrawingId: string | null;
@@ -19,6 +20,7 @@ interface AppState {
   setSelectedElementId: (id: string | null) => void;
   refreshDrawings: () => Promise<void | Drawing[]>;
   refreshTasks: () => Promise<void>;
+  refreshProjectTasks: () => Promise<void>;
   refreshActivity: () => Promise<void>;
   refreshProjects: () => Promise<void>;
   refreshMilestones: () => Promise<void>;
@@ -59,6 +61,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   const [projects, setProjects] = useState<Project[]>([]);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [currentDrawingId, setCurrentDrawingId] = useState<string | null>(null);
@@ -75,7 +78,11 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   }, []);
 
   const refreshDrawings = useCallback(async () => {
-    const list = await DrawingsAPI.list();
+    // Pass activeProjectId so the Function can filter by project.
+    // If no project selected yet, fetch all (projectId omitted — backend returns empty, but
+    // we still fall back correctly during the init sequence).
+    const pid = activeProjectId ?? undefined;
+    const list = await DrawingsAPI.list(pid);
     setDrawings(list);
     // Only auto-select the first drawing when there is no current selection at all.
     // Also sync activeProjectId so the sidebar shows the correct project's drawings.
@@ -89,7 +96,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
       });
     }
     return list; // allow callers to act on the fresh list
-  }, [currentDrawingId]);
+  }, [currentDrawingId, activeProjectId]);
 
   // When activeProjectId changes, fetch the latest drawings and auto-select the
   // first drawing for that project — but ONLY when the user explicitly switched
@@ -165,14 +172,23 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   }, []);
 
   const refreshTasks = useCallback(async () => {
-    const list = await TasksAPI.list();
-    setTasks(list);
+    // Tasks are scoped to a drawing; without a drawingId we skip the fetch.
+    // Individual pages (DrawingPage) load tasks directly when they need them.
+    // Here we just clear stale tasks so the context stays consistent.
+    setTasks([]);
   }, []);
 
+  const refreshProjectTasks = useCallback(async () => {
+    if (!activeProjectId) { setProjectTasks([]); return; }
+    const list = await ProjectTasksAPI.list({ projectId: activeProjectId });
+    setProjectTasks(list);
+  }, [activeProjectId]);
+
   const refreshMilestones = useCallback(async () => {
-    const list = await MilestonesAPI.list();
+    if (!activeProjectId) { setMilestones([]); return; }
+    const list = await MilestonesAPI.list(activeProjectId);
     setMilestones(list);
-  }, []);
+  }, [activeProjectId]);
 
   const refreshActivity = useCallback(async () => {
     const list = await ActivityAPI.list();
@@ -189,11 +205,59 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     console.log('[AppContext] Starting data initialization...');
     ensureSampleData().then(() => {
       console.log('[AppContext] ensureSampleData completed successfully');
-      ZohoBackboneAPI.listProjects().then((p) => { console.log('[AppContext] Projects loaded:', p.length); setProjects(p); }).catch((e) => console.error('[AppContext] Projects load failed:', e));
-      refreshDrawings().then((d) => console.log('[AppContext] Drawings loaded:', d?.length ?? 0));
-      refreshTasks().then(() => console.log('[AppContext] Tasks loaded'));
-      refreshMilestones().then(() => console.log('[AppContext] Milestones loaded'));
-      refreshActivity().then(() => console.log('[AppContext] Activity loaded'));
+
+      // Load everything in parallel, then auto-correct activeProjectId if needed.
+      Promise.all([
+        ZohoBackboneAPI.listProjects().then((p) => {
+          console.log('[AppContext] Projects loaded:', p.length);
+          setProjects(p);
+          return p;
+        }).catch((e) => { console.error('[AppContext] Projects load failed:', e); return [] as typeof projects; }),
+        DrawingsAPI.list().then((list) => {
+          console.log('[AppContext] Drawings loaded:', list.length);
+          setDrawings(list);
+          return list;
+        }),
+        refreshTasks().then(() => console.log('[AppContext] Tasks loaded')),
+        refreshProjectTasks().then(() => console.log('[AppContext] ProjectTasks loaded')),
+        refreshMilestones().then(() => console.log('[AppContext] Milestones loaded')),
+        refreshActivity().then(() => console.log('[AppContext] Activity loaded')),
+      ]).then(([loadedProjects, loadedDrawings]) => {
+        // Auto-correct activeProjectId: if the stored value has no drawings,
+        // switch to the first project that does, or just the first project.
+        // Determine the best activeProjectId based on which project has drawings
+        const drawingProjectIds = new Set((loadedDrawings as any[]).map((d: any) => d.projectId));
+        const storedId = localStorage.getItem('activeProjectId');
+
+        let chosenId: string | null = null;
+
+        if (storedId && drawingProjectIds.has(storedId)) {
+          // Stored project has drawings — keep it
+          chosenId = storedId;
+        } else {
+          // Pick the first project that has drawings, falling back to first project
+          const projectsArr = loadedProjects as any[];
+          const best =
+            projectsArr.find((p: any) => drawingProjectIds.has(p.id)) ??
+            projectsArr[0] ??
+            null;
+          chosenId = best?.id ?? null;
+        }
+
+        if (chosenId) {
+          localStorage.setItem('activeProjectId', chosenId);
+          // Auto-select first drawing for that project
+          const firstDrawing = (loadedDrawings as any[]).find((d: any) => d.projectId === chosenId);
+          if (firstDrawing) {
+            setCurrentDrawingId(firstDrawing.id);
+          }
+        } else {
+          localStorage.removeItem('activeProjectId');
+        }
+
+        console.log('[AppContext] Auto-corrected activeProjectId →', chosenId);
+        setActiveProjectIdRaw(chosenId);
+      });
     }).catch((err) => {
       // Even if ensureSampleData fails, still try to load what's in the DB
       console.error('[AppContext] ensureSampleData FAILED:', err);
@@ -207,28 +271,30 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   }, []);
 
   const createTask = useCallback(async (data: Partial<Task>) => {
-    const task = await TasksAPI.create(data);
+    const task = await TasksAPI.create(data as Partial<Task> & { projectId: string; drawingId: string });
     setTasks((prev) => [task, ...prev]);
     refreshActivity();
     return task;
   }, [refreshActivity]);
 
   const updateTask = useCallback(async (id: string, data: Partial<Task>) => {
-    const updated = await TasksAPI.update(id, data);
+    const updated = await TasksAPI.update(id, data as Partial<Task> & { projectId: string });
     setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
     refreshActivity();
     return updated;
   }, [refreshActivity]);
 
   const deleteTask = useCallback(async (id: string) => {
-    await TasksAPI.remove(id);
+    const task = tasks.find((t) => t.id === id);
+    await TasksAPI.remove(id, (task as any)?.projectId ?? activeProjectId ?? '');
     setTasks((prev) => prev.filter((t) => t.id !== id));
     refreshActivity();
-  }, [refreshActivity]);
+  }, [refreshActivity, tasks, activeProjectId]);
 
   /** Delete a drawing and all its tasks from local state and backend. */
   const deleteDrawing = useCallback(async (id: string) => {
-    await DrawingsAPI.remove(id);
+    const drawing = drawings.find((d) => d.id === id);
+    await DrawingsAPI.remove(id, (drawing as any)?.projectId ?? activeProjectId ?? '');
     setDrawings((prev) => prev.filter((d) => d.id !== id));
     setTasks((prev) => prev.filter((t) => t.drawingId !== id));
     setCurrentDrawingId((prev) => (prev === id ? null : prev));
@@ -247,7 +313,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   }, []);
 
   const deleteMilestone = useCallback(async (id: string) => {
-    await MilestonesAPI.remove(id);
+    await MilestonesAPI.remove(id, activeProjectId ?? '');
     setMilestones((prev) => prev.filter((m) => m.id !== id));
     setTasks((prev) => prev.map((t) => t.milestoneId === id ? { ...t, milestoneId: null } : t));
   }, []);
@@ -331,6 +397,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     projects,
     drawings,
     tasks,
+    projectTasks,
     milestones,
     activity,
     currentDrawingId,
@@ -341,6 +408,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     setSelectedElementId,
     refreshDrawings,
     refreshTasks,
+    refreshProjectTasks,
     refreshActivity,
     refreshProjects,
     refreshMilestones,
@@ -365,10 +433,10 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     removeCustomBeam,
   }), [
     user, signOut,
-    projects, drawings, tasks, milestones, activity,
+    projects, drawings, tasks, projectTasks, milestones, activity,
     currentDrawingId, selectedElementId,
     setCurrentDrawingId, setSelectedElementId,
-    refreshDrawings, refreshTasks, refreshActivity, refreshProjects, refreshMilestones,
+    refreshDrawings, refreshTasks, refreshProjectTasks, refreshActivity, refreshProjects, refreshMilestones,
     createTask, updateTask, deleteTask, deleteDrawing,
     createMilestone, updateMilestone, deleteMilestone,
     currentDrawing, tasksForCurrentDrawing,

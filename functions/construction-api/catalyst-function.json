@@ -1,0 +1,14 @@
+{
+  "name": "construction-api",
+  "display_name": "Construction API",
+  "description": "Backend API for SiteTrack. All data stored in Zoho Projects. No AppSail needed.",
+  "runtime": "nodejs18",
+  "type": "Advanced IO",
+  "timeout": 60,
+  "memory": 256,
+  "env_variables": {
+    "ZOHO_PORTAL_ID": "",
+    "TOKEN_ROTATOR_URL": "",
+    "STRATUS_BUCKET": ""
+  }
+}

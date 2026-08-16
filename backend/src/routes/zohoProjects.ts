@@ -21,6 +21,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import https from 'https';
 import { getAccessToken, exchangeCodeForTokens } from '../zohoAuth';
+import * as db from '../db';
 
 const router = Router();
 
@@ -283,11 +284,26 @@ function normalizeTask(zt: any) {
   };
 }
 
+// ─── Helper: serialize a SQLite project row ────────────────────────────────────
+
+function serializeSqliteProject(r: any) {
+  return {
+    ...r,
+    archived: r.archived === true || r.archived === 'true' || r.archived === 1 || r.archived === '1',
+  };
+}
+
 // ─── GET all projects in the portal ───────────────────────────────────────────
 
-router.get('/projects', handle(async (_req, res) => {
+router.get('/projects', handle(async (req, res) => {
+  // If ZOHO_PORTAL_ID is not configured, fall back to the local SQLite projects table.
+  // This allows the dev server to work without Zoho credentials.
+  const portalId = process.env.ZOHO_PORTAL_ID;
+  if (!portalId) {
+    const rows: any[] = await db.all(req, 'SELECT * FROM projects ORDER BY createdAt DESC', []);
+    return void res.json(rows.map(serializeSqliteProject));
+  }
   const token = await getAccessToken();
-  const portalId = getPortalId();
   const data = await zohoGet(token, `/portal/${portalId}/projects/`);
   const projects = (data.projects || []).map(normalizeProject);
   res.json(projects);

@@ -20,6 +20,7 @@ import {
   type CustomRecord,
 } from '../api';
 import { loadImage } from '../utils/imageStorage';
+import { useApp } from '../AppContext';
 
 // ─── Utility ────────────────────────────────────────────────────────────────
 
@@ -276,11 +277,12 @@ function SelectOptionsEditor({ options, onChange }: SelectOptionsEditorProps) {
 // ─── New Module Modal ─────────────────────────────────────────────────────────
 
 interface NewModuleModalProps {
+  projectId: string;
   onClose: () => void;
   onCreated: (m: CustomModule) => void;
 }
 
-function NewModuleModal({ onClose, onCreated }: NewModuleModalProps) {
+function NewModuleModal({ projectId, onClose, onCreated }: NewModuleModalProps) {
   const [name, setName] = useState('');
   const [fields, setFields] = useState<CustomField[]>([
     { id: uuidv4(), label: 'Title', type: 'text' },
@@ -305,7 +307,7 @@ function NewModuleModal({ onClose, onCreated }: NewModuleModalProps) {
     if (!name.trim()) { setError('Module name is required'); return; }
     setSaving(true);
     try {
-      const created = await CustomModulesAPI.create(name.trim(), fields);
+      const created = await CustomModulesAPI.create(projectId, name.trim(), fields);
       onCreated(created);
       onClose();
     } catch (e: any) {
@@ -406,12 +408,13 @@ function NewModuleModal({ onClose, onCreated }: NewModuleModalProps) {
 // ─── Edit Module Modal (rename + edit fields) ────────────────────────────────
 
 interface EditModuleModalProps {
+  projectId: string;
   module: CustomModule;
   onClose: () => void;
   onSaved: (m: CustomModule) => void;
 }
 
-function EditModuleModal({ module, onClose, onSaved }: EditModuleModalProps) {
+function EditModuleModal({ projectId, module, onClose, onSaved }: EditModuleModalProps) {
   const [name, setName] = useState(module.name);
   const [fields, setFields] = useState<CustomField[]>(
     module.fields.length > 0 ? module.fields : [{ id: uuidv4(), label: 'Title', type: 'text' }]
@@ -450,7 +453,7 @@ function EditModuleModal({ module, onClose, onSaved }: EditModuleModalProps) {
     setSaving(true);
     setError('');
     try {
-      const updated = await CustomModulesAPI.update(module.id, {
+      const updated = await CustomModulesAPI.update(projectId, module.id, {
         name: name.trim(),
         fields,
       });
@@ -762,7 +765,7 @@ interface FieldSettingsModalProps {
 
 function FieldSettingsModal({ module, onClose, onSaved }: FieldSettingsModalProps) {
   // Delegate to EditModuleModal opened on the fields tab
-  return <EditModuleModal module={module} onClose={onClose} onSaved={onSaved} />;
+  return <EditModuleModal projectId="" module={module} onClose={onClose} onSaved={onSaved} />;
 }
 
 // ─── Inline cell editor ───────────────────────────────────────────────────────
@@ -772,9 +775,12 @@ interface CellEditorProps {
   value: any;
   onCommit: (value: any) => void;
   onCancel: () => void;
+  projectId?: string;
+  moduleId?: string;
+  recordId?: string;
 }
 
-function CellEditor({ field, value, onCommit, onCancel }: CellEditorProps) {
+function CellEditor({ field, value, onCommit, onCancel, projectId = '', moduleId = '', recordId = '' }: CellEditorProps) {
   const [draft, setDraft] = useState<any>(value ?? '');
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
 
@@ -813,8 +819,8 @@ function CellEditor({ field, value, onCommit, onCancel }: CellEditorProps) {
           if (file) {
             try {
               // Upload directly to Catalyst Stratus via backend
-              const result = await CustomModulesAPI.uploadAttachment(file);
-              onCommit({ name: result.name, url: result.url, type: result.type, size: result.size });
+              const result = await CustomModulesAPI.uploadAttachment(projectId, moduleId, recordId, file);
+              onCommit({ name: result.name, url: result.url });
             } catch (err) {
               console.error('[CellEditor] Attachment upload failed:', err);
               onCancel();
@@ -908,13 +914,14 @@ const ZOHO_STATUS_ID      = '__zoho_status__';
 const ZOHO_STATUS_OPTIONS = ['Active', 'Inactive'];
 
 interface NewEntryDrawerProps {
+  projectId: string;
   module: CustomModule;
   onClose: () => void;
   onAdd: (data: Record<string, any>) => void;
   onAddMore: (data: Record<string, any>) => void;
 }
 
-function NewEntryDrawer({ module, onClose, onAdd, onAddMore }: NewEntryDrawerProps) {
+function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore }: NewEntryDrawerProps) {
   // draft uses stable Zoho keys + field.id keys for custom fields
   const [draft, setDraft] = useState<Record<string, any>>({
     [ZOHO_STATUS_ID]: 'Active',
@@ -1076,10 +1083,10 @@ function NewEntryDrawer({ module, onClose, onAdd, onAddMore }: NewEntryDrawerPro
                         // Show the file name immediately with local preview
                         setValue(field.id, { name: file.name, url: previewUrl, type: file.type, size: file.size, _preview: previewUrl, _uploading: true });
                         try {
-                          // Upload to Catalyst Stratus via backend
-                          const result = await CustomModulesAPI.uploadAttachment(file);
-                          // Replace with the real Stratus URL
-                          setValue(field.id, { name: result.name, url: result.url, type: result.type, size: result.size, _preview: previewUrl });
+                        // Upload to Catalyst Stratus via backend
+                          const result = await CustomModulesAPI.uploadAttachment(projectId, module.id, '', file);
+                           // Replace with the real Stratus URL
+                           setValue(field.id, { name: result.name, url: result.url, _preview: previewUrl });
                         } catch (err) {
                           console.error('[NewEntryDrawer] Attachment upload failed:', err);
                           setValue(field.id, null);
@@ -1672,6 +1679,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
 // ─── Module Table view ────────────────────────────────────────────────────────
 
 interface ModuleTableProps {
+  projectId: string;
   module: CustomModule;
   onModuleUpdated: (m: CustomModule) => void;
   onModuleDeleted: (id: string) => void;
@@ -1679,7 +1687,7 @@ interface ModuleTableProps {
   onRecordCountChange?: (count: number) => void;
 }
 
-function ModuleTable({ module, onModuleUpdated, onModuleDeleted, onRecordCountChange }: ModuleTableProps) {
+function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRecordCountChange }: ModuleTableProps) {
   const [records, setRecords] = useState<CustomRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -1704,7 +1712,7 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted, onRecordCountCh
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await CustomModulesAPI.listRecords(module.id);
+      const data = await CustomModulesAPI.listRecords(projectId, module.id);
       setRecords(data);
       onRecordCountChange?.(data.length);
     } finally {
@@ -1739,23 +1747,23 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted, onRecordCountCh
   }, [searchQuery]);
 
   async function handleAddRecord(data: Record<string, any>) {
-    const created = await CustomModulesAPI.createRecord(module.id, data);
+    const created = await CustomModulesAPI.createRecord(projectId, module.id, data);
     setRecords((r) => [...r, created]);
   }
 
   async function handleUpdateRecord(record: CustomRecord, data: Record<string, any>) {
-    const updated = await CustomModulesAPI.updateRecord(module.id, record.id, data);
+    const updated = await CustomModulesAPI.updateRecord(projectId, module.id, record.id, data);
     setRecords((r) => r.map((x) => (x.id === record.id ? updated : x)));
   }
 
   async function handleDeleteRecord(record: CustomRecord) {
-    await CustomModulesAPI.deleteRecord(module.id, record.id);
+    await CustomModulesAPI.deleteRecord(projectId, module.id, record.id);
     setRecords((r) => r.filter((x) => x.id !== record.id));
     setSelectedIds((s) => { const n = new Set(s); n.delete(record.id); return n; });
   }
 
   async function handleDeleteModule() {
-    await CustomModulesAPI.remove(module.id);
+    await CustomModulesAPI.remove(projectId, module.id);
     onModuleDeleted(module.id);
   }
 
@@ -1763,7 +1771,7 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted, onRecordCountCh
     const ids = Array.from(selectedIds);
     await Promise.all(ids.map((id) => {
       const rec = records.find((r) => r.id === id);
-      if (rec) return CustomModulesAPI.deleteRecord(module.id, id);
+      if (rec) return CustomModulesAPI.deleteRecord(projectId, module.id, id);
     }));
     setRecords((r) => r.filter((x) => !selectedIds.has(x.id)));
     setSelectedIds(new Set());
@@ -2117,6 +2125,7 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted, onRecordCountCh
       {/* Edit module modal (rename + fields) */}
       {showEditModal && (
         <EditModuleModal
+          projectId={projectId}
           module={module}
           onClose={() => setShowEditModal(false)}
           onSaved={(updated) => { onModuleUpdated(updated); setShowEditModal(false); }}
@@ -2163,6 +2172,7 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted, onRecordCountCh
       {/* New Entry Drawer */}
       {showEntryDrawer && (
         <NewEntryDrawer
+          projectId={projectId}
           module={module}
           onClose={() => setShowEntryDrawer(false)}
           onAdd={handleAddRecord}
@@ -2176,6 +2186,8 @@ function ModuleTable({ module, onModuleUpdated, onModuleDeleted, onRecordCountCh
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CustomModulesPage() {
+  const { activeProjectId } = useApp();
+  const projectId = activeProjectId ?? '';
   const [modules, setModules] = useState<CustomModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeModuleId, setActiveModuleIdRaw] = useState<string | null>(
@@ -2189,13 +2201,13 @@ export default function CustomModulesPage() {
   const [showNewModal, setShowNewModal] = useState(false);
 
   useEffect(() => {
-    CustomModulesAPI.list()
+    CustomModulesAPI.list(projectId)
       .then((data) => {
         setModules(data);
         if (data.length > 0 && !activeModuleId) setActiveModuleId(data[0].id);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectId]);
 
   function handleModuleCreated(m: CustomModule) {
     setModules((prev) => [...prev, m]);
@@ -2358,6 +2370,7 @@ export default function CustomModulesPage() {
           </div>
         ) : activeModule ? (
           <ModuleTable
+            projectId={projectId}
             key={activeModule.id}
             module={activeModule}
             onModuleUpdated={handleModuleUpdated}
@@ -2369,6 +2382,7 @@ export default function CustomModulesPage() {
       {/* New module modal */}
       {showNewModal && (
         <NewModuleModal
+          projectId={projectId}
           onClose={() => setShowNewModal(false)}
           onCreated={handleModuleCreated}
         />

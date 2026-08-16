@@ -35,7 +35,7 @@ function serialize(row: any) {
 
 // List project tasks (filter + search + sort)
 router.get('/', async (req, res) => {
-  const { projectId, status, priority, assignee, q, sortBy, sortDir } = req.query as Record<string, string | undefined>;
+  const { projectId, status, priority, assignee, milestoneId, q, sortBy, sortDir } = req.query as Record<string, string | undefined>;
 
   const clauses: string[] = [];
   const params: any[] = [];
@@ -44,6 +44,7 @@ router.get('/', async (req, res) => {
   if (status) { clauses.push('status = ?'); params.push(status); }
   if (priority) { clauses.push('priorityLevel = ?'); params.push(priority); }
   if (assignee) { clauses.push('assignee = ?'); params.push(assignee); }
+  if (milestoneId) { clauses.push('milestoneId = ?'); params.push(milestoneId); }
   if (q && q.trim()) {
     clauses.push('(name LIKE ? OR description LIKE ? OR tags LIKE ?)');
     const like = `%${q.trim()}%`;
@@ -65,7 +66,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { projectId, name, description, priority, status, assignee, dueDate, estimatedHours, tags } = req.body;
+  const { projectId, name, description, priority, status, assignee, dueDate, estimatedHours, tags, milestoneId } = req.body;
   if (!projectId || !name || !String(name).trim()) {
     return res.status(400).json({ error: 'projectId and name are required' });
   }
@@ -76,12 +77,12 @@ router.post('/', async (req, res) => {
   const now = new Date().toISOString();
   await db.run(
     req,
-    `INSERT INTO project_tasks (id, projectId, name, description, priorityLevel, status, assignee, dueDate, estimatedHours, tags, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO project_tasks (id, projectId, name, description, priorityLevel, status, assignee, dueDate, estimatedHours, tags, milestoneId, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id, projectId, name.trim(), description || '', priority || 'Medium', status || 'To Do',
       assignee || '', dueDate || '', estimatedHours != null && estimatedHours !== '' ? Number(estimatedHours) : null,
-      JSON.stringify(Array.isArray(tags) ? tags : []), now, now,
+      JSON.stringify(Array.isArray(tags) ? tags : []), milestoneId || null, now, now,
     ]
   );
   res.status(201).json(serialize(await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [id])));
@@ -93,14 +94,16 @@ router.put('/:id', async (req, res) => {
   const merged = { ...existing, ...req.body, updatedAt: new Date().toISOString() };
   if (!merged.name || !String(merged.name).trim()) return res.status(400).json({ error: 'Task name is required' });
   const tags = Array.isArray(req.body.tags) ? req.body.tags : (existing.tags ? JSON.parse(existing.tags) : []);
+  // milestoneId: if explicitly passed (even as null), use that; otherwise keep existing
+  const milestoneId = 'milestoneId' in req.body ? (req.body.milestoneId || null) : (existing.milestoneId || null);
   await db.run(
     req,
-    `UPDATE project_tasks SET name=?, description=?, priorityLevel=?, status=?, assignee=?, dueDate=?, estimatedHours=?, tags=?, updatedAt=? WHERE id=?`,
+    `UPDATE project_tasks SET name=?, description=?, priorityLevel=?, status=?, assignee=?, dueDate=?, estimatedHours=?, tags=?, milestoneId=?, updatedAt=? WHERE id=?`,
     [
       merged.name, merged.description || '', merged.priority || 'Medium', merged.status || 'To Do',
       merged.assignee || '', merged.dueDate || '',
       merged.estimatedHours != null && merged.estimatedHours !== '' ? Number(merged.estimatedHours) : null,
-      JSON.stringify(tags), merged.updatedAt, req.params.id,
+      JSON.stringify(tags), milestoneId, merged.updatedAt, req.params.id,
     ]
   );
   if (req.body.status && req.body.status !== existing.status && (merged.status === 'Completed' || merged.status === 'Done')) {

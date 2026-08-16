@@ -1,0 +1,17 @@
+# Override root .gitignore: include node_modules in the backend deploy zip
+# so Catalyst AppSail has the production dependencies without needing internet access.
+# devDependencies are excluded via the package-lock pruning below.
+!node_modules/
+
+# Exclude devDependency-only packages to keep the zip lean
+# (TypeScript compiler, nodemon, ts-node are not needed at runtime)
+node_modules/typescript/
+node_modules/ts-node/
+node_modules/ts-node-dev/
+node_modules/nodemon/
+node_modules/@types/
+
+# Exclude local SQLite build artifact (not used in AppSail)
+*.db
+*.db-shm
+*.db-wal

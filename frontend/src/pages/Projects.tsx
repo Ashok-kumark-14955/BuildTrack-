@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, ArrowUp, ArrowDown, FolderKanban, Archive, ArchiveRestore,
   User, Layers, Calendar, TrendingUp, CheckCircle2, Clock, AlertCircle,
-  Filter, ChevronRight, Building2,
+  Filter, ChevronRight, Building2, Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { ZohoBackboneAPI } from '../api';
+import { ProjectsAPI, ZohoBackboneAPI } from '../api';
 import { PROJECT_STATUS_COLORS, PROJECT_STATUS_OPTIONS, type Project } from '../types';
 import ProjectFormModal from '../components/ProjectFormModal';
 import FieldsModal from '../components/FieldsModal';
@@ -22,10 +22,11 @@ const STATUS_ICONS: Record<string, React.ComponentType<{ size?: number; classNam
   Completed: CheckCircle2,
 };
 
-function ProjectCard({ p, onEdit, onArchive, onFields, onSelect }: {
+function ProjectCard({ p, onEdit, onArchive, onDelete, onFields, onSelect }: {
   p: Project;
   onEdit: (p: Project, e: React.MouseEvent) => void;
   onArchive: (p: Project, e: React.MouseEvent) => void;
+  onDelete: (p: Project, e: React.MouseEvent) => void;
   onFields: (p: Project, e: React.MouseEvent) => void;
   onSelect: (p: Project) => void;
 }) {
@@ -154,6 +155,16 @@ function ProjectCard({ p, onEdit, onArchive, onFields, onSelect }: {
           >
             {p.archived ? <ArchiveRestore size={11} /> : <Archive size={11} />}
           </button>
+          <button
+            onClick={(e) => onDelete(p, e)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
+            style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(239,68,68,0.6)' }}
+            title="Delete project"
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; e.currentTarget.style.color = '#ef4444'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(239,68,68,0.6)'; }}
+          >
+            <Trash2 size={11} />
+          </button>
           <ChevronRight size={11} className="text-white/20 ml-auto" />
         </div>
       </div>
@@ -214,18 +225,52 @@ export default function Projects() {
     else { setSortKey(key); setSortAsc(key === 'name'); }
   };
 
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const openCreate = () => { setEditing(null); setShowForm(true); };
   const openEdit = (p: Project, e: React.MouseEvent) => { e.stopPropagation(); setEditing(p); setShowForm(true); };
 
   const toggleArchive = async (p: Project, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      // For Zoho-backed projects, we update the status to reflect archival
-      await ZohoBackboneAPI.updateProject(p.id, { archived: p.archived ? 0 : 1 });
+      // Use the dedicated PATCH /archive endpoint (PUT does not update the archived column)
+      await ProjectsAPI.setArchived(p.id, !p.archived);
       toast.success(p.archived ? 'Project unarchived' : 'Project archived');
       load();
     } catch {
       toast.error('Failed to update project');
+    }
+  };
+
+  const confirmDelete = (p: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteTarget(p);
+  };
+
+  const deleteProject = async (force = false) => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await ProjectsAPI.remove(deleteTarget.id, force);
+      toast.success('Project deleted');
+      setDeleteTarget(null);
+      load();
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (err?.response?.status === 409) {
+        // Has tasks — confirm force-delete
+        setDeleting(false);
+        if (window.confirm(`${data?.error}\n\nClick OK to force-delete everything.`)) {
+          await deleteProject(true);
+        } else {
+          setDeleteTarget(null);
+        }
+      } else {
+        toast.error(data?.error || 'Failed to delete project');
+        setDeleteTarget(null);
+        setDeleting(false);
+      }
     }
   };
 
@@ -374,6 +419,7 @@ export default function Projects() {
                     key={p.id} p={p}
                     onEdit={openEdit}
                     onArchive={toggleArchive}
+                    onDelete={confirmDelete}
                     onFields={(p, e) => { e.stopPropagation(); setFieldsProject(p); }}
                     onSelect={selectProject}
                   />
@@ -492,6 +538,12 @@ export default function Projects() {
                           title={p.archived ? 'Unarchive' : 'Archive'}>
                           {p.archived ? <ArchiveRestore size={12} /> : <Archive size={12} />}
                         </button>
+                        <button
+                          onClick={(e) => confirmDelete(p, e)}
+                          className="w-6 h-6 flex items-center justify-center rounded-lg transition-colors text-red-500/50 hover:text-red-400 hover:bg-red-500/10"
+                          title="Delete project">
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -523,6 +575,59 @@ export default function Projects() {
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); load(); }}
         />
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(165deg, #0f111a 0%, #131824 60%, #0d1118 100%)',
+              border: '1px solid rgba(239,68,68,0.25)',
+              boxShadow: '0 30px 80px rgba(0,0,0,0.7)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                  <Trash2 size={18} className="text-red-400" />
+                </div>
+                <div>
+                  <div className="text-[15px] font-bold text-white">Delete Project?</div>
+                  <div className="text-[11px] text-white/40 mt-0.5">This action cannot be undone</div>
+                </div>
+              </div>
+              <p className="text-sm text-white/60 mb-5">
+                Are you sure you want to delete <span className="text-white font-semibold">"{deleteTarget.name}"</span>? All associated data will be permanently removed.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => deleteProject(false)}
+                  disabled={deleting}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)', boxShadow: '0 4px 14px rgba(220,38,38,0.35)' }}
+                >
+                  {deleting ? 'Deleting…' : 'Delete Project'}
+                </button>
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                  className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {fieldsProject && (

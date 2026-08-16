@@ -4,12 +4,13 @@ import * as XLSX from 'xlsx';
 import {
   Download, Search, ClipboardList, ArrowUp, ArrowDown,
   Flag, ChevronDown, ChevronRight, X, FileImage,
-  LayoutGrid, Building2, Minus, Plus, MapPin, Navigation, Crosshair, Send,
+  LayoutGrid, Building2, Minus, Plus, MapPin, Navigation, Send,
+  ClipboardCheck, Crosshair,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import {
   STATUS_COLORS, STATUS_OPTIONS, PRIORITY_OPTIONS,
-  MILESTONE_STATUS_OPTIONS, CATEGORY_OPTIONS, type Task, type Milestone, type Drawing,
+  MILESTONE_STATUS_OPTIONS, CATEGORY_OPTIONS, type Task, type Milestone, type Drawing, type ProjectTask,
 } from '../types';
 import { DrawingsAPI, CliqAPI } from '../api';
 import { useForecastsByDrawing } from '../utils/useWeatherForecast';
@@ -39,6 +40,7 @@ export default function TaskList() {
     requestFocusElement, setSelectedElementId, setCurrentDrawingId,
     milestones, createMilestone, updateMilestone, deleteMilestone,
     refreshDrawings, createTask, refreshTasks,
+    projectTasks: allProjectTasks,
   } = useApp();
 
   // Scope the task list to the active project (or first project as fallback).
@@ -48,7 +50,10 @@ export default function TaskList() {
   const projectDrawings = drawings.filter((d) => d.projectId === activeProject?.id);
   const projectDrawingIds = new Set(projectDrawings.map((d) => d.id));
   const projectMilestones = milestones.filter((m) => m.projectId === activeProject?.id);
-  const projectTasks = tasks.filter((t) => projectDrawingIds.has(t.drawingId));
+  // drawing-scoped tasks for the active project
+  const drawingTasks = tasks.filter((t) => projectDrawingIds.has(t.drawingId));
+  // project-level tasks (no drawing) scoped to the active project
+  const scopedProjectTasks = allProjectTasks.filter((pt) => pt.projectId === activeProject?.id);
   const forecastsByDrawing = useForecastsByDrawing(projectDrawings);
   const navigate = useNavigate();
 
@@ -202,15 +207,33 @@ export default function TaskList() {
   // Strategy: group tasks by task.milestoneId first (tasks can span milestones
   // even within the same drawing). Each milestone section shows all drawings
   // that have at least one task assigned to that milestone, with those tasks.
+  // Filter for project-level tasks (no drawing)
+  const filterProjectTask = (pt: ProjectTask) => {
+    if (statusFilter && pt.status !== statusFilter) return false;
+    if (priorityFilter && pt.priority !== priorityFilter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (
+        !pt.name.toLowerCase().includes(q) &&
+        !(pt.assignee ?? '').toLowerCase().includes(q) &&
+        !pt.status.toLowerCase().includes(q)
+      ) return false;
+    }
+    return true;
+  };
+
   const hierarchy = useMemo(() => {
     type DrawingNode = { drawing: Drawing; tasks: Task[] };
-    type MilestoneNode = { milestone: Milestone | null; drawings: DrawingNode[] };
+    type MilestoneNode = {
+      milestone: Milestone | null;
+      drawings: DrawingNode[];
+      projectTaskItems: ProjectTask[];
+    };
     const nodes: MilestoneNode[] = [];
 
     projectMilestones.forEach((ms) => {
-      // Get all tasks for this milestone (scoped to project drawings)
-      const msTasks = projectTasks.filter((t) => t.milestoneId === ms.id && filterTask(t));
-      // Group those tasks by drawing
+      // drawing-scoped tasks for this milestone
+      const msTasks = drawingTasks.filter((t) => t.milestoneId === ms.id && filterTask(t));
       const drawingIds = [...new Set(msTasks.map((t) => t.drawingId))];
       const drawingNodes: DrawingNode[] = drawingIds
         .map((dId) => {
@@ -223,17 +246,19 @@ export default function TaskList() {
         })
         .filter(Boolean) as DrawingNode[];
 
-      // Include milestone even if it has no tasks (so user can add tasks / see it exists)
-      if (drawingNodes.length === 0) {
-        nodes.push({ milestone: ms, drawings: [] });
-      } else {
-        nodes.push({ milestone: ms, drawings: drawingNodes });
-      }
+      // project-level tasks for this milestone
+      const ptItems = scopedProjectTasks.filter(
+        (pt) => pt.milestoneId === ms.id && filterProjectTask(pt)
+      );
+
+      nodes.push({ milestone: ms, drawings: drawingNodes, projectTaskItems: ptItems });
     });
 
-    // Unassigned tasks (no milestoneId) — still scoped to active project
-    const unassignedTasks = projectTasks.filter((t) => !t.milestoneId && filterTask(t));
-    if (unassignedTasks.length > 0) {
+    // Unassigned drawing-tasks (no milestoneId)
+    const unassignedTasks = drawingTasks.filter((t) => !t.milestoneId && filterTask(t));
+    // Unassigned project-level tasks (no milestoneId)
+    const unassignedPTs = scopedProjectTasks.filter((pt) => !pt.milestoneId && filterProjectTask(pt));
+    if (unassignedTasks.length > 0 || unassignedPTs.length > 0) {
       const drawingIds = [...new Set(unassignedTasks.map((t) => t.drawingId))];
       nodes.push({
         milestone: null,
@@ -247,10 +272,11 @@ export default function TaskList() {
             };
           })
           .filter(Boolean) as DrawingNode[],
+        projectTaskItems: unassignedPTs,
       });
     }
     return nodes;
-  }, [projectMilestones, projectDrawings, projectTasks, search, statusFilter, priorityFilter, sortKey, sortAsc]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectMilestones, projectDrawings, drawingTasks, scopedProjectTasks, search, statusFilter, priorityFilter, sortKey, sortAsc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Milestone helpers
   const openCreateMs = () => { setEditingMs(null); setMsForm({ name: '', description: '', dueDate: '', status: 'Active' }); setShowMsModal(true); };
@@ -288,7 +314,7 @@ export default function TaskList() {
     e.stopPropagation();
     if (!confirm(`Delete drawing "${drawing.name}" and all its tasks?`)) return;
     try {
-      await DrawingsAPI.remove(drawing.id);
+      await DrawingsAPI.remove(drawing.id, activeProject?.id ?? '');
       await refreshDrawings();
       toast.success('Drawing deleted');
     } catch { toast.error('Failed to delete drawing'); }
@@ -352,12 +378,12 @@ export default function TaskList() {
           </div>
         )}
 
-        {hierarchy.map(({ milestone, drawings: drawingNodes }) => {
+        {hierarchy.map(({ milestone, drawings: drawingNodes, projectTaskItems }) => {
           const msId = milestone?.id ?? '__none__';
           const msCollapsed = collapsedMs.has(msId);
           const allTasks = drawingNodes.flatMap((d) => d.tasks);
-          const msDone = allTasks.filter((t) => t.status === 'Completed').length;
-          const msTotal = allTasks.length;
+          const msDone = allTasks.filter((t) => t.status === 'Completed').length + (projectTaskItems ?? []).filter((pt) => pt.status === 'Done').length;
+          const msTotal = allTasks.length + (projectTaskItems ?? []).length;
           const msStyle = milestone ? (MS_STYLE[milestone.status] ?? MS_STYLE.Active) : null;
 
           return (
@@ -405,8 +431,55 @@ export default function TaskList() {
               {/* ── DRAWINGs ── */}
               {!msCollapsed && (
                 <div className="divide-y divide-zinc-800 border-t border-zinc-800">
-                  {drawingNodes.length === 0 && (
-                    <p className="px-8 py-4 text-xs text-slate-400 italic">No drawings in this milestone. Upload a drawing and assign it here.</p>
+                  {drawingNodes.length === 0 && (projectTaskItems ?? []).length === 0 && (
+                    <p className="px-8 py-4 text-xs text-slate-400 italic">No drawings or tasks in this milestone yet.</p>
+                  )}
+
+                  {/* ── PROJECT-LEVEL TASKS (no drawing) ── */}
+                  {(projectTaskItems ?? []).length > 0 && (
+                    <div className="bg-black/30 border-b border-zinc-800/60">
+                      {/* Sub-header */}
+                      <div className="flex items-center gap-2 pl-8 pr-5 py-2.5" style={{ background: 'rgba(99,102,241,0.06)' }}>
+                        <ClipboardCheck size={13} className="text-indigo-400 shrink-0" />
+                        <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex-1">Project Tasks</span>
+                        <span className="text-[10px] text-zinc-500">{(projectTaskItems ?? []).filter((pt) => pt.status === 'Done').length}/{(projectTaskItems ?? []).length} done</span>
+                      </div>
+                      {/* Task rows */}
+                      <div className="pl-12 pr-5 pb-3">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr>
+                              {(['name', 'status', 'assignee', 'priority', 'dueDate'] as const).map((col) => (
+                                <th key={col} className="text-left px-2 py-1.5 font-semibold text-[10px] uppercase tracking-wide text-indigo-400/50 whitespace-nowrap">
+                                  {col === 'assignee' ? 'Assignee' : col === 'dueDate' ? 'Due' : col.charAt(0).toUpperCase() + col.slice(1)}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(projectTaskItems ?? []).map((pt) => (
+                              <tr key={pt.id} className="hover:bg-indigo-950/20 transition-colors rounded">
+                                <td className="px-2 py-1.5 text-slate-300 max-w-[200px] truncate font-medium">{pt.name}</td>
+                                <td className="px-2 py-1.5">
+                                  <span
+                                    className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                    style={{ backgroundColor: `${STATUS_COLORS[pt.status] ?? '#6b7280'}18`, color: STATUS_COLORS[pt.status] ?? '#9ca3af' }}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STATUS_COLORS[pt.status] ?? '#6b7280' }} />
+                                    {pt.status}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-1.5 text-slate-400">{pt.assignee || <span className="text-zinc-600">—</span>}</td>
+                                <td className="px-2 py-1.5">
+                                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${PRIORITY_STYLE[pt.priority] ?? 'bg-zinc-800 text-slate-400'}`}>{pt.priority}</span>
+                                </td>
+                                <td className="px-2 py-1.5 text-slate-400 tabular-nums">{pt.dueDate || <span className="text-zinc-600">—</span>}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   )}
 
                   {drawingNodes.map(({ drawing, tasks: dTasks }) => {

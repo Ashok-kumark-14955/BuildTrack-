@@ -1,0 +1,15 @@
+{
+  "name": "construction-api",
+  "version": "1.0.0",
+  "description": "Catalyst Advanced I/O Function — SiteTrack backend (Zoho Projects backbone)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "zcatalyst-sdk-node": "*"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

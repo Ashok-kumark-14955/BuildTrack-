@@ -71,7 +71,7 @@ export default function FieldsModal({ projectId, projectName, onClose }: Props) 
     async function load() {
       setLoading(true);
       try {
-        const modules = await CustomModulesAPI.list();
+        const modules = await CustomModulesAPI.list(projectId);
         // Match module by projectId stored in name as "projectId:<id>"
         // OR by legacy name equality for backwards compat
         let found = modules.find(
@@ -86,7 +86,7 @@ export default function FieldsModal({ projectId, projectName, onClose }: Props) 
             { id: crypto.randomUUID(), label: 'Title',  type: 'text' },
             { id: crypto.randomUUID(), label: 'Status', type: 'select' },
           ];
-          found = await CustomModulesAPI.create(`projectId:${projectId}`, defaultFields);
+          found = await CustomModulesAPI.create(projectId, `projectId:${projectId}`, defaultFields);
         }
 
         if (!cancelled) {
@@ -141,9 +141,9 @@ export default function FieldsModal({ projectId, projectName, onClose }: Props) 
       }));
 
       if (module) {
-        await CustomModulesAPI.update(module.id, { fields: payload });
+        await CustomModulesAPI.update(projectId, module.id, { fields: payload });
       } else {
-        await CustomModulesAPI.create(`projectId:${projectId}`, payload);
+        await CustomModulesAPI.create(projectId, `projectId:${projectId}`, payload);
       }
 
       toast.success('Fields saved');

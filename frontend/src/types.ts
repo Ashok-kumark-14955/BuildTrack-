@@ -115,6 +115,7 @@ export type ProjectTaskStatus = 'To Do' | 'In Progress' | 'Review' | 'Done';
 export interface ProjectTask {
   id: string;
   projectId: string;
+  milestoneId: string | null;
   name: string;
   description: string;
   priority: TaskPriority;

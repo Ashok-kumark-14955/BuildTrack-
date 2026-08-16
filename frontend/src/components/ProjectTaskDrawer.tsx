@@ -75,7 +75,7 @@ export default function ProjectTaskDrawer({ projectId, taskId, onClose, onSaved,
         await ProjectTasksAPI.create({ ...payload, projectId });
         toast.success('Task created');
       } else {
-        await ProjectTasksAPI.update(taskId, payload);
+        await ProjectTasksAPI.update(taskId, { ...payload, projectId });
         toast.success('Task updated');
       }
       onSaved();
@@ -89,14 +89,14 @@ export default function ProjectTaskDrawer({ projectId, taskId, onClose, onSaved,
   const remove = async () => {
     if (isNew) return;
     if (!confirm(`Delete task "${form.name}"?`)) return;
-    await ProjectTasksAPI.remove(taskId);
+    await ProjectTasksAPI.remove(taskId, projectId);
     toast.success('Task deleted');
     onDeleted();
   };
 
   const postComment = async () => {
     if (isNew || !commentText.trim()) return;
-    const c = await ProjectTasksAPI.addComment(taskId, { author: 'You', message: commentText });
+    const c = await ProjectTasksAPI.addComment(taskId, { author: 'You', message: commentText, projectId });
     setComments((prev) => [...prev, c]);
     setCommentText('');
   };
