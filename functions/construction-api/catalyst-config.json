@@ -1,0 +1,16 @@
+{
+	"deployment": {
+		"name": "construction-api",
+		"stack": "node20",
+		"type": "advancedio",
+		"memory": 256,
+		"env_variables": {
+			"STRATUS_BUCKET": "",
+			"TOKEN_ROTATOR_URL": "",
+			"ZOHO_PORTAL_ID": ""
+		}
+	},
+	"execution": {
+		"main": "index.js"
+	}
+}

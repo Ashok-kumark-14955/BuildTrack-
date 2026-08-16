@@ -368,15 +368,28 @@ function indexOfBuffer(buf, search, offset = 0) {
 }
 
 // ─── Response helpers ─────────────────────────────────────────────────────────
+// CORS for production origins is handled by Catalyst API Gateway (Console →
+// Authentication → Whitelisting → Authorized Domains). Setting the header here
+// too would duplicate it and browsers reject responses with multiple
+// Access-Control-Allow-Origin values. Only localhost needs it here, since the
+// gateway doesn't cover local dev.
+function isLocalOrigin(origin) {
+  return /^http:\/\/localhost(:\d+)?$/.test(origin || '');
+}
+
 function sendJSON(res, status, data) {
   const body = JSON.stringify(data);
-  res.writeHead(status, {
+  const headers = {
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(body),
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-  });
+  };
+  const origin = res.req && res.req.headers && res.req.headers.origin;
+  if (isLocalOrigin(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+    headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
+  }
+  res.writeHead(status, headers);
   res.end(body);
 }
 
@@ -1551,13 +1564,16 @@ module.exports = async (req, res) => {
   const path = parsePath(req.url);
   const qs = parseQS(req.url);
 
-  // CORS pre-flight
+  // CORS pre-flight — production origins are handled by Catalyst API Gateway;
+  // only localhost needs a header here (gateway doesn't cover local dev).
   if (method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    });
+    const headers = {};
+    if (isLocalOrigin(req.headers.origin)) {
+      headers['Access-Control-Allow-Origin'] = req.headers.origin;
+      headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
+      headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+    }
+    res.writeHead(204, headers);
     return res.end();
   }
 
