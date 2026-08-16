@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // ─── Dev proxy targets ────────────────────────────────────────────────────────
 // LOCAL_FUNCTION: run `node index.js` in functions/construction-api on port 4001
 // REMOTE_FUNCTION: the deployed Catalyst Functions URL (no AppSail needed)
-const LOCAL_FUNCTION = 'http://localhost:4001';
+const LOCAL_FUNCTION = 'http://localhost:4000';
 const REMOTE_FUNCTION =
   'https://project-rainfall-60081725173.development.catalystserverless.in/server/construction-api';
 

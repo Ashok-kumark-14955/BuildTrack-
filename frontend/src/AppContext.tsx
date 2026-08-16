@@ -106,7 +106,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     const wasUserSwitch = prevActiveProjectId.current !== null;
     prevActiveProjectId.current = activeProjectId;
 
-    DrawingsAPI.list().then((list) => {
+    DrawingsAPI.list(activeProjectId).then((list) => {
       setDrawings(list);
       // Only auto-jump to first drawing when user explicitly chose a project,
       // not on the silent initial-load auto-selection.
@@ -206,7 +206,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
           setProjects(p);
           return p;
         }).catch((e) => { console.error('[AppContext] Projects load failed:', e); return [] as typeof projects; }),
-        DrawingsAPI.list().then((list) => {
+        // The backend has no cross-project drawing listing, so scope this to
+        // whatever project was already active (from localStorage) at mount.
+        DrawingsAPI.list(activeProjectId ?? undefined).then((list) => {
           console.log('[AppContext] Drawings loaded:', list.length);
           setDrawings(list);
           return list;
