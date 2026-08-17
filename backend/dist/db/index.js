@@ -46,6 +46,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.all = all;
 exports.get = get;
 exports.run = run;
+exports.insertRow = insertRow;
+exports.updateRow = updateRow;
+exports.getRowId = getRowId;
 exports.datastore = datastore;
 const catalystDb = __importStar(require("./catalyst"));
 // Use Catalyst Data Store when deployed on AppSail or when the env flag is set.
@@ -72,6 +75,46 @@ async function run(req, sql, params = []) {
     return useCatalystDataStore
         ? catalystDb.run(req, sql, params)
         : localDb().run(req, sql, params);
+}
+/**
+ * Insert a row via the DataStore SDK table API (bypasses ZCQL INSERT).
+ * In local-dev SQLite mode this falls back to a regular ZCQL-style INSERT.
+ */
+async function insertRow(req, tableName, data) {
+    if (useCatalystDataStore) {
+        return catalystDb.insertRow(req, tableName, data);
+    }
+    // Local SQLite fallback — build and run an INSERT from the data object
+    const cols = Object.keys(data);
+    const vals = Object.values(data);
+    const sql = `INSERT INTO ${tableName} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`;
+    return localDb().run(req, sql, vals);
+}
+/**
+ * Update a row via the DataStore SDK table API (bypasses ZCQL UPDATE).
+ * `data` must include `ROWID` for DataStore; in SQLite mode we use the `id` UUID column instead.
+ */
+async function updateRow(req, tableName, data) {
+    if (useCatalystDataStore) {
+        return catalystDb.updateRow(req, tableName, data);
+    }
+    // Local SQLite fallback — build UPDATE from data object (using 'id' as the key)
+    const { id, ROWID, ...rest } = data;
+    const lookupId = id ?? ROWID;
+    const cols = Object.keys(rest);
+    const vals = Object.values(rest);
+    const sql = `UPDATE ${tableName} SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE id = ?`;
+    return localDb().run(req, sql, [...vals, lookupId]);
+}
+/**
+ * Get the DataStore ROWID for a row identified by its custom UUID `id` column.
+ * In local-dev SQLite mode always returns null (ROWID not needed).
+ */
+async function getRowId(req, tableName, customId) {
+    if (useCatalystDataStore) {
+        return catalystDb.getRowId(req, tableName, customId);
+    }
+    return null;
 }
 /**
  * Returns the raw Catalyst DataStore instance for operations that need the

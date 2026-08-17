@@ -84,8 +84,8 @@ async function createTasksForGrid(req: any, drawingId: string, cols: number, row
 router.get('/', async (req, res) => {
   const { projectId } = req.query;
   const rows = projectId
-    ? await db.all(req, 'SELECT * FROM drawings WHERE projectId = ? ORDER BY createdAt DESC', [projectId])
-    : await db.all(req, 'SELECT * FROM drawings ORDER BY createdAt DESC');
+    ? await db.all(req, 'SELECT * FROM drawings WHERE projectId = ? ORDER BY createdAt ASC', [projectId])
+    : await db.all(req, 'SELECT * FROM drawings ORDER BY createdAt ASC');
   const resolved = await Promise.all(rows.map((r) => serializeWithUrl(req, r)));
   res.json(resolved);
 });
@@ -148,7 +148,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 });
 
 // Update grid config (also supports milestoneId, columnPositions, deletedNodes, columnLabels, elementTypeLabels, lat, lng)
-router.patch('/:id', async (req, res) => {
+// Accepts both PATCH and PUT so that DrawingsAPI.update() (which uses PUT) works correctly.
+async function handleDrawingUpdate(req: any, res: any) {
   const {
     gridCols, gridRows, name, milestoneId,
     columnPositions, resetColumnPositions,
@@ -240,7 +241,11 @@ router.patch('/:id', async (req, res) => {
   params.push(req.params.id);
   await db.run(req, `UPDATE drawings SET ${sets.join(', ')} WHERE id = ?`, params);
   res.json(await serializeWithUrl(req, await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id])));
-});
+}
+
+// Register both PATCH and PUT so that DrawingsAPI.update() (which uses PUT) works correctly.
+router.patch('/:id', handleDrawingUpdate);
+router.put('/:id', handleDrawingUpdate);
 
 // Replace the file for an existing drawing (used by seeding/update scripts).
 // Accepts multipart/form-data with a "file" field, uploads to Stratus (or

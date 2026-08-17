@@ -24,6 +24,9 @@ exports.datastore = datastore;
 exports.all = all;
 exports.get = get;
 exports.run = run;
+exports.insertRow = insertRow;
+exports.updateRow = updateRow;
+exports.getRowId = getRowId;
 const zcatalyst_sdk_node_1 = __importDefault(require("zcatalyst-sdk-node"));
 // ---------------------------------------------------------------------------
 // SDK initialisation
@@ -178,4 +181,47 @@ async function run(req, sql, params = []) {
     const bound = normalizeSql(bind(sql, params));
     const zcql = app(req).zcql();
     await zcql.executeZCQLQuery(bound);
+}
+// ---------------------------------------------------------------------------
+// Table-row SDK helpers (insertRow / updateRow)
+// These use the high-level DataStore table API instead of ZCQL, so they are
+// immune to "Unknown column" errors caused by missing optional columns.
+// ---------------------------------------------------------------------------
+/**
+ * Insert a row into `tableName` using the DataStore SDK row API.
+ * `data` is a plain object of column → value pairs.
+ * Returns the inserted row object (with ROWID etc.) from the SDK.
+ */
+async function insertRow(req, tableName, data) {
+    const table = app(req).datastore().table(tableName);
+    // Filter out undefined/null values for optional columns to avoid "Unknown column" errors
+    // when the DataStore table doesn't have those columns yet.
+    const filteredData = {};
+    for (const [k, v] of Object.entries(data)) {
+        if (v !== undefined && v !== null && v !== '') {
+            filteredData[k] = v;
+        }
+    }
+    return table.insertRow(filteredData);
+}
+/**
+ * Update a row in `tableName` using the DataStore SDK row API.
+ * `data` must include `ROWID` (the DataStore primary key) plus changed columns.
+ * Returns the updated row object from the SDK.
+ */
+async function updateRow(req, tableName, data) {
+    const table = app(req).datastore().table(tableName);
+    // Cast to any to satisfy the SDK's strict ROWID typing requirement
+    return table.updateRow(data);
+}
+/**
+ * Find a row's DataStore ROWID by querying for a custom `id` column value.
+ * Returns the ROWID (number) or null if not found.
+ */
+async function getRowId(req, tableName, customId) {
+    const rows = await all(req, `SELECT ROWID FROM ${tableName} WHERE id = ?`, [customId]);
+    if (!rows || rows.length === 0)
+        return null;
+    const row = rows[0];
+    return row.ROWID ?? row.rowid ?? null;
 }
