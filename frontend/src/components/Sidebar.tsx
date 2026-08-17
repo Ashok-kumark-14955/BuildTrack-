@@ -21,14 +21,18 @@ import {
   BarChart2,
   Package,
   Settings,
+  GripVertical,
+  Crosshair,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ProjectFormModal from './ProjectFormModal';
 import toast from 'react-hot-toast';
+import type { Drawing } from '../types';
+import { DrawingsAPI } from '../api';
 
 const navItems = [
-  { to: '/', label: 'Drawing', icon: FileImage, accent: '#60a5fa', accentBg: 'rgba(96,165,250,0.14)', accentBorder: 'rgba(96,165,250,0.35)' },
+  { to: '/', label: 'Drawing & Task Tracker', icon: FileImage, accent: '#60a5fa', accentBg: 'rgba(96,165,250,0.14)', accentBorder: 'rgba(96,165,250,0.35)' },
   { to: '/tasks', label: 'Task List', icon: ListChecks, accent: '#4ade80', accentBg: 'rgba(74,222,128,0.14)', accentBorder: 'rgba(74,222,128,0.35)' },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, accent: '#fb923c', accentBg: 'rgba(251,146,60,0.14)', accentBorder: 'rgba(251,146,60,0.35)' },
   { to: '/zoho-modules', label: 'Workforce & Safety', icon: Package, accent: '#a78bfa', accentBg: 'rgba(167,139,250,0.14)', accentBorder: 'rgba(167,139,250,0.35)' },
@@ -117,13 +121,113 @@ function ProgressRing({ pct, size = 52 }: { pct: number; size?: number }) {
   );
 }
 
+// ── Drag-to-reorder hook ──────────────────────────────────────────────────────
+/**
+ * Manages the drawing order for the sidebar.
+ *
+ * Priority (highest → lowest):
+ *   1. Server sortOrder field — the permanent source of truth (persisted to backend)
+ *   2. localStorage cache — fast initial render on the same device before server responds
+ *   3. server arrival order — fallback for drawings that have no sortOrder yet (sortOrder === 9999)
+ *
+ * On every drag-drop the new order is:
+ *   a) written to localStorage immediately (instant visual feedback on next render/refresh)
+ *   b) POSTed to /api/drawings/reorder in the background (persisted to backend)
+ */
+function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[]) {
+  const storageKey = `drawingOrder:${projectId ?? 'all'}`;
+
+  // Initialise from localStorage as a fast cache; will be overwritten by the
+  // server-sorted order coming in through sourceDrawings on first render.
+  const [orderedIds, setOrderedIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Sync whenever sourceDrawings changes (project switch or data refresh).
+  // The server already returns drawings sorted by sortOrder, so we use that
+  // as the authoritative order and only append truly new IDs at the end.
+  useEffect(() => {
+    if (sourceDrawings.length === 0) return;
+
+    // Sort source by the backend's sortOrder field so server wins over cache.
+    const byServer = [...sourceDrawings].sort(
+      (a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999)
+    );
+    const serverIds = byServer.map((d) => d.id);
+
+    setOrderedIds((prev) => {
+      // Keep only IDs still present on the server.
+      const stillValid = prev.filter((id) => serverIds.includes(id));
+      // Append new IDs that weren't in the cached list yet.
+      const newIds = serverIds.filter((id) => !stillValid.includes(id));
+      const merged = [...stillValid, ...newIds];
+
+      // If the server says all items have explicit sortOrder values (not the
+      // default 9999), prefer the server order entirely over the local cache.
+      const allHaveServerOrder = sourceDrawings.every((d) => (d.sortOrder ?? 9999) !== 9999);
+      if (allHaveServerOrder) return serverIds;
+
+      return merged;
+    });
+  }, [sourceDrawings, storageKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mirror to localStorage as a fast cache for future page loads on same device.
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(orderedIds));
+    } catch {}
+  }, [orderedIds, storageKey]);
+
+  /** Returns source drawings in the current persisted order. */
+  const sorted = useMemo(() => {
+    const map = new Map(sourceDrawings.map((d) => [d.id, d]));
+    return orderedIds.map((id) => map.get(id)).filter(Boolean) as Drawing[];
+  }, [sourceDrawings, orderedIds]);
+
+  /**
+   * Moves `fromId` to the position of `toId` and persists the new order to
+   * both localStorage and the backend (`POST /api/drawings/reorder`).
+   */
+  const reorder = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setOrderedIds((prev) => {
+      const next = [...prev];
+      const fromIdx = next.indexOf(fromId);
+      const toIdx = next.indexOf(toId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, fromId);
+
+      // Persist to backend in the background — fire-and-forget with silent error handling.
+      if (projectId) {
+        DrawingsAPI.reorder(projectId, next).catch((err) => {
+          console.warn('[reorder] Failed to persist drawing order to backend:', err?.message ?? err);
+        });
+      }
+
+      return next;
+    });
+  };
+
+  return { sorted, reorder };
+}
+
 export default function Sidebar() {
-  const { tasks, drawings, projects, milestones, refreshProjects, currentDrawingId, setCurrentDrawingId, deleteDrawing, activeProjectId } = useApp();
+  const { tasks, drawings, projects, milestones, refreshProjects, currentDrawingId, setCurrentDrawingId, deleteDrawing, activeProjectId, setCalibrating } = useApp();
   const navigate = useNavigate();
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1');
   const [drawingFilter, setDrawingFilter] = useState('');
   const [hoveredDrawing, setHoveredDrawing] = useState<string | null>(null);
+
+  // Drag state
+  const dragId = useRef<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
@@ -187,9 +291,12 @@ export default function Sidebar() {
     [drawings, activeProject]
   );
 
+  // Drag-to-reorder — sorted list of activeProjectDrawings, persisted to localStorage
+  const { sorted: sortedProjectDrawings, reorder } = useDrawingOrder(activeProject?.id, activeProjectDrawings);
+
   const filteredDrawings = useMemo(
-    () => activeProjectDrawings.filter((d) => d.name.toLowerCase().includes(drawingFilter.trim().toLowerCase())),
-    [activeProjectDrawings, drawingFilter]
+    () => sortedProjectDrawings.filter((d) => d.name.toLowerCase().includes(drawingFilter.trim().toLowerCase())),
+    [sortedProjectDrawings, drawingFilter]
   );
 
   // Per-drawing task counts
@@ -456,10 +563,40 @@ export default function Sidebar() {
                 const dt = tasksByDrawing[d.id] ?? { total: 0, done: 0 };
                 const dpct = dt.total > 0 ? Math.round((dt.done / dt.total) * 100) : 0;
                 const isHovered = hoveredDrawing === d.id;
+                const isDragOver = dragOverId === d.id;
 
                 return (
                   <div
                     key={d.id}
+                    draggable
+                    onDragStart={(e) => {
+                      dragId.current = d.id;
+                      e.dataTransfer.effectAllowed = 'move';
+                      // Slight opacity drop to indicate drag source
+                      (e.currentTarget as HTMLElement).style.opacity = '0.5';
+                    }}
+                    onDragEnd={(e) => {
+                      (e.currentTarget as HTMLElement).style.opacity = '1';
+                      dragId.current = null;
+                      setDragOverId(null);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dragId.current && dragId.current !== d.id) {
+                        setDragOverId(d.id);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      setDragOverId((prev) => (prev === d.id ? null : prev));
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragId.current && dragId.current !== d.id) {
+                        reorder(dragId.current, d.id);
+                      }
+                      setDragOverId(null);
+                    }}
                     onMouseEnter={() => setHoveredDrawing(d.id)}
                     onMouseLeave={() => setHoveredDrawing(null)}
                     className="group relative rounded-xl transition-all duration-150 overflow-hidden"
@@ -469,10 +606,17 @@ export default function Sidebar() {
                         : isHovered
                           ? 'rgba(255,255,255,0.07)'
                           : 'rgba(255,255,255,0.03)',
-                      border: active
-                        ? '1px solid rgba(216,72,110,0.45)'
-                        : '1px solid rgba(255,255,255,0.07)',
-                      boxShadow: active ? '0 0 12px rgba(216,72,110,0.15)' : 'none',
+                      border: isDragOver
+                        ? '1px solid rgba(216,72,110,0.8)'
+                        : active
+                          ? '1px solid rgba(216,72,110,0.45)'
+                          : '1px solid rgba(255,255,255,0.07)',
+                      boxShadow: isDragOver
+                        ? '0 0 16px rgba(216,72,110,0.35)'
+                        : active
+                          ? '0 0 12px rgba(216,72,110,0.15)'
+                          : 'none',
+                      cursor: 'grab',
                     }}
                   >
                     {/* Active left accent bar */}
@@ -481,9 +625,24 @@ export default function Sidebar() {
                         style={{ background: 'linear-gradient(180deg, #fb7185, #d6486e)' }} />
                     )}
 
+                    {/* Drag-over drop indicator line */}
+                    {isDragOver && (
+                      <span className="absolute top-0 left-0 right-0 h-[2px] rounded-full"
+                        style={{ background: 'linear-gradient(90deg, #fb7185, #d6486e)' }} />
+                    )}
+
+                    {/* Grip handle — visible on hover */}
+                    <div
+                      className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 cursor-grab active:cursor-grabbing z-10"
+                      title="Drag to reorder"
+                    >
+                      <GripVertical size={10} style={{ color: 'rgba(232,138,165,0.45)' }} />
+                    </div>
+
                     <button
                       onClick={() => switchDrawing(d.id)}
-                      className="w-full text-left px-3 py-2.5 pl-4"
+                      className="w-full text-left px-3 py-2.5 pl-5"
+                      style={{ cursor: 'pointer' }}
                     >
                       <div className="flex items-start gap-2">
                         {/* Mini file icon */}
@@ -539,26 +698,45 @@ export default function Sidebar() {
                       </div>
                     </button>
 
-                    {/* Delete — top-right corner on hover */}
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (!window.confirm(`Delete "${d.name}"? This will also remove all its tasks.`)) return;
-                        try {
-                          await deleteDrawing(d.id);
-                          toast.success(`"${d.name}" deleted`, { icon: '🗑️', duration: 2000 });
-                        } catch {
-                          toast.error('Failed to delete drawing');
-                        }
-                      }}
-                      title="Delete drawing"
-                      className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-md transition-all duration-150"
-                      style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239,68,68,0.3)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(239,68,68,0.15)')}
-                    >
-                      <Trash2 size={9} className="text-red-400" />
-                    </button>
+                    {/* Action buttons — top-right on hover */}
+                    <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all duration-150">
+                      {/* Calibrate button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentDrawingId(d.id);
+                          setCalibrating(true);
+                          navigate('/');
+                        }}
+                        title="Calibrate grid"
+                        className="w-5 h-5 flex items-center justify-center rounded-md transition-all duration-150"
+                        style={{ background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(96,165,250,0.35)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(96,165,250,0.15)')}
+                      >
+                        <Crosshair size={9} className="text-blue-400" />
+                      </button>
+                      {/* Delete button */}
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!window.confirm(`Delete "${d.name}"? This will also remove all its tasks.`)) return;
+                          try {
+                            await deleteDrawing(d.id);
+                            toast.success(`"${d.name}" deleted`, { icon: '🗑️', duration: 2000 });
+                          } catch {
+                            toast.error('Failed to delete drawing');
+                          }
+                        }}
+                        title="Delete drawing"
+                        className="w-5 h-5 flex items-center justify-center rounded-md transition-all duration-150"
+                        style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239,68,68,0.3)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(239,68,68,0.15)')}
+                      >
+                        <Trash2 size={9} className="text-red-400" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}

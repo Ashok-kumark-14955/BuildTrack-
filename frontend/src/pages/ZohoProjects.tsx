@@ -105,7 +105,234 @@ const BADGE_COLORS: Record<string, string> = {
   'Valid':    'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60',
   'Expired':  'bg-red-900/60 text-red-300 border border-red-700/60',
   'Pending':  'bg-amber-900/60 text-amber-300 border border-amber-700/60',
+  // Site Entry statuses
+  'Approved':   'bg-emerald-900/70 text-emerald-300 border border-emerald-700/60',
+  'Rejected':   'bg-red-900/70 text-red-300 border border-red-700/60',
+  'Checked In': 'bg-blue-900/70 text-blue-300 border border-blue-700/60',
+  'Checked Out':'bg-slate-700/80 text-slate-300 border border-slate-500',
+  'Flagged':    'bg-orange-900/70 text-orange-300 border border-orange-700/60',
+  'Visitor':    'bg-violet-900/60 text-violet-300 border border-violet-700/60',
+  'Contractor': 'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
+  'Employee':   'bg-sky-900/60 text-sky-300 border border-sky-700/60',
+  // Gate types
+  'Main Gate':  'bg-slate-700/80 text-slate-200 border border-slate-500',
+  'Side Gate':  'bg-slate-700/60 text-slate-400 border border-slate-600',
+  'Emergency':  'bg-red-900/60 text-red-300 border border-red-700/60',
+  // Entry purpose
+  'Work':        'bg-blue-900/60 text-blue-300 border border-blue-700/60',
+  'Delivery':    'bg-amber-900/60 text-amber-300 border border-amber-700/60',
+  'Inspection':  'bg-violet-900/60 text-violet-300 border border-violet-700/60',
+  'Meeting':     'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
+  'Maintenance': 'bg-orange-900/60 text-orange-300 border border-orange-700/60',
 };
+
+// ─── Site-entry smart detector ───────────────────────────────────────────────
+// Detects if the current module is a "Site Entry" module by checking field labels
+
+function isSiteEntryModule(fields: CustomField[]): boolean {
+  const labels = fields.map((f) => f.label.toLowerCase());
+  const siteEntryKeywords = ['entry time', 'exit time', 'entry gate', 'work area', 'entry purpose', 'security'];
+  return siteEntryKeywords.filter((kw) => labels.some((l) => l.includes(kw))).length >= 2;
+}
+
+// Parse a time string like "09:30 AM" or "14:30" into minutes since midnight
+function parseTimeToMinutes(val: string): number | null {
+  if (!val || typeof val !== 'string') return null;
+  const trimmed = val.trim();
+  // Handle HH:MM AM/PM
+  const ampm = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampm) {
+    let h = parseInt(ampm[1], 10);
+    const m = parseInt(ampm[2], 10);
+    const period = ampm[3].toUpperCase();
+    if (period === 'AM' && h === 12) h = 0;
+    if (period === 'PM' && h !== 12) h += 12;
+    return h * 60 + m;
+  }
+  // Handle HH:MM
+  const hhmm = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (hhmm) {
+    return parseInt(hhmm[1], 10) * 60 + parseInt(hhmm[2], 10);
+  }
+  return null;
+}
+
+function formatDuration(entryVal: string, exitVal: string): string | null {
+  const start = parseTimeToMinutes(entryVal);
+  const end = parseTimeToMinutes(exitVal);
+  if (start === null || end === null) return null;
+  let diff = end - start;
+  if (diff < 0) diff += 24 * 60; // overnight
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+// ─── Stats bar for site entry modules ────────────────────────────────────────
+
+interface SiteEntryStatsProps {
+  records: CustomRecord[];
+  fields: CustomField[];
+}
+
+function SiteEntryStatsBar({ records, fields }: SiteEntryStatsProps) {
+  const statusField = fields.find((f) => f.label.toLowerCase() === 'status' || f.label.toLowerCase().includes('status'));
+  const exitField   = fields.find((f) => f.label.toLowerCase().includes('exit time'));
+
+  const total       = records.length;
+  const approved    = statusField ? records.filter((r) => ['Approved', 'Checked In'].includes(r.data[statusField.id] ?? '')).length : 0;
+  const pending     = statusField ? records.filter((r) => ['Pending'].includes(r.data[statusField.id] ?? '')).length : 0;
+  const exited      = exitField   ? records.filter((r) => r.data[exitField.id]?.toString().trim()).length : 0;
+  const flagged     = statusField ? records.filter((r) => r.data[statusField.id] === 'Flagged').length : 0;
+
+  const stats = [
+    {
+      label: 'Total Entries',
+      value: total,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      ),
+      color: 'rgba(148,163,184,0.8)',
+      bg: 'rgba(30,41,59,0.5)',
+      border: 'rgba(71,85,105,0.4)',
+    },
+    {
+      label: 'Approved',
+      value: approved,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      ),
+      color: '#34d399',
+      bg: 'rgba(6,78,59,0.3)',
+      border: 'rgba(16,185,129,0.25)',
+    },
+    {
+      label: 'Pending',
+      value: pending,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      ),
+      color: '#fbbf24',
+      bg: 'rgba(78,52,6,0.3)',
+      border: 'rgba(245,158,11,0.25)',
+    },
+    {
+      label: 'Exited',
+      value: exited,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      ),
+      color: '#94a3b8',
+      bg: 'rgba(15,23,42,0.5)',
+      border: 'rgba(71,85,105,0.3)',
+    },
+    ...(flagged > 0 ? [{
+      label: 'Flagged',
+      value: flagged,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+        </svg>
+      ),
+      color: '#f97316',
+      bg: 'rgba(78,35,6,0.4)',
+      border: 'rgba(249,115,22,0.3)',
+    }] : []),
+  ];
+
+  return (
+    <div className="flex items-stretch gap-3 mb-4 flex-wrap">
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl flex-1 min-w-[120px]"
+          style={{ background: s.bg, border: `1px solid ${s.border}` }}
+        >
+          <span style={{ color: s.color, opacity: 0.8 }}>{s.icon}</span>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: s.color, opacity: 0.65 }}>{s.label}</span>
+            <span className="text-xl font-black tabular-nums leading-tight" style={{ color: s.color }}>{s.value}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Filter chips bar ─────────────────────────────────────────────────────────
+
+interface FilterChipsBarProps {
+  fields: CustomField[];
+  activeFilter: { fieldId: string; value: string } | null;
+  onFilterChange: (f: { fieldId: string; value: string } | null) => void;
+  records: CustomRecord[];
+}
+
+function FilterChipsBar({ fields, activeFilter, onFilterChange, records }: FilterChipsBarProps) {
+  // Find select fields that make sense to filter by
+  const selectFields = fields.filter((f) => f.type === 'select' && (f.options?.length ?? 0) > 0);
+  if (selectFields.length === 0) return null;
+
+  // Show chips for the most useful field (Status or the first select)
+  const priorityField = selectFields.find((f) => f.label.toLowerCase().includes('status')) ?? selectFields[0];
+  const options = priorityField.options ?? [];
+
+  return (
+    <div className="flex items-center gap-2 mb-3 flex-wrap">
+      <span className="text-[10px] text-slate-600 font-semibold uppercase tracking-widest flex-shrink-0">
+        {priorityField.label}:
+      </span>
+      <button
+        onClick={() => onFilterChange(null)}
+        className={cn(
+          'px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-150',
+          !activeFilter || activeFilter.fieldId !== priorityField.id
+            ? 'text-white'
+            : 'text-slate-400',
+        )}
+        style={{
+          background: !activeFilter || activeFilter.fieldId !== priorityField.id
+            ? 'linear-gradient(135deg, rgba(220,38,90,0.3) 0%, rgba(120,10,30,0.4) 100%)'
+            : 'rgba(255,255,255,0.04)',
+          border: !activeFilter || activeFilter.fieldId !== priorityField.id
+            ? '1px solid rgba(220,38,90,0.4)'
+            : '1px solid rgba(255,255,255,0.08)',
+        }}
+      >
+        All ({records.length})
+      </button>
+      {options.map((opt) => {
+        const count = records.filter((r) => r.data[priorityField.id] === opt).length;
+        const isActive = activeFilter?.fieldId === priorityField.id && activeFilter.value === opt;
+        const colorClass = BADGE_COLORS[opt] ?? 'bg-slate-700/80 text-slate-300 border border-slate-600';
+        return (
+          <button
+            key={opt}
+            onClick={() => onFilterChange(isActive ? null : { fieldId: priorityField.id, value: opt })}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-150',
+              colorClass,
+              isActive ? 'ring-2 ring-white/20 scale-105' : 'opacity-60 hover:opacity-100',
+            )}
+          >
+            {opt}
+            <span className="opacity-70 font-bold">{count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 // ─── Styled Checkbox ─────────────────────────────────────────────────────────
 
@@ -1543,9 +1770,11 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
 interface SelectableRecordRowProps extends RecordRowProps {
   selected: boolean;
   onToggleSelect: () => void;
+  /** Site Entry: click row to open detail panel */
+  onRowClick?: () => void;
 }
 
-function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelect, onUpdate, onDelete }: SelectableRecordRowProps) {
+function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelect, onUpdate, onDelete, onRowClick }: SelectableRecordRowProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [data, setData] = useState<Record<string, any>>(record.data);
 
@@ -1659,8 +1888,23 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         </td>
       ))}
 
-      {/* Delete */}
+      {/* View detail (site entry) + Delete */}
       <td className="px-2 py-0 w-8" style={{ borderLeft: '1px solid rgba(60,5,20,0.5)' }}>
+        <div className="flex flex-col items-center gap-1 py-2">
+        {onRowClick && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onRowClick(); }}
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all duration-150"
+            style={{ color: 'rgba(96,165,250,0.6)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#93c5fd'; e.currentTarget.style.background = 'rgba(59,130,246,0.15)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(96,165,250,0.6)'; e.currentTarget.style.background = 'transparent'; }}
+            title="View details"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        )}
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all duration-150"
@@ -1671,6 +1915,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         >
           <TrashIcon />
         </button>
+        </div>
       </td>
     </tr>
   );
@@ -1705,6 +1950,11 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
   // ── Bulk Select ────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+
+  // ── Site Entry enhanced features ──────────────────────────
+  const isSiteEntry = isSiteEntryModule(module.fields);
+  const [activeFilter, setActiveFilter] = useState<{ fieldId: string; value: string } | null>(null);
+  const [detailRecord, setDetailRecord] = useState<{ record: CustomRecord; idx: number } | null>(null);
 
   const { colWidths, onResizeStart, resetWidth, resetAllWidths, fitToContent } =
     useResizableColumns(module.fields);
@@ -1813,6 +2063,10 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
   // ── Filtered + sorted records ─────────────────────────────
   const filteredSortedRecords = useMemo(() => {
     let result = records;
+    // Active filter chip (Site Entry)
+    if (activeFilter) {
+      result = result.filter((rec) => rec.data[activeFilter.fieldId] === activeFilter.value);
+    }
     // Filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -1865,6 +2119,21 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
   return (
     <>
+      {/* ── Site Entry stats bar ── */}
+      {isSiteEntry && !loading && records.length > 0 && (
+        <SiteEntryStatsBar records={records} fields={module.fields} />
+      )}
+
+      {/* ── Site Entry filter chips ── */}
+      {isSiteEntry && !loading && records.length > 0 && (
+        <FilterChipsBar
+          fields={module.fields}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          records={records}
+        />
+      )}
+
       {/* Module header */}
       <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
         <div className="flex items-center gap-3">
@@ -2098,6 +2367,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                   onToggleSelect={() => toggleSelect(record.id)}
                   onUpdate={(data) => handleUpdateRecord(record, data)}
                   onDelete={() => handleDeleteRecord(record)}
+                  onRowClick={isSiteEntry ? () => setDetailRecord({ record, idx }) : undefined}
                 />
               ))
             )}
@@ -2177,6 +2447,25 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
           onClose={() => setShowEntryDrawer(false)}
           onAdd={handleAddRecord}
           onAddMore={handleAddRecord}
+        />
+      )}
+
+      {/* ── Site Entry: Record Detail Panel ── */}
+      {isSiteEntry && detailRecord && (
+        <RecordDetailPanel
+          record={detailRecord.record}
+          fields={module.fields}
+          rowIndex={detailRecord.idx}
+          onClose={() => setDetailRecord(null)}
+          onUpdate={(data) => {
+            handleUpdateRecord(detailRecord.record, data);
+            // Keep detail panel open but update the local record snapshot
+            setDetailRecord((prev) => prev ? { ...prev, record: { ...prev.record, data } } : null);
+          }}
+          onDelete={() => {
+            handleDeleteRecord(detailRecord.record);
+            setDetailRecord(null);
+          }}
         />
       )}
     </>

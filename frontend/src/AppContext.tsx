@@ -14,6 +14,9 @@ interface AppState {
   currentDrawingId: string | null;
   selectedElementId: string | null;
   activeProjectId: string | null;
+  /** Whether calibration mode is active for the current drawing */
+  calibrating: boolean;
+  setCalibrating: (v: boolean) => void;
   setActiveProjectId: (id: string | null) => void;
   setCurrentDrawingId: (id: string | null) => void;
   setSelectedElementId: (id: string | null) => void;
@@ -57,9 +60,18 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
-  const [currentDrawingId, setCurrentDrawingId] = useState<string | null>(null);
+  const [currentDrawingId, setCurrentDrawingIdRaw] = useState<string | null>(null);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [focusElementRequest, setFocusElementRequest] = useState<string | null>(null);
+  const [calibrating, setCalibrating] = useState(false);
+
+  // Wrap setCurrentDrawingId so switching to a *different* drawing resets calibration.
+  const setCurrentDrawingId = useCallback((id: string | null) => {
+    setCurrentDrawingIdRaw((prev) => {
+      if (prev !== id) setCalibrating(false);
+      return id;
+    });
+  }, []);
   const [activeProjectId, setActiveProjectIdRaw] = useState<string | null>(
     () => localStorage.getItem('activeProjectId')
   );
@@ -303,7 +315,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     await DrawingsAPI.remove(id, (drawing as any)?.projectId ?? activeProjectId ?? '');
     setDrawings((prev) => prev.filter((d) => d.id !== id));
     setTasks((prev) => prev.filter((t) => t.drawingId !== id));
-    setCurrentDrawingId((prev) => (prev === id ? null : prev));
+    setCurrentDrawingIdRaw((prev) => (prev === id ? null : prev));
   }, []);
 
   const createMilestone = useCallback(async (data: Partial<Milestone>) => {
@@ -412,6 +424,8 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     currentDrawingId,
     selectedElementId,
     activeProjectId,
+    calibrating,
+    setCalibrating,
     setActiveProjectId,
     setCurrentDrawingId,
     setSelectedElementId,
@@ -453,7 +467,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     patchDrawingColumnPositions, resetDrawingColumnPositions,
     patchDrawingColumnLabel, patchDrawingElementTypeLabel,
     deleteDrawingNode, deleteDrawingBeam, addCustomBeam, removeCustomBeam,
-    activeProjectId,
+    activeProjectId, calibrating, setCalibrating,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

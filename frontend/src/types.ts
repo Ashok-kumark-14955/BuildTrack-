@@ -41,6 +41,7 @@ export interface Drawing {
   elementTypeLabels: Record<string, string>;
   lat: number | null;
   lng: number | null;
+  sortOrder: number;
   createdAt: string;
 }
 

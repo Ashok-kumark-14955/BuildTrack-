@@ -7,11 +7,10 @@ import TopToolbar from '../components/TopToolbar';
 import Legend from '../components/Legend';
 
 export default function DrawingPage() {
-  const { currentDrawing, selectedElementId, refreshDrawings, activeProjectId } = useApp();
+  const { currentDrawing, selectedElementId, refreshDrawings, activeProjectId, calibrating, setCalibrating } = useApp();
   const [showGrid, setShowGrid] = useState(true);
   const [showBeams, setShowBeams] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
-  const [calibrating, setCalibrating] = useState(false);
 
   // Snapshot fn registered by DrawingCanvas via onSnapshotReady
   const snapshotFnRef = useRef<(() => string | null) | null>(null);

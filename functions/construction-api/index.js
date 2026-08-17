@@ -542,6 +542,7 @@ function parseDrawingMeta(taskList, metaTask) {
     elementTypeLabels: meta.elementTypeLabels ?? {},
     lat: meta.lat ?? null,
     lng: meta.lng ?? null,
+    sortOrder: meta.sortOrder ?? 9999,
     name: taskList.name || '',
   };
 }
@@ -867,8 +868,11 @@ async function handleListDrawings(req, res, qs) {
     const projectId = qs.projectId;
     if (!projectId) return sendJSON(res, 200, []);
     const entries = await getDrawingTaskLists(projectId);
-    return sendJSON(res, 200, entries.map(({ tl, metaTask }) =>
-      parseDrawingMeta({ ...tl, project_id: projectId }, metaTask)));
+    const drawings = entries.map(({ tl, metaTask }) =>
+      parseDrawingMeta({ ...tl, project_id: projectId }, metaTask));
+    // Sort by sortOrder ascending so the frontend receives drawings in the user's saved order
+    drawings.sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999));
+    return sendJSON(res, 200, drawings);
   } catch (e) {
     return sendError(res, 500, 'Failed to list drawings', e.message);
   }
@@ -962,6 +966,91 @@ async function handleUpdateDrawing(req, res, params) {
     // otherwise fall back to current meta value.
     const pick = (key, fallback) => Object.prototype.hasOwnProperty.call(body, key) ? body[key] : fallback;
 
+    // ── Merge JSON array/object fields using the same patch protocol as the
+    //    AppSail backend's mergeJsonField helper ──────────────────────────────
+
+    // deletedNodes: { [code]: true|false } — true=delete, false=restore
+    const currentDeletedNodes = Array.isArray(meta.deletedNodes) ? meta.deletedNodes : [];
+    let nextDeletedNodes = currentDeletedNodes;
+    if (body.resetDeletedNodes) {
+      nextDeletedNodes = [];
+    } else if (body.deletedNodes && typeof body.deletedNodes === 'object' && !Array.isArray(body.deletedNodes)) {
+      nextDeletedNodes = [...currentDeletedNodes];
+      for (const [code, remove] of Object.entries(body.deletedNodes)) {
+        if (remove) {
+          if (!nextDeletedNodes.includes(code)) nextDeletedNodes.push(code);
+        } else {
+          nextDeletedNodes = nextDeletedNodes.filter((c) => c !== code);
+        }
+      }
+    }
+
+    // deletedBeams: { [beamId]: true|false } — true=delete, false=restore
+    const currentDeletedBeams = Array.isArray(meta.deletedBeams) ? meta.deletedBeams : [];
+    let nextDeletedBeams = currentDeletedBeams;
+    if (body.resetDeletedBeams) {
+      nextDeletedBeams = [];
+    } else if (body.deletedBeams && typeof body.deletedBeams === 'object' && !Array.isArray(body.deletedBeams)) {
+      nextDeletedBeams = [...currentDeletedBeams];
+      for (const [beamId, remove] of Object.entries(body.deletedBeams)) {
+        if (remove) {
+          if (!nextDeletedBeams.includes(beamId)) nextDeletedBeams.push(beamId);
+        } else {
+          nextDeletedBeams = nextDeletedBeams.filter((b) => b !== beamId);
+        }
+      }
+    }
+
+    // columnPositions: merge patch object into current positions
+    const currentColumnPositions = (meta.columnPositions && typeof meta.columnPositions === 'object') ? meta.columnPositions : {};
+    let nextColumnPositions = currentColumnPositions;
+    if (body.resetColumnPositions) {
+      nextColumnPositions = {};
+    } else if (body.columnPositions && typeof body.columnPositions === 'object' && !Array.isArray(body.columnPositions)) {
+      nextColumnPositions = { ...currentColumnPositions, ...body.columnPositions };
+    }
+
+    // columnLabels: merge patch object into current labels
+    const currentColumnLabels = (meta.columnLabels && typeof meta.columnLabels === 'object') ? meta.columnLabels : {};
+    let nextColumnLabels = currentColumnLabels;
+    if (body.resetColumnLabels) {
+      nextColumnLabels = {};
+    } else if (body.columnLabels && typeof body.columnLabels === 'object' && !Array.isArray(body.columnLabels)) {
+      nextColumnLabels = { ...currentColumnLabels, ...body.columnLabels };
+    }
+
+    // elementTypeLabels: merge patch object into current labels
+    const currentElementTypeLabels = (meta.elementTypeLabels && typeof meta.elementTypeLabels === 'object') ? meta.elementTypeLabels : {};
+    let nextElementTypeLabels = currentElementTypeLabels;
+    if (body.resetElementTypeLabels) {
+      nextElementTypeLabels = {};
+    } else if (body.elementTypeLabels && typeof body.elementTypeLabels === 'object' && !Array.isArray(body.elementTypeLabels)) {
+      nextElementTypeLabels = { ...currentElementTypeLabels, ...body.elementTypeLabels };
+    }
+
+    // customBeams: { add?: [{from,to}], remove?: [{from,to}] }
+    const currentCustomBeams = Array.isArray(meta.customBeams) ? meta.customBeams : [];
+    let nextCustomBeams = currentCustomBeams;
+    if (body.resetCustomBeams) {
+      nextCustomBeams = [];
+    } else if (body.customBeams && typeof body.customBeams === 'object' && !Array.isArray(body.customBeams)) {
+      nextCustomBeams = [...currentCustomBeams];
+      const { add, remove: rem } = body.customBeams;
+      if (Array.isArray(add)) {
+        for (const b of add) {
+          const exists = nextCustomBeams.some(
+            (c) => (c.from === b.from && c.to === b.to) || (c.from === b.to && c.to === b.from)
+          );
+          if (!exists) nextCustomBeams.push(b);
+        }
+      }
+      if (Array.isArray(rem)) {
+        nextCustomBeams = nextCustomBeams.filter(
+          (c) => !rem.some((r) => (r.from === c.from && r.to === c.to) || (r.from === c.to && r.to === c.from))
+        );
+      }
+    }
+
     // Merge updates — explicit null is honoured (e.g. clearing lat/lng)
     const merged = {
       ...meta,
@@ -970,12 +1059,12 @@ async function handleUpdateDrawing(req, res, params) {
       fileUrl: pick('fileUrl', meta.fileUrl),
       gridCols: pick('gridCols', meta.gridCols),
       gridRows: pick('gridRows', meta.gridRows),
-      columnPositions: pick('columnPositions', meta.columnPositions),
-      deletedNodes: pick('deletedNodes', meta.deletedNodes),
-      customBeams: pick('customBeams', meta.customBeams),
-      deletedBeams: pick('deletedBeams', meta.deletedBeams),
-      columnLabels: pick('columnLabels', meta.columnLabels),
-      elementTypeLabels: pick('elementTypeLabels', meta.elementTypeLabels),
+      columnPositions: nextColumnPositions,
+      deletedNodes: nextDeletedNodes,
+      customBeams: nextCustomBeams,
+      deletedBeams: nextDeletedBeams,
+      columnLabels: nextColumnLabels,
+      elementTypeLabels: nextElementTypeLabels,
       lat: pick('lat', meta.lat),
       lng: pick('lng', meta.lng),
     };
@@ -1004,6 +1093,39 @@ async function handleUpdateDrawing(req, res, params) {
     });
   } catch (e) {
     return sendError(res, 500, 'Failed to update drawing', e.message);
+  }
+}
+
+// POST /api/drawings/reorder
+// Body: { projectId: string, orderedIds: string[] }
+// Updates each drawing's metadata with its new sortOrder index.
+async function handleReorderDrawings(req, res) {
+  try {
+    const body = await readBody(req);
+    const { projectId, orderedIds } = body;
+    if (!projectId) return sendError(res, 400, 'projectId required');
+    if (!Array.isArray(orderedIds)) return sendError(res, 400, 'orderedIds must be an array');
+
+    // Update all drawings in parallel — each gets a sortOrder matching its new index.
+    await Promise.all(
+      orderedIds.map(async (drawingId, index) => {
+        try {
+          const metaTask = await getDrawingMetaTask(projectId, drawingId);
+          if (!metaTask) return; // skip if drawing not found
+          const meta = safeParseMeta(metaTask.description);
+          const merged = { ...meta, sortOrder: index };
+          await zohoPut(`/projects/${projectId}/tasks/${metaTask.id_string || metaTask.id}/`, {
+            description: JSON.stringify(merged),
+          });
+        } catch (e) {
+          console.warn(`[reorder] Failed to update sortOrder for drawing ${drawingId}:`, e.message);
+        }
+      })
+    );
+
+    return sendJSON(res, 200, { ok: true, reordered: orderedIds.length });
+  } catch (e) {
+    return sendError(res, 500, 'Failed to reorder drawings', e.message);
   }
 }
 
@@ -1673,6 +1795,7 @@ module.exports = async (req, res) => {
     // Drawings
     if (path === '/api/drawings' && method === 'GET') return handleListDrawings(req, res, qs);
     if (path === '/api/drawings' && method === 'POST') return handleUploadDrawing(req, res);
+    if (path === '/api/drawings/reorder' && method === 'POST') return handleReorderDrawings(req, res);
     if ((m = matchRoute('GET', '/api/drawings/:id', method, path))) return handleGetDrawing(req, res, m, qs);
     if ((m = matchRoute('GET', '/api/drawings/:id/file', method, path))) return handleDrawingFile(req, res, m);
     if ((m = matchRoute('PUT', '/api/drawings/:id', method, path))) return handleUpdateDrawing(req, res, m);

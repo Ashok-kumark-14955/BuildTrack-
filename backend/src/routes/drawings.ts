@@ -84,10 +84,33 @@ async function createTasksForGrid(req: any, drawingId: string, cols: number, row
 router.get('/', async (req, res) => {
   const { projectId } = req.query;
   const rows = projectId
-    ? await db.all(req, 'SELECT * FROM drawings WHERE projectId = ? ORDER BY createdAt ASC', [projectId])
-    : await db.all(req, 'SELECT * FROM drawings ORDER BY createdAt ASC');
+    ? await db.all(req, 'SELECT * FROM drawings WHERE projectId = ? ORDER BY COALESCE(sortOrder, 9999) ASC, createdAt ASC', [projectId])
+    : await db.all(req, 'SELECT * FROM drawings ORDER BY COALESCE(sortOrder, 9999) ASC, createdAt ASC');
   const resolved = await Promise.all(rows.map((r) => serializeWithUrl(req, r)));
   res.json(resolved);
+});
+
+// Persist drag-reorder: update each drawing's sortOrder in the DB.
+// Must be registered BEFORE /:id routes to avoid "reorder" being treated as an :id param.
+router.post('/reorder', async (req, res) => {
+  const { projectId, orderedIds } = req.body;
+  if (!projectId || !Array.isArray(orderedIds)) {
+    return res.status(400).json({ error: 'projectId and orderedIds required' });
+  }
+  try {
+    // Add sortOrder column if it doesn't exist yet (idempotent — fails silently if already present)
+    try { await db.run(req, 'ALTER TABLE drawings ADD COLUMN sortOrder INTEGER DEFAULT 9999'); } catch {}
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.run(
+        req,
+        'UPDATE drawings SET sortOrder = ? WHERE id = ? AND projectId = ?',
+        [i, orderedIds[i], projectId]
+      );
+    }
+    res.json({ ok: true, reordered: orderedIds.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Reorder failed' });
+  }
 });
 
 router.get('/:id', async (req, res) => {

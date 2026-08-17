@@ -110,6 +110,9 @@ export const DrawingsAPI = {
     api.put<Drawing>(`/drawings/${id}`, data).then((r) => r.data),
   remove: (id: string, projectId: string) =>
     api.delete(`/drawings/${id}`, { params: { projectId } }),
+  /** Persist the sidebar drag-reorder — saves sortOrder to each drawing's backend metadata. */
+  reorder: (projectId: string, orderedIds: string[]) =>
+    api.post<{ ok: boolean; reordered: number }>('/drawings/reorder', { projectId, orderedIds }).then((r) => r.data),
 };
 
 // ─── Drawing Tasks ────────────────────────────────────────────────────────────
