@@ -1,0 +1,569 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100">
+  <defs>
+    <!-- Hatch pattern for staircase -->
+    <pattern id="stairHatch" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="10" y2="10" stroke="#888" stroke-width="0.8"/>
+      <line x1="10" y1="0" x2="0" y2="10" stroke="#888" stroke-width="0.8"/>
+    </pattern>
+    <!-- Column hatch -->
+    <pattern id="colHatch" x="0" y="0" width="6" height="6" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="6" y2="6" stroke="#fff" stroke-width="0.8"/>
+    </pattern>
+    <!-- Concrete hatch for balcony -->
+    <pattern id="balconyHatch" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="8" x2="8" y2="0" stroke="#aac" stroke-width="0.7"/>
+    </pattern>
+    <!-- Tile pattern -->
+    <pattern id="tilePattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <rect width="20" height="20" fill="none" stroke="#c5d8e8" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1800" height="1100" fill="#f0f4f8"/>
+
+  <!-- ===== DRAWING AREA BORDER ===== -->
+  <rect x="60" y="60" width="1680" height="960" fill="white" stroke="#2a2a3a" stroke-width="2"/>
+
+  <!-- ===== GRID REFERENCE LINES (light) ===== -->
+  <!-- Columns A-G at x=120,370,620,870,1120,1370,1620 -->
+  <!-- Rows 1-4 at y=120,420,700,940 -->
+  <g stroke="#b0c4de" stroke-width="0.5" stroke-dasharray="6,4" opacity="0.7">
+    <line x1="120" y1="80" x2="120" y2="980"/>
+    <line x1="370" y1="80" x2="370" y2="980"/>
+    <line x1="620" y1="80" x2="620" y2="980"/>
+    <line x1="870" y1="80" x2="870" y2="980"/>
+    <line x1="1120" y1="80" x2="1120" y2="980"/>
+    <line x1="1370" y1="80" x2="1370" y2="980"/>
+    <line x1="1620" y1="80" x2="1620" y2="980"/>
+    <line x1="80" y1="120" x2="1720" y2="120"/>
+    <line x1="80" y1="420" x2="1720" y2="420"/>
+    <line x1="80" y1="700" x2="1720" y2="700"/>
+    <line x1="80" y1="940" x2="1720" y2="940"/>
+  </g>
+
+  <!-- ===== OUTER WALLS (18px thick) ===== -->
+  <g fill="#2a2a3a">
+    <!-- Top wall: A1 to G1 -->
+    <rect x="111" y="111" width="1518" height="18"/>
+    <!-- Bottom wall: A4 to G4 -->
+    <rect x="111" y="931" width="1518" height="18"/>
+    <!-- Left wall: A1 to A4 -->
+    <rect x="111" y="111" width="18" height="838"/>
+    <!-- Right wall: G1 to G4 -->
+    <rect x="1629" y="111" width="18" height="838"/>
+  </g>
+
+  <!-- ===== FLOOR FINISH (rooms light tint) ===== -->
+  <!-- Row 1 rooms — bedroom tint -->
+  <rect x="129" y="129" width="241" height="291" fill="#e8f0f8" opacity="0.6"/>
+  <rect x="379" y="129" width="241" height="291" fill="#e8f0f8" opacity="0.6"/>
+  <rect x="629" y="129" width="241" height="291" fill="#e8f0f8" opacity="0.6"/>
+  <rect x="879" y="129" width="241" height="291" fill="#e8f0f8" opacity="0.6"/>
+  <rect x="1129" y="129" width="241" height="291" fill="#f0ece8" opacity="0.6"/>
+  <rect x="1379" y="129" width="241" height="291" fill="#e8f0f8" opacity="0.6"/>
+  <!-- Row 2 rooms -->
+  <rect x="129" y="429" width="491" height="271" fill="#f8f0e8" opacity="0.6"/><!-- lounge -->
+  <rect x="629" y="429" width="241" height="271" fill="#f0f8e8" opacity="0.6"/><!-- study -->
+  <rect x="879" y="429" width="241" height="271" fill="#f8f8e8" opacity="0.6"/><!-- family room -->
+  <rect x="1129" y="429" width="241" height="271" fill="#f8f0f0" opacity="0.5"/><!-- stair area -->
+  <rect x="1379" y="429" width="241" height="271" fill="#e8f8f0" opacity="0.6"/><!-- terrace -->
+  <!-- Row 3 rooms -->
+  <rect x="129" y="709" width="491" height="231" fill="#e8eef8" opacity="0.6"/><!-- master suite -->
+  <rect x="629" y="709" width="241" height="231" fill="#e8f0f8" opacity="0.6"/><!-- bed10 -->
+  <rect x="879" y="709" width="241" height="231" fill="#e8f0f8" opacity="0.6"/><!-- bed11 -->
+  <rect x="1129" y="709" width="241" height="231" fill="#eef8f8" opacity="0.5"/><!-- bath -->
+  <rect x="1379" y="709" width="241" height="231" fill="#f8f8e8" opacity="0.6"/><!-- utility -->
+
+  <!-- ===== INTERIOR WALLS ===== -->
+  <g stroke="#3a3060" stroke-width="12" fill="none">
+    <!-- Vertical between cols A-B at row 1-4 boundary -->
+    <!-- Col B wall full height -->
+    <line x1="370" y1="120" x2="370" y2="940"/>
+    <!-- Col C wall -->
+    <line x1="620" y1="120" x2="620" y2="940"/>
+    <!-- Col D wall -->
+    <line x1="870" y1="120" x2="870" y2="940"/>
+    <!-- Col E wall -->
+    <line x1="1120" y1="120" x2="1120" y2="940"/>
+    <!-- Col F wall -->
+    <line x1="1370" y1="120" x2="1370" y2="940"/>
+    <!-- Row 2 horizontal -->
+    <line x1="120" y1="420" x2="1630" y2="420"/>
+    <!-- Row 3 horizontal -->
+    <line x1="120" y1="700" x2="1630" y2="700"/>
+  </g>
+
+  <!-- ===== COLUMNS (28 RCC Columns) ===== -->
+  <g>
+    <!-- Each column: 24×24 hatched square at grid intersections -->
+    <!-- Row 1 (y=120): A1,B1,C1,D1,E1,F1,G1 -->
+    <rect x="108" y="108" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="108" y="108" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="358" y="108" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="358" y="108" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="608" y="108" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="608" y="108" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="858" y="108" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="858" y="108" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1108" y="108" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1108" y="108" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1358" y="108" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1358" y="108" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1617" y="108" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1617" y="108" width="24" height="24" fill="url(#colHatch)"/>
+    <!-- Row 2 (y=420) -->
+    <rect x="108" y="408" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="108" y="408" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="358" y="408" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="358" y="408" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="608" y="408" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="608" y="408" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="858" y="408" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="858" y="408" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1108" y="408" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1108" y="408" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1358" y="408" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1358" y="408" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1617" y="408" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1617" y="408" width="24" height="24" fill="url(#colHatch)"/>
+    <!-- Row 3 (y=700) -->
+    <rect x="108" y="688" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="108" y="688" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="358" y="688" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="358" y="688" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="608" y="688" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="608" y="688" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="858" y="688" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="858" y="688" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1108" y="688" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1108" y="688" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1358" y="688" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1358" y="688" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1617" y="688" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1617" y="688" width="24" height="24" fill="url(#colHatch)"/>
+    <!-- Row 4 (y=940) -->
+    <rect x="108" y="928" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="108" y="928" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="358" y="928" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="358" y="928" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="608" y="928" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="608" y="928" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="858" y="928" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="858" y="928" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1108" y="928" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1108" y="928" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1358" y="928" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1358" y="928" width="24" height="24" fill="url(#colHatch)"/>
+    <rect x="1617" y="928" width="24" height="24" fill="#2a2a3a" stroke="#111" stroke-width="1"/>
+    <rect x="1617" y="928" width="24" height="24" fill="url(#colHatch)"/>
+  </g>
+
+  <!-- ===== COLUMN LABELS ===== -->
+  <g font-family="Arial" font-size="7" fill="#cc4400" font-weight="bold">
+    <text x="120" y="107">C-A1</text><text x="370" y="107">C-B1</text>
+    <text x="620" y="107">C-C1</text><text x="870" y="107">C-D1</text>
+    <text x="1120" y="107">C-E1</text><text x="1370" y="107">C-F1</text>
+    <text x="1620" y="107">C-G1</text>
+    <text x="120" y="407">C-A2</text><text x="370" y="407">C-B2</text>
+    <text x="620" y="407">C-C2</text><text x="870" y="407">C-D2</text>
+    <text x="1120" y="407">C-E2</text><text x="1370" y="407">C-F2</text>
+    <text x="1620" y="407">C-G2</text>
+    <text x="120" y="687">C-A3</text><text x="370" y="687">C-B3</text>
+    <text x="620" y="687">C-C3</text><text x="870" y="687">C-D3</text>
+    <text x="1120" y="687">C-E3</text><text x="1370" y="687">C-F3</text>
+    <text x="1620" y="687">C-G3</text>
+    <text x="120" y="927">C-A4</text><text x="370" y="927">C-B4</text>
+    <text x="620" y="927">C-C4</text><text x="870" y="927">C-D4</text>
+    <text x="1120" y="927">C-E4</text><text x="1370" y="927">C-F4</text>
+    <text x="1620" y="927">C-G4</text>
+  </g>
+
+  <!-- ===== STAIRCASE (E-F, Row 2) — continues from ground floor ===== -->
+  <!-- Stair enclosure outline -->
+  <rect x="1129" y="429" width="241" height="271" fill="url(#stairHatch)" stroke="#2a2a3a" stroke-width="2" opacity="0.5"/>
+  <!-- Stair treads: 14 treads going DOWN from first floor -->
+  <g stroke="#555" stroke-width="1" fill="none">
+    <line x1="1135" y1="449" x2="1365" y2="449"/>
+    <line x1="1135" y1="464" x2="1365" y2="464"/>
+    <line x1="1135" y1="479" x2="1365" y2="479"/>
+    <line x1="1135" y1="494" x2="1365" y2="494"/>
+    <line x1="1135" y1="509" x2="1365" y2="509"/>
+    <line x1="1135" y1="524" x2="1365" y2="524"/>
+    <line x1="1135" y1="539" x2="1365" y2="539"/>
+    <!-- Landing -->
+    <rect x="1135" y="539" width="230" height="30" fill="#ddd" stroke="#555" stroke-width="1"/>
+    <!-- Second flight -->
+    <line x1="1135" y1="569" x2="1365" y2="569"/>
+    <line x1="1135" y1="584" x2="1365" y2="584"/>
+    <line x1="1135" y1="599" x2="1365" y2="599"/>
+    <line x1="1135" y1="614" x2="1365" y2="614"/>
+    <line x1="1135" y1="629" x2="1365" y2="629"/>
+    <line x1="1135" y1="644" x2="1365" y2="644"/>
+    <line x1="1135" y1="659" x2="1365" y2="659"/>
+  </g>
+  <!-- DN arrows -->
+  <g stroke="#e00" stroke-width="1.5" fill="#e00" font-family="Arial" font-size="11" font-weight="bold">
+    <line x1="1248" y1="449" x2="1248" y2="680"/>
+    <polygon points="1248,686 1243,674 1253,674"/>
+    <text x="1252" y="570" fill="#e00">DN</text>
+  </g>
+  <text x="1200" y="445" font-family="Arial" font-size="11" fill="#555" font-style="italic">STAIRCASE</text>
+  <text x="1198" y="458" font-family="Arial" font-size="9" fill="#777">14R @ 175mm</text>
+
+  <!-- ===== OPEN TERRACE (F-G, Row 2) ===== -->
+  <rect x="1379" y="429" width="241" height="271" fill="url(#balconyHatch)" opacity="0.4"/>
+  <rect x="1379" y="429" width="241" height="271" fill="none" stroke="#3060a0" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="1450" y="540" font-family="Arial" font-size="14" fill="#3060a0" font-weight="bold">OPEN</text>
+  <text x="1448" y="558" font-family="Arial" font-size="14" fill="#3060a0" font-weight="bold">TERRACE</text>
+  <text x="1430" y="578" font-family="Arial" font-size="10" fill="#3060a0">T1 (4500×2800mm)</text>
+
+  <!-- ===== BALCONY (A-B, Row 2) ===== -->
+  <rect x="129" y="429" width="241" height="80" fill="url(#balconyHatch)" opacity="0.4"/>
+  <rect x="129" y="429" width="241" height="80" fill="none" stroke="#3060a0" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="160" y="474" font-family="Arial" font-size="11" fill="#3060a0" font-weight="bold">BALCONY 1</text>
+  <text x="160" y="487" font-family="Arial" font-size="9" fill="#3060a0">2500×800mm</text>
+
+  <!-- ===== ROOMS ROW 1 (Bedrooms 1–6) ===== -->
+  <!-- Bed-1 (A-B, R1): Master Suite with Ensuite -->
+  <text x="145" y="240" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">MASTER</text>
+  <text x="145" y="256" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">SUITE</text>
+  <text x="145" y="272" font-family="Arial" font-size="10" fill="#5577aa">BED-1</text>
+  <text x="145" y="285" font-family="Arial" font-size="9" fill="#7799bb">2500×3000mm</text>
+  <!-- Ensuite partition in A-B R1 bottom -->
+  <rect x="129" y="360" width="241" height="60" fill="#dce8f0"/>
+  <line x1="129" y1="360" x2="370" y2="360" stroke="#3a3060" stroke-width="6"/>
+  <text x="185" y="395" font-family="Arial" font-size="10" fill="#3a3060">ENSUITE</text>
+
+  <!-- Bed-2 (B-C, R1) -->
+  <text x="395" y="250" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">BEDROOM 2</text>
+  <text x="395" y="265" font-family="Arial" font-size="9" fill="#7799bb">2500×3000mm</text>
+  <!-- WIR in B-C R1 bottom -->
+  <rect x="379" y="360" width="241" height="60" fill="#e8e0f0"/>
+  <line x1="379" y1="360" x2="620" y2="360" stroke="#3a3060" stroke-width="6"/>
+  <text x="445" y="395" font-family="Arial" font-size="10" fill="#3a3060">W-I-R</text>
+
+  <!-- Bed-3 (C-D, R1) -->
+  <text x="645" y="250" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">BEDROOM 3</text>
+  <text x="645" y="265" font-family="Arial" font-size="9" fill="#7799bb">2500×3000mm</text>
+  <rect x="629" y="360" width="241" height="60" fill="#e8e0f0"/>
+  <line x1="629" y1="360" x2="870" y2="360" stroke="#3a3060" stroke-width="6"/>
+  <text x="695" y="395" font-family="Arial" font-size="10" fill="#3a3060">W-I-R</text>
+
+  <!-- Bed-4 (D-E, R1) -->
+  <text x="895" y="250" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">BEDROOM 4</text>
+  <text x="895" y="265" font-family="Arial" font-size="9" fill="#7799bb">2500×3000mm</text>
+  <rect x="879" y="360" width="241" height="60" fill="#e8e0f0"/>
+  <line x1="879" y1="360" x2="1120" y2="360" stroke="#3a3060" stroke-width="6"/>
+  <text x="950" y="395" font-family="Arial" font-size="10" fill="#3a3060">W-I-R</text>
+
+  <!-- Bed-5 (E-F, R1): Study/Bed -->
+  <text x="1145" y="250" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">BEDROOM 5</text>
+  <text x="1145" y="265" font-family="Arial" font-size="9" fill="#7799bb">2500×3000mm</text>
+  <!-- small attached bath E-F R1 bottom -->
+  <rect x="1129" y="360" width="241" height="60" fill="#dce8f0"/>
+  <line x1="1129" y1="360" x2="1370" y2="360" stroke="#3a3060" stroke-width="6"/>
+  <text x="1185" y="395" font-family="Arial" font-size="10" fill="#3a3060">BATH-5</text>
+
+  <!-- Bed-6 (F-G, R1) -->
+  <text x="1395" y="250" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">BEDROOM 6</text>
+  <text x="1395" y="265" font-family="Arial" font-size="9" fill="#7799bb">2500×3000mm</text>
+  <rect x="1379" y="360" width="241" height="60" fill="#e8e0f0"/>
+  <line x1="1379" y1="360" x2="1620" y2="360" stroke="#3a3060" stroke-width="6"/>
+  <text x="1445" y="395" font-family="Arial" font-size="10" fill="#3a3060">W-I-R</text>
+
+  <!-- ===== ROOMS ROW 2 (Lounge, Study, Family, Stair, Terrace) ===== -->
+  <!-- Lounge A-C R2 (span 2 bays) -->
+  <text x="225" y="520" font-family="Arial" font-size="14" fill="#1a3560" font-weight="bold">FIRST FLOOR</text>
+  <text x="225" y="538" font-family="Arial" font-size="14" fill="#1a3560" font-weight="bold">LOUNGE</text>
+  <text x="225" y="556" font-family="Arial" font-size="10" fill="#7799bb">5000×2800mm</text>
+
+  <!-- Study C-D R2 -->
+  <text x="660" y="540" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">STUDY</text>
+  <text x="660" y="555" font-family="Arial" font-size="9" fill="#7799bb">2500×2800mm</text>
+
+  <!-- Family D-E R2 -->
+  <text x="900" y="540" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">FAMILY</text>
+  <text x="900" y="555" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">ROOM</text>
+  <text x="900" y="570" font-family="Arial" font-size="9" fill="#7799bb">2500×2800mm</text>
+
+  <!-- ===== ROOMS ROW 3 (Beds 7-9, Bathrooms, Utility) ===== -->
+  <!-- Master Suite A-C R3 (span 2 bays) -->
+  <text x="180" y="790" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">BEDROOM 7</text>
+  <text x="180" y="806" font-family="Arial" font-size="10" fill="#5577aa">(Master 2)</text>
+  <text x="180" y="820" font-family="Arial" font-size="9" fill="#7799bb">5000×2300mm</text>
+  <!-- Ensuite partition -->
+  <rect x="129" y="849" width="491" height="82" fill="#dce8f0"/>
+  <line x1="129" y1="849" x2="620" y2="849" stroke="#3a3060" stroke-width="6"/>
+  <text x="295" y="892" font-family="Arial" font-size="10" fill="#3a3060">ENSUITE 7</text>
+
+  <!-- Bed-8 C-D R3 -->
+  <text x="650" y="790" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">BEDROOM 8</text>
+  <text x="650" y="806" font-family="Arial" font-size="9" fill="#7799bb">2500×2300mm</text>
+  <rect x="629" y="849" width="241" height="82" fill="#e8e0f0"/>
+  <line x1="629" y1="849" x2="870" y2="849" stroke="#3a3060" stroke-width="6"/>
+  <text x="695" y="892" font-family="Arial" font-size="10" fill="#3a3060">BATH-8</text>
+
+  <!-- Bed-9 D-E R3 -->
+  <text x="900" y="790" font-family="Arial" font-size="13" fill="#1a3560" font-weight="bold">BEDROOM 9</text>
+  <text x="900" y="806" font-family="Arial" font-size="9" fill="#7799bb">2500×2300mm</text>
+  <rect x="879" y="849" width="241" height="82" fill="#e8e0f0"/>
+  <line x1="879" y1="849" x2="1120" y2="849" stroke="#3a3060" stroke-width="6"/>
+  <text x="945" y="892" font-family="Arial" font-size="10" fill="#3a3060">BATH-9</text>
+
+  <!-- Common Bath E-F R3 -->
+  <rect x="1129" y="709" width="241" height="231" fill="#d0e8f0" opacity="0.7"/>
+  <text x="1150" y="790" font-family="Arial" font-size="11" fill="#1a3560" font-weight="bold">COMMON</text>
+  <text x="1155" y="806" font-family="Arial" font-size="11" fill="#1a3560" font-weight="bold">BATH</text>
+  <text x="1150" y="822" font-family="Arial" font-size="9" fill="#3a6090">2500×2300mm</text>
+
+  <!-- Utility / Linen F-G R3 -->
+  <text x="1395" y="790" font-family="Arial" font-size="12" fill="#1a3560" font-weight="bold">LINEN /</text>
+  <text x="1395" y="806" font-family="Arial" font-size="12" fill="#1a3560" font-weight="bold">UTILITY</text>
+  <text x="1395" y="822" font-family="Arial" font-size="9" fill="#7799bb">2500×2300mm</text>
+
+  <!-- ===== DOORS ===== -->
+  <g stroke="#2a2a3a" stroke-width="2" fill="none">
+    <!-- D1: Entry to Bed-1 from corridor (bottom wall of R1) -->
+    <rect x="186" y="414" width="50" height="6" fill="white" stroke="none"/>
+    <line x1="186" y1="420" x2="236" y2="420" stroke="#fff" stroke-width="8"/>
+    <path d="M 186 420 Q 211 395 236 420" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <line x1="186" y1="414" x2="186" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <line x1="236" y1="414" x2="236" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <text x="200" y="413" font-family="Arial" font-size="8" fill="#880000">D-F1</text>
+
+    <!-- D2: Bed-2 -->
+    <rect x="430" y="414" width="50" height="6" fill="white" stroke="none"/>
+    <line x1="430" y1="420" x2="480" y2="420" stroke="#fff" stroke-width="8"/>
+    <path d="M 430 420 Q 455 395 480 420" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <line x1="430" y1="414" x2="430" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <line x1="480" y1="414" x2="480" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <text x="443" y="413" font-family="Arial" font-size="8" fill="#880000">D-F2</text>
+
+    <!-- D3: Bed-3 -->
+    <rect x="680" y="414" width="50" height="6" fill="white" stroke="none"/>
+    <line x1="680" y1="420" x2="730" y2="420" stroke="#fff" stroke-width="8"/>
+    <path d="M 680 420 Q 705 395 730 420" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <line x1="680" y1="414" x2="680" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <line x1="730" y1="414" x2="730" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <text x="693" y="413" font-family="Arial" font-size="8" fill="#880000">D-F3</text>
+
+    <!-- D4: Bed-4 -->
+    <rect x="930" y="414" width="50" height="6" fill="white" stroke="none"/>
+    <line x1="930" y1="420" x2="980" y2="420" stroke="#fff" stroke-width="8"/>
+    <path d="M 930 420 Q 955 395 980 420" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <line x1="930" y1="414" x2="930" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <line x1="980" y1="414" x2="980" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <text x="943" y="413" font-family="Arial" font-size="8" fill="#880000">D-F4</text>
+
+    <!-- D5: Bed-5 in E col wall -->
+    <rect x="1180" y="414" width="50" height="6" fill="white" stroke="none"/>
+    <line x1="1180" y1="420" x2="1230" y2="420" stroke="#fff" stroke-width="8"/>
+    <path d="M 1180 420 Q 1205 395 1230 420" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <line x1="1180" y1="414" x2="1180" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <line x1="1230" y1="414" x2="1230" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <text x="1193" y="413" font-family="Arial" font-size="8" fill="#880000">D-F5</text>
+
+    <!-- D6: Bed-6 -->
+    <rect x="1430" y="414" width="50" height="6" fill="white" stroke="none"/>
+    <line x1="1430" y1="420" x2="1480" y2="420" stroke="#fff" stroke-width="8"/>
+    <path d="M 1430 420 Q 1455 395 1480 420" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <line x1="1430" y1="414" x2="1430" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <line x1="1480" y1="414" x2="1480" y2="426" stroke="#2a2a3a" stroke-width="2"/>
+    <text x="1443" y="413" font-family="Arial" font-size="8" fill="#880000">D-F6</text>
+
+    <!-- D7: Bed-7 from corridor R3 top -->
+    <rect x="200" y="694" width="50" height="6" fill="white" stroke="none"/>
+    <line x1="200" y1="700" x2="250" y2="700" stroke="#fff" stroke-width="8"/>
+    <path d="M 200 700 Q 225 675 250 700" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <line x1="200" y1="694" x2="200" y2="706" stroke="#2a2a3a" stroke-width="2"/>
+    <line x1="250" y1="694" x2="250" y2="706" stroke="#2a2a3a" stroke-width="2"/>
+    <text x="212" y="693" font-family="Arial" font-size="8" fill="#880000">D-F7</text>
+
+    <!-- D8: Bed-8 -->
+    <rect x="660" y="694" width="50" height="6" fill="white" stroke="none"/>
+    <line x1="660" y1="700" x2="710" y2="700" stroke="#fff" stroke-width="8"/>
+    <path d="M 660 700 Q 685 675 710 700" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <line x1="660" y1="694" x2="660" y2="706" stroke="#2a2a3a" stroke-width="2"/>
+    <line x1="710" y1="694" x2="710" y2="706" stroke="#2a2a3a" stroke-width="2"/>
+    <text x="672" y="693" font-family="Arial" font-size="8" fill="#880000">D-F8</text>
+
+    <!-- D9: Bed-9 -->
+    <rect x="920" y="694" width="50" height="6" fill="white" stroke="none"/>
+    <line x1="920" y1="700" x2="970" y2="700" stroke="#fff" stroke-width="8"/>
+    <path d="M 920 700 Q 945 675 970 700" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <line x1="920" y1="694" x2="920" y2="706" stroke="#2a2a3a" stroke-width="2"/>
+    <line x1="970" y1="694" x2="970" y2="706" stroke="#2a2a3a" stroke-width="2"/>
+    <text x="932" y="693" font-family="Arial" font-size="8" fill="#880000">D-F9</text>
+
+    <!-- Stair door -->
+    <rect x="1143" y="419" width="40" height="6" fill="white" stroke="none"/>
+    <line x1="1143" y1="420" x2="1183" y2="420" stroke="#fff" stroke-width="8"/>
+    <path d="M 1143 420 Q 1163 400 1183 420" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <text x="1147" y="413" font-family="Arial" font-size="8" fill="#880000">D-FS</text>
+
+    <!-- Terrace door -->
+    <rect x="1393" y="419" width="40" height="6" fill="white" stroke="none"/>
+    <line x1="1393" y1="420" x2="1433" y2="420" stroke="#fff" stroke-width="8"/>
+    <path d="M 1393 420 Q 1413 400 1433 420" stroke="#2a2a3a" stroke-width="1.5" fill="none"/>
+    <text x="1395" y="413" font-family="Arial" font-size="8" fill="#880000">D-FT</text>
+  </g>
+
+  <!-- ===== WINDOWS ===== -->
+  <g stroke="#2060a0" stroke-width="1.5" fill="#b0d8ff" fill-opacity="0.5">
+    <!-- W1: North wall Bed-1 -->
+    <rect x="150" y="120" width="60" height="12"/>
+    <line x1="150" y1="124" x2="210" y2="124" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="150" y1="128" x2="210" y2="128" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="162" y="118" font-family="Arial" font-size="8" fill="#004080">W-F1</text>
+
+    <!-- W2: North wall Bed-2 -->
+    <rect x="400" y="120" width="60" height="12"/>
+    <line x1="400" y1="124" x2="460" y2="124" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="400" y1="128" x2="460" y2="128" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="412" y="118" font-family="Arial" font-size="8" fill="#004080">W-F2</text>
+
+    <!-- W3: North wall Bed-3 -->
+    <rect x="650" y="120" width="60" height="12"/>
+    <line x1="650" y1="124" x2="710" y2="124" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="650" y1="128" x2="710" y2="128" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="662" y="118" font-family="Arial" font-size="8" fill="#004080">W-F3</text>
+
+    <!-- W4: North wall Bed-4 -->
+    <rect x="900" y="120" width="60" height="12"/>
+    <line x1="900" y1="124" x2="960" y2="124" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="900" y1="128" x2="960" y2="128" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="912" y="118" font-family="Arial" font-size="8" fill="#004080">W-F4</text>
+
+    <!-- W5: North wall Bed-5 -->
+    <rect x="1150" y="120" width="60" height="12"/>
+    <line x1="1150" y1="124" x2="1210" y2="124" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="1150" y1="128" x2="1210" y2="128" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="1162" y="118" font-family="Arial" font-size="8" fill="#004080">W-F5</text>
+
+    <!-- W6: North wall Bed-6 -->
+    <rect x="1400" y="120" width="60" height="12"/>
+    <line x1="1400" y1="124" x2="1460" y2="124" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="1400" y1="128" x2="1460" y2="128" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="1412" y="118" font-family="Arial" font-size="8" fill="#004080">W-F6</text>
+
+    <!-- W7: South wall Bed-7 -->
+    <rect x="200" y="931" width="60" height="12"/>
+    <line x1="200" y1="935" x2="260" y2="935" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="200" y1="939" x2="260" y2="939" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="212" y="947" font-family="Arial" font-size="8" fill="#004080">W-F7</text>
+
+    <!-- W8: South wall Bed-8 -->
+    <rect x="660" y="931" width="60" height="12"/>
+    <line x1="660" y1="935" x2="720" y2="935" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="660" y1="939" x2="720" y2="939" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="672" y="947" font-family="Arial" font-size="8" fill="#004080">W-F8</text>
+
+    <!-- W9: South wall Bed-9 -->
+    <rect x="910" y="931" width="60" height="12"/>
+    <line x1="910" y1="935" x2="970" y2="935" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="910" y1="939" x2="970" y2="939" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="922" y="947" font-family="Arial" font-size="8" fill="#004080">W-F9</text>
+
+    <!-- W10: West wall Lounge -->
+    <rect x="120" y="470" width="12" height="60"/>
+    <line x1="124" y1="470" x2="124" y2="530" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="128" y1="470" x2="128" y2="530" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="96" y="505" font-family="Arial" font-size="8" fill="#004080">W-F10</text>
+
+    <!-- W11: East wall Common Bath -->
+    <rect x="1629" y="750" width="12" height="50"/>
+    <line x1="1633" y1="750" x2="1633" y2="800" stroke="#2060a0" stroke-width="0.8"/>
+    <line x1="1637" y1="750" x2="1637" y2="800" stroke="#2060a0" stroke-width="0.8"/>
+    <text x="1644" y="780" font-family="Arial" font-size="8" fill="#004080">W-F11</text>
+  </g>
+
+  <!-- ===== DIMENSION LINES ===== -->
+  <g stroke="#555" stroke-width="1" fill="none">
+    <!-- Top dimensions: Bay widths -->
+    <line x1="120" y1="75" x2="1620" y2="75"/>
+    <line x1="120" y1="70" x2="120" y2="80"/>
+    <line x1="370" y1="70" x2="370" y2="80"/>
+    <line x1="620" y1="70" x2="620" y2="80"/>
+    <line x1="870" y1="70" x2="870" y2="80"/>
+    <line x1="1120" y1="70" x2="1120" y2="80"/>
+    <line x1="1370" y1="70" x2="1370" y2="80"/>
+    <line x1="1620" y1="70" x2="1620" y2="80"/>
+  </g>
+  <g font-family="Arial" font-size="9" fill="#333" text-anchor="middle">
+    <text x="245" y="70">2500</text>
+    <text x="495" y="70">2500</text>
+    <text x="745" y="70">2500</text>
+    <text x="995" y="70">2500</text>
+    <text x="1245" y="70">2500</text>
+    <text x="1495" y="70">2500</text>
+    <text x="870" y="62" font-size="10" font-weight="bold" fill="#000">TOTAL WIDTH: 15000mm</text>
+  </g>
+  <!-- Right dimensions: Bay heights -->
+  <g stroke="#555" stroke-width="1" fill="none">
+    <line x1="1705" y1="120" x2="1705" y2="940"/>
+    <line x1="1700" y1="120" x2="1710" y2="120"/>
+    <line x1="1700" y1="420" x2="1710" y2="420"/>
+    <line x1="1700" y1="700" x2="1710" y2="700"/>
+    <line x1="1700" y1="940" x2="1710" y2="940"/>
+  </g>
+  <g font-family="Arial" font-size="9" fill="#333" text-anchor="middle">
+    <text x="1720" y="275" transform="rotate(90,1720,275)">3000</text>
+    <text x="1720" y="565" transform="rotate(90,1720,565)">2800</text>
+    <text x="1720" y="825" transform="rotate(90,1720,825)">2300</text>
+    <text x="1728" y="530" font-size="10" font-weight="bold" fill="#000" transform="rotate(90,1728,530)">TOTAL: 8100mm</text>
+  </g>
+
+  <!-- ===== GRID LABELS ===== -->
+  <!-- Column labels A-G -->
+  <g font-family="Arial" font-size="12" font-weight="bold" fill="#1a3560" text-anchor="middle">
+    <text x="120" y="95">A</text>
+    <text x="370" y="95">B</text>
+    <text x="620" y="95">C</text>
+    <text x="870" y="95">D</text>
+    <text x="1120" y="95">E</text>
+    <text x="1370" y="95">F</text>
+    <text x="1620" y="95">G</text>
+  </g>
+  <!-- Row labels 1-4 -->
+  <g font-family="Arial" font-size="12" font-weight="bold" fill="#1a3560" text-anchor="middle">
+    <text x="92" y="124">①</text>
+    <text x="92" y="424">②</text>
+    <text x="92" y="704">③</text>
+    <text x="92" y="944">④</text>
+  </g>
+
+  <!-- ===== FLOOR LEVEL INDICATOR ===== -->
+  <rect x="65" y="65" width="100" height="22" fill="#1a3560" rx="3"/>
+  <text x="115" y="80" font-family="Arial" font-size="10" fill="white" font-weight="bold" text-anchor="middle">FL: +3300mm</text>
+
+  <!-- ===== NORTH ARROW ===== -->
+  <g transform="translate(1680,180)">
+    <circle cx="0" cy="0" r="22" fill="none" stroke="#333" stroke-width="1.5"/>
+    <polygon points="0,-20 -8,10 0,4 8,10" fill="#1a3560"/>
+    <polygon points="0,-20 -8,10 0,4 8,10" fill="#aaa" transform="rotate(180)"/>
+    <text x="0" y="-26" font-family="Arial" font-size="11" fill="#1a3560" text-anchor="middle" font-weight="bold">N</text>
+  </g>
+
+  <!-- ===== SCALE BAR ===== -->
+  <g transform="translate(1560,210)">
+    <rect x="0" y="0" width="80" height="8" fill="#1a3560"/>
+    <rect x="80" y="0" width="80" height="8" fill="white" stroke="#333" stroke-width="1"/>
+    <text x="0" y="20" font-family="Arial" font-size="9" fill="#333">0</text>
+    <text x="72" y="20" font-family="Arial" font-size="9" fill="#333">2.5m</text>
+    <text x="150" y="20" font-family="Arial" font-size="9" fill="#333">5m</text>
+    <text x="40" y="-4" font-family="Arial" font-size="9" fill="#333" text-anchor="middle">SCALE 1:100</text>
+  </g>
+
+  <!-- ===== TITLE BLOCK ===== -->
+  <rect x="60" y="1030" width="1680" height="50" fill="#1a3560"/>
+  <rect x="60" y="1025" width="1680" height="5" fill="#e0a030"/>
+  <text x="900" y="1058" font-family="Arial" font-size="16" fill="white" font-weight="bold" text-anchor="middle">9 BHK HOUSE — FIRST FLOOR PLAN</text>
+  <text x="900" y="1072" font-family="Arial" font-size="10" fill="#aac8ff" text-anchor="middle">Drawing No: 9BHK-FF-003 | Scale: 1:100 | Date: 2026 | Total 9 Bedrooms on First Floor Level</text>
+  <!-- Project name left -->
+  <text x="80" y="1058" font-family="Arial" font-size="11" fill="#e0c060" font-weight="bold">9 BHK RESIDENCE</text>
+  <text x="80" y="1072" font-family="Arial" font-size="9" fill="#aac8ff">FIRST FLOOR: +3300mm FFL</text>
+  <!-- Drawing no right -->
+  <text x="1720" y="1058" font-family="Arial" font-size="11" fill="#e0c060" font-weight="bold" text-anchor="end">9BHK-FF-003</text>
+  <text x="1720" y="1072" font-family="Arial" font-size="9" fill="#aac8ff" text-anchor="end">Sheet 3 of 6</text>
+</svg>

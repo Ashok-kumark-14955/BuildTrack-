@@ -7,7 +7,7 @@ import TopToolbar from '../components/TopToolbar';
 import Legend from '../components/Legend';
 
 export default function DrawingPage() {
-  const { currentDrawing, selectedElementId, refreshDrawings } = useApp();
+  const { currentDrawing, selectedElementId, refreshDrawings, activeProjectId } = useApp();
   const [showGrid, setShowGrid] = useState(true);
   const [showBeams, setShowBeams] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
@@ -22,7 +22,7 @@ export default function DrawingPage() {
 
   const handleGridSizeChange = async (cols: number, rows: number) => {
     if (!currentDrawing) return;
-    await DrawingsAPI.update(currentDrawing.id, { gridCols: cols, gridRows: rows });
+    await DrawingsAPI.update(currentDrawing.id, { gridCols: cols, gridRows: rows, projectId: activeProjectId ?? undefined } as any);
     await refreshDrawings();
   };
 

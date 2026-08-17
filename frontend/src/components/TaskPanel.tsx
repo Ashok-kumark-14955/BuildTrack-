@@ -62,6 +62,7 @@ export default function TaskPanel() {
     currentDrawing: ctxCurrentDrawing,
     patchDrawingColumnLabel,
     patchDrawingElementTypeLabel,
+    activeProjectId,
   } = useApp();
 
   // Resolve custom label: for columns look up columnLabels on the current drawing
@@ -146,12 +147,18 @@ export default function TaskPanel() {
     if ((locLat.trim() && isNaN(lat!)) || (locLng.trim() && isNaN(lng!))) {
       toast.error('Invalid coordinates'); return;
     }
+    // Use the drawing's own projectId first, fall back to activeProjectId from context
+    const projectId = currentDrawing?.projectId ?? activeProjectId ?? undefined;
+    if (!projectId) { toast.error('No project selected'); return; }
     setSavingLoc(true);
     try {
-      await DrawingsAPI.update(currentDrawingId, { lat, lng } as any);
+      await DrawingsAPI.update(currentDrawingId, { lat, lng, projectId } as any);
       await refreshDrawings();
       toast.success('Location saved');
-    } catch { toast.error('Failed to save location'); }
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to save location';
+      toast.error(msg);
+    }
     finally { setSavingLoc(false); }
   };
 
@@ -659,7 +666,7 @@ export default function TaskPanel() {
                   onClick={async () => {
                     setSavingLoc(true);
                     try {
-                      await DrawingsAPI.update(currentDrawingId!, { lat: null, lng: null } as any);
+                      await DrawingsAPI.update(currentDrawingId!, { lat: null, lng: null, projectId: activeProjectId ?? undefined } as any);
                       await refreshDrawings();
                       setLocLat(''); setLocLng('');
                       toast.success('Location cleared');

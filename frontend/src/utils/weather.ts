@@ -16,7 +16,7 @@ export interface DailyForecast {
   tempMinC: number | null;
 }
 
-export type WeatherRiskLevel = 'high' | 'medium';
+export type WeatherRiskLevel = 'high' | 'medium' | 'low';
 
 export interface WeatherRisk {
   level: WeatherRiskLevel;
@@ -75,18 +75,33 @@ function isWeatherSensitive(task: Task): boolean {
   return SENSITIVE_KEYWORDS.some((kw) => haystack.includes(kw));
 }
 
-/** Pick the forecast day most relevant to a task's active window. */
+/** Pick the forecast day most relevant to a task's active window.
+ *
+ * Priority:
+ *   1. If the task's due date is within the forecast window → use it.
+ *   2. If today falls between startDate and dueDate → use today.
+ *   3. If the task's start date is within the forecast window → use it.
+ *   4. Fallback: use today's forecast so active/undated outdoor tasks always get a badge.
+ */
 function pickForecastDay(task: Task, forecast: DailyForecast[]): DailyForecast | null {
   if (forecast.length === 0) return null;
   const byDate = new Map(forecast.map((d) => [d.date, d]));
   const today = forecast[0].date;
 
+  // dueDate within forecast window
   if (task.dueDate && byDate.has(task.dueDate)) return byDate.get(task.dueDate)!;
+
+  // task is currently active (today is between start and due)
   if (task.startDate && task.dueDate && task.startDate <= today && today <= task.dueDate) {
     return byDate.get(today) ?? null;
   }
+
+  // startDate within forecast window
   if (task.startDate && byDate.has(task.startDate)) return byDate.get(task.startDate)!;
-  return null;
+
+  // Fallback: no relevant date found (undated task, or dates outside the 16-day window)
+  // Use today's forecast so weather-sensitive active tasks always surface a badge.
+  return byDate.get(today) ?? forecast[0];
 }
 
 function evaluateDay(day: DailyForecast): { level: WeatherRiskLevel; reasons: string[] } | null {
@@ -128,21 +143,23 @@ function evaluateDay(day: DailyForecast): { level: WeatherRiskLevel; reasons: st
     reasons.push(`Low temperature expected (${Math.round(day.tempMinC)}°C) — may slow curing`);
   }
 
-  if (!level) return null;
+  // No risk factors found — conditions are clear/safe
+  if (!level) return { level: 'low', reasons: ['Clear conditions expected'] };
   return { level, reasons };
 }
 
 const SUGGESTIONS: Record<WeatherRiskLevel, string> = {
   high: 'Consider postponing or rescheduling',
   medium: 'Monitor conditions closely',
+  low: 'Safe to proceed',
 };
 
-/** Evaluate a task against a site's forecast. Returns null if there's no weather risk. */
+/** Evaluate a task against a site's forecast. Returns null only for non-sensitive / completed tasks. */
 export function getTaskWeatherRisk(task: Task, forecast: DailyForecast[]): WeatherRisk | null {
   if (task.status === 'Completed' || !isWeatherSensitive(task)) return null;
   const day = pickForecastDay(task, forecast);
   if (!day) return null;
   const evaluated = evaluateDay(day);
-  if (!evaluated) return null;
-  return { ...evaluated, suggestion: SUGGESTIONS[evaluated.level], forecastDate: day.date };
+  // evaluateDay always returns a result now (never null)
+  return { ...evaluated!, suggestion: SUGGESTIONS[evaluated!.level], forecastDate: day.date };
 }

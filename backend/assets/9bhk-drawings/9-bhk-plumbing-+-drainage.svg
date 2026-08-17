@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100">
+
+  <defs>
+    <pattern id="stair-grid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <rect width="20" height="20" fill="none" stroke="#b8a000" stroke-width="0.8"/>
+    </pattern>
+    <marker id="arr-up" markerWidth="6" markerHeight="6" refX="3" refY="6" orient="auto">
+      <path d="M0,6 L3,0 L6,6" fill="none" stroke="#ccaa00" stroke-width="1.5"/>
+    </marker>
+    <marker id="arr-dn" markerWidth="6" markerHeight="6" refX="3" refY="0" orient="auto">
+      <path d="M0,0 L3,6 L6,0" fill="none" stroke="#ccaa00" stroke-width="1.5"/>
+    </marker>
+    <marker id="dim-arr" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#00e5ff"/>
+    </marker>
+    <filter id="glow">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+<rect width="1800" height="1100" fill="#000000"/>
+<rect x="8" y="8" width="1784" height="1028" fill="none" stroke="#222" stroke-width="1.5" stroke-dasharray="12,6"/>
+<circle cx="120" cy="50" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="120" y="55" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">A</text><line x1="120" y1="68" x2="120" y2="958" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="370" cy="50" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="370" y="55" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">B</text><line x1="370" y1="68" x2="370" y2="958" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="620" cy="50" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="620" y="55" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">C</text><line x1="620" y1="68" x2="620" y2="958" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="870" cy="50" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="870" y="55" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">D</text><line x1="870" y1="68" x2="870" y2="958" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="1120" cy="50" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="1120" y="55" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">E</text><line x1="1120" y1="68" x2="1120" y2="958" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="1370" cy="50" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="1370" y="55" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">F</text><line x1="1370" y1="68" x2="1370" y2="958" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="1620" cy="50" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="1620" y="55" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">G</text><line x1="1620" y1="68" x2="1620" y2="958" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="50" cy="120" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="50" y="125" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">1</text><line x1="68" y1="120" x2="1638" y2="120" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="50" cy="420" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="50" y="425" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">2</text><line x1="68" y1="420" x2="1638" y2="420" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="50" cy="700" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="50" y="705" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">3</text><line x1="68" y1="700" x2="1638" y2="700" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><circle cx="50" cy="940" r="18" fill="#1a1a2e" stroke="#00e5ff" stroke-width="1.5"/><text x="50" y="945" font-family="Arial Black,Arial" font-size="14" fill="#00e5ff" text-anchor="middle" font-weight="bold">4</text><line x1="68" y1="940" x2="1638" y2="940" stroke="#00e5ff" stroke-width="0.6" stroke-dasharray="6,6" opacity="0.25"/><rect x="80" y="90" width="1630" height="18" fill="#080818" stroke="#00e5ff" stroke-width="3.5"/><rect x="80" y="970" width="1630" height="18" fill="#080818" stroke="#00e5ff" stroke-width="3.5"/><rect x="80" y="90" width="18" height="900" fill="#080818" stroke="#00e5ff" stroke-width="3.5"/><rect x="1692" y="90" width="18" height="900" fill="#080818" stroke="#00e5ff" stroke-width="3.5"/><line x1="80" y1="430" x2="1710" y2="430" stroke="#333" stroke-width="6" opacity="0.6"/><line x1="80" y1="710" x2="1710" y2="710" stroke="#333" stroke-width="6" opacity="0.6"/><polyline points="120,90 120,980" fill="none" stroke="#2080ff" stroke-width="3.5" stroke-dasharray="14,7" opacity="0.7"/><polyline points="120,430 1680,430" fill="none" stroke="#2080ff" stroke-width="2.5" stroke-dasharray="10,6" opacity="0.55"/><polyline points="120,710 1680,710" fill="none" stroke="#2080ff" stroke-width="2.5" stroke-dasharray="10,6" opacity="0.55"/><polyline points="120,940 1680,940" fill="none" stroke="#2080ff" stroke-width="2" stroke-dasharray="8,5" opacity="0.45"/><polyline points="370,90 370,980" fill="none" stroke="#ff3333" stroke-width="2.5" stroke-dasharray="10,7" opacity="0.6"/><polyline points="620,90 620,980" fill="none" stroke="#707080" stroke-width="5" opacity="0.6"/><polyline points="80,430 1710,430" fill="none" stroke="#707080" stroke-width="3" opacity="0.3"/><ellipse cx="120" cy="220" rx="18" ry="25" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <rect x="106" y="182" width="28" height="20" rx="4" fill="#0a1830" stroke="#2080ff" stroke-width="2"/>
+    <text x="120" y="260" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">WC1</text><rect x="350" y="200" width="40" height="40" rx="20" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="370" cy="220" r="8" fill="none" stroke="#2080ff" stroke-width="1.5"/>
+    <text x="370" y="256" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">SH1</text><ellipse cx="620" cy="220" rx="20" ry="14" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="620" cy="220" r="5" fill="#2080ff"/>
+    <text x="620" y="248" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">BS1</text><ellipse cx="870" cy="220" rx="18" ry="25" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <rect x="856" y="182" width="28" height="20" rx="4" fill="#0a1830" stroke="#2080ff" stroke-width="2"/>
+    <text x="870" y="260" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">WC2</text><rect x="1100" y="200" width="40" height="40" rx="20" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="1120" cy="220" r="8" fill="none" stroke="#2080ff" stroke-width="1.5"/>
+    <text x="1120" y="256" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">SH2</text><ellipse cx="1370" cy="220" rx="20" ry="14" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="1370" cy="220" r="5" fill="#2080ff"/>
+    <text x="1370" y="248" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">BS2</text><circle cx="1620" cy="220" r="20" fill="#1a0800" stroke="#ff6600" stroke-width="2.5"/>
+    <text x="1620" y="225" font-family="Arial Black" font-size="9" fill="#ff6600" text-anchor="middle">GYS</text>
+    <text x="1620" y="256" font-size="10" fill="#ff9944" text-anchor="middle" font-family="Arial">GYS1</text><ellipse cx="120" cy="560" rx="18" ry="25" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <rect x="106" y="522" width="28" height="20" rx="4" fill="#0a1830" stroke="#2080ff" stroke-width="2"/>
+    <text x="120" y="600" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">WC3</text><rect x="350" y="540" width="40" height="40" rx="20" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="370" cy="560" r="8" fill="none" stroke="#2080ff" stroke-width="1.5"/>
+    <text x="370" y="596" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">SH3</text><ellipse cx="620" cy="560" rx="20" ry="14" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="620" cy="560" r="5" fill="#2080ff"/>
+    <text x="620" y="588" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">KIT
+SINK</text><circle cx="870" cy="560" r="14" fill="#0a0a20" stroke="#2080ff" stroke-width="2"/>
+        <text x="870" y="564" font-size="9" fill="#2080ff" text-anchor="middle" font-family="Arial">FD</text>
+        <text x="870" y="590" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial">Floor Drain</text><ellipse cx="1120" cy="560" rx="18" ry="25" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <rect x="1106" y="522" width="28" height="20" rx="4" fill="#0a1830" stroke="#2080ff" stroke-width="2"/>
+    <text x="1120" y="600" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">WC4</text><circle cx="1370" cy="560" r="20" fill="#1a0800" stroke="#ff6600" stroke-width="2.5"/>
+    <text x="1370" y="565" font-family="Arial Black" font-size="9" fill="#ff6600" text-anchor="middle">GYS</text>
+    <text x="1370" y="596" font-size="10" fill="#ff9944" text-anchor="middle" font-family="Arial">GYS2</text><ellipse cx="1620" cy="560" rx="20" ry="14" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="1620" cy="560" r="5" fill="#2080ff"/>
+    <text x="1620" y="588" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">BS3</text><circle cx="120" cy="840" r="20" fill="#1a0800" stroke="#ff6600" stroke-width="2.5"/>
+    <text x="120" y="845" font-family="Arial Black" font-size="9" fill="#ff6600" text-anchor="middle">GYS</text>
+    <text x="120" y="876" font-size="10" fill="#ff9944" text-anchor="middle" font-family="Arial">GYS3</text><rect x="342" y="820" width="56" height="40" rx="5" fill="#0a1020" stroke="#2080ff" stroke-width="2.5"/>
+    <text x="370" y="845" font-family="Arial Black" font-size="9" fill="#2080ff" text-anchor="middle">SUMP</text>
+    <text x="370" y="876" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial">10kL</text><ellipse cx="620" cy="840" rx="18" ry="25" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <rect x="606" y="802" width="28" height="20" rx="4" fill="#0a1830" stroke="#2080ff" stroke-width="2"/>
+    <text x="620" y="880" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">WC5</text><ellipse cx="870" cy="840" rx="20" ry="14" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="870" cy="840" r="5" fill="#2080ff"/>
+    <text x="870" y="868" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">BS4</text><rect x="1100" y="820" width="40" height="40" rx="20" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="1120" cy="840" r="8" fill="none" stroke="#2080ff" stroke-width="1.5"/>
+    <text x="1120" y="876" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">SH4</text><rect x="1342" y="820" width="56" height="40" rx="5" fill="#0a1020" stroke="#4040ff" stroke-width="2.5"/>
+        <text x="1370" y="844" font-size="9" fill="#4040ff" text-anchor="middle" font-family="Arial" font-weight="bold">SEPTIC</text>
+        <text x="1370" y="875" font-size="10" fill="#8888ff" text-anchor="middle" font-family="Arial">2000L</text><circle cx="1620" cy="840" r="20" fill="#001a0a" stroke="#00aa44" stroke-width="2.5"/>
+        <text x="1620" y="844" font-size="9" fill="#00aa44" text-anchor="middle" font-family="Arial" font-weight="bold">PUMP</text>
+        <text x="1620" y="875" font-size="10" fill="#44cc88" text-anchor="middle" font-family="Arial">1.5HP</text><ellipse cx="120" cy="910" rx="18" ry="25" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <rect x="106" y="872" width="28" height="20" rx="4" fill="#0a1830" stroke="#2080ff" stroke-width="2"/>
+    <text x="120" y="950" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">WC6</text><rect x="600" y="890" width="40" height="40" rx="20" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="620" cy="910" r="8" fill="none" stroke="#2080ff" stroke-width="1.5"/>
+    <text x="620" y="946" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">SH5</text><circle cx="1120" cy="910" r="20" fill="#1a0800" stroke="#ff6600" stroke-width="2.5"/>
+    <text x="1120" y="915" font-family="Arial Black" font-size="9" fill="#ff6600" text-anchor="middle">GYS</text>
+    <text x="1120" y="946" font-size="10" fill="#ff9944" text-anchor="middle" font-family="Arial">GYS4</text><ellipse cx="1620" cy="910" rx="20" ry="14" fill="#0a0a20" stroke="#2080ff" stroke-width="2.5"/>
+    <circle cx="1620" cy="910" r="5" fill="#2080ff"/>
+    <text x="1620" y="938" font-size="10" fill="#66aaff" text-anchor="middle" font-family="Arial" font-weight="bold">BS5</text><line x1="120" y1="500" x2="120" y2="560" stroke="#2080ff" stroke-width="1.5" marker-end="url(#dim-arr)" opacity="0.6"/><line x1="370" y1="860" x2="620" y2="860" stroke="#2080ff" stroke-width="1.5" marker-end="url(#dim-arr)" opacity="0.6"/><rect x="1480" y="100" width="190" height="280" rx="6" fill="#0a0a14" stroke="#444" stroke-width="1.5"/><text x="1490" y="122" font-size="11" fill="#aaa" font-family="Arial" font-weight="bold">PLUMBING KEY</text><line x1="1490" y1="142" x2="1520" y2="142" stroke="#2080ff" stroke-width="3.5" stroke-dasharray="10,5"/><text x="1530" y="146" font-size="10" fill="#ccc" font-family="Arial">Cold Water</text><line x1="1490" y1="162" x2="1520" y2="162" stroke="#ff3333" stroke-width="2.5" stroke-dasharray="8,5"/><text x="1530" y="166" font-size="10" fill="#ccc" font-family="Arial">Hot Water</text><line x1="1490" y1="182" x2="1520" y2="182" stroke="#707080" stroke-width="5"/><text x="1530" y="186" font-size="10" fill="#ccc" font-family="Arial">Soil/Waste</text><ellipse cx="1502" cy="206" rx="10" ry="14" fill="#0a0a20" stroke="#2080ff" stroke-width="2"/><text x="1530" y="210" font-size="10" fill="#ccc" font-family="Arial">WC</text><ellipse cx="1502" cy="232" rx="12" ry="8" fill="#0a0a20" stroke="#2080ff" stroke-width="2"/><text x="1530" y="236" font-size="10" fill="#ccc" font-family="Arial">Wash Basin</text><circle cx="1502" cy="258" r="12" fill="#1a0800" stroke="#ff6600" stroke-width="2"/><text x="1530" y="262" font-size="10" fill="#ccc" font-family="Arial">Geyser 25L</text><rect x="1490" y="274" width="22" height="14" rx="3" fill="#0a1020" stroke="#2080ff" stroke-width="1.5"/><text x="1530" y="284" font-size="10" fill="#ccc" font-family="Arial">Sump/Tank</text><text x="1490" y="360" font-size="9" fill="#666" font-family="Arial">CPVC supply, PVC waste</text><text x="1490" y="374" font-size="9" fill="#666" font-family="Arial">25mm supply / 50-110mm</text>
+  <g transform="translate(1730,430)">
+    <circle cx="0" cy="0" r="20" fill="#0a0a14" stroke="#00e5ff" stroke-width="1.5"/>
+    <polygon points="0,-16 5,8 0,3 -5,8" fill="#00e5ff"/>
+    <polygon points="0,-16 -5,8 0,3 5,8" fill="#1a2a3a"/>
+    <text x="0" y="-20" font-family="Arial Black" font-size="11" fill="#00e5ff" text-anchor="middle">N</text>
+  </g>
+
+  <!-- Title block -->
+  <rect x="0" y="1044" width="1800" height="56" fill="#0a0a14"/>
+  <line x1="0" y1="1044" x2="1800" y2="1044" stroke="#00e5ff" stroke-width="1.2" opacity="0.5"/>
+  <text x="24" y="1066" font-family="Arial Black,Arial" font-size="16" fill="#00e5ff" font-weight="bold" letter-spacing="1">9 BHK PLUMBING & DRAINAGE PLAN</text>
+  <text x="24" y="1086" font-family="Arial,sans-serif" font-size="11" fill="#7a8a9a">Drawing No: 9BHK-PL-006  |  Scale: 1:100  |  Sheet 6 of 6  |  9 BHK House Building Project</text>
+  <text x="1776" y="1076" font-family="Arial,sans-serif" font-size="11" fill="#4a5a6a" text-anchor="end">© BuildTrack Construction Management</text>
+</svg>

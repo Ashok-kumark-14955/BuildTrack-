@@ -12,5 +12,11 @@
     ],
     "ignore": [],
     "source": "functions"
-  }
+  },
+  "appsail": [
+    {
+      "source": "backend",
+      "name": "construction-backend"
+    }
+  ]
 }

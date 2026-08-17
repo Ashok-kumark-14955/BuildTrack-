@@ -1,18 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
   Download, Search, ClipboardList, ArrowUp, ArrowDown,
   Flag, ChevronDown, ChevronRight, X, FileImage,
   LayoutGrid, Building2, Minus, Plus, MapPin, Navigation, Send,
-  ClipboardCheck, Crosshair,
+  Crosshair,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import {
   STATUS_COLORS, STATUS_OPTIONS, PRIORITY_OPTIONS,
-  MILESTONE_STATUS_OPTIONS, CATEGORY_OPTIONS, type Task, type Milestone, type Drawing, type ProjectTask,
+  MILESTONE_STATUS_OPTIONS, type Task, type Milestone, type Drawing,
 } from '../types';
-import { DrawingsAPI, CliqAPI } from '../api';
+import { DrawingsAPI, CliqAPI, TasksAPI } from '../api';
 import { useForecastsByDrawing } from '../utils/useWeatherForecast';
 import { getTaskWeatherRisk } from '../utils/weather';
 import WeatherRiskBadge from '../components/WeatherRiskBadge';
@@ -36,27 +36,40 @@ const MS_STYLE: Record<string, { bg: string; text: string; dot: string; bar: str
 
 export default function TaskList() {
   const {
-    tasks, drawings, projects, activeProjectId,
+    drawings, projects, activeProjectId,
     requestFocusElement, setSelectedElementId, setCurrentDrawingId,
     milestones, createMilestone, updateMilestone, deleteMilestone,
-    refreshDrawings, createTask, refreshTasks,
-    projectTasks: allProjectTasks,
+    refreshDrawings,
   } = useApp();
 
-  // Scope the task list to the active project (or first project as fallback).
-  // All global arrays still contain data for ALL projects, so we need to filter
-  // down to only the drawings/milestones that belong to the active project.
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? projects[0];
   const projectDrawings = drawings.filter((d) => d.projectId === activeProject?.id);
-  const projectDrawingIds = new Set(projectDrawings.map((d) => d.id));
   const projectMilestones = milestones.filter((m) => m.projectId === activeProject?.id);
-  // drawing-scoped tasks for the active project
-  const drawingTasks = tasks.filter((t) => projectDrawingIds.has(t.drawingId));
-  // project-level tasks (no drawing) scoped to the active project
-  const scopedProjectTasks = allProjectTasks.filter((pt) => pt.projectId === activeProject?.id);
   const forecastsByDrawing = useForecastsByDrawing(projectDrawings);
   const navigate = useNavigate();
 
+  // ── Local tasks state (loaded fresh from API) ──────────────────────────────
+  const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+
+  const loadTasks = () => {
+    if (!activeProject?.id) return;
+    setTasksLoading(true);
+    TasksAPI.list({ projectId: activeProject.id })
+      .then(setLocalTasks)
+      .catch(() => toast.error('Failed to load tasks'))
+      .finally(() => setTasksLoading(false));
+  };
+
+  useEffect(() => {
+    loadTasks();
+  }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only tasks for drawings in this project
+  const projectDrawingIds = new Set(projectDrawings.map((d) => d.id));
+  const drawingTasks = localTasks.filter((t) => projectDrawingIds.has(t.drawingId));
+
+  // ── Filters / sort ─────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -65,17 +78,17 @@ export default function TaskList() {
   const [collapsedMs, setCollapsedMs] = useState<Set<string>>(new Set());
   const [collapsedDrawings, setCollapsedDrawings] = useState<Set<string>>(new Set());
 
-  // Milestone modal
+  // ── Milestone modal ────────────────────────────────────────────────────────
   const [showMsModal, setShowMsModal] = useState(false);
   const [editingMs, setEditingMs] = useState<Milestone | null>(null);
   const [msForm, setMsForm] = useState({ name: '', description: '', dueDate: '', status: 'Active' as Milestone['status'] });
 
-  // Drawing milestone assignment modal
+  // ── Drawing milestone assignment modal ─────────────────────────────────────
   const [showDrawingMs, setShowDrawingMs] = useState(false);
   const [drawingToAssign, setDrawingToAssign] = useState<Drawing | null>(null);
   const [drawingMsId, setDrawingMsId] = useState<string>('');
 
-  // Set Location modal
+  // ── Set Location modal ─────────────────────────────────────────────────────
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [locationDrawing, setLocationDrawing] = useState<Drawing | null>(null);
   const [locLat, setLocLat] = useState('');
@@ -115,7 +128,7 @@ export default function TaskList() {
     }
     setSavingLoc(true);
     try {
-      await DrawingsAPI.update(locationDrawing.id, { lat, lng } as any);
+      await DrawingsAPI.update(locationDrawing.id, { lat, lng, projectId: locationDrawing.projectId } as any);
       await refreshDrawings();
       toast.success('Location saved');
       setShowLocationModal(false);
@@ -132,13 +145,27 @@ export default function TaskList() {
     }
   };
 
-  // Add Task modal
+  // ── Add Task modal — creates a drawing-pinned Task ─────────────────────────
   const [showAddTask, setShowAddTask] = useState(false);
   const [addTaskMsId, setAddTaskMsId] = useState<string | null>(null);
-  const defaultTaskForm = () => ({ name: '', drawingId: '', status: 'Assigned' as Task['status'], priority: 'Medium' as Task['priority'], assignedTo: '', dueDate: '', progress: 0, category: 'Structural', description: '' });
+  const defaultTaskForm = () => ({
+    name: '',
+    status: 'To Do' as string,
+    priority: 'Medium' as string,
+    assignedTo: '',
+    dueDate: '',
+    description: '',
+    drawingId: '',
+  });
   const [taskForm, setTaskForm] = useState(defaultTaskForm());
   const [savingTask, setSavingTask] = useState(false);
 
+  // Drawings that belong to the selected milestone (for the task modal dropdown)
+  const addTaskDrawings = addTaskMsId
+    ? projectDrawings.filter((d) => d.milestoneId === addTaskMsId)
+    : projectDrawings;
+
+  // ── Filter helpers ─────────────────────────────────────────────────────────
   const filterTask = (t: Task) => {
     if (statusFilter && t.status !== statusFilter) return false;
     if (priorityFilter && t.priority !== priorityFilter) return false;
@@ -180,7 +207,7 @@ export default function TaskList() {
   };
 
   const exportExcel = () => {
-    const rows = tasks.filter(filterTask).map((t) => {
+    const rows = drawingTasks.filter(filterTask).map((t) => {
       const ms = milestones.find((m) => m.id === drawings.find((d) => d.id === t.drawingId)?.milestoneId);
       const drawing = drawings.find((d) => d.id === t.drawingId);
       return {
@@ -201,86 +228,66 @@ export default function TaskList() {
     XLSX.writeFile(wb, 'tasks.xlsx');
   };
 
-  // ─── Build hierarchy: Milestone → Drawing → Tasks ───────────────────────
-  // Uses project-scoped arrays so only the active project's data is shown.
-  //
-  // Strategy: group tasks by task.milestoneId first (tasks can span milestones
-  // even within the same drawing). Each milestone section shows all drawings
-  // that have at least one task assigned to that milestone, with those tasks.
-  // Filter for project-level tasks (no drawing)
-  const filterProjectTask = (pt: ProjectTask) => {
-    if (statusFilter && pt.status !== statusFilter) return false;
-    if (priorityFilter && pt.priority !== priorityFilter) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      if (
-        !pt.name.toLowerCase().includes(q) &&
-        !(pt.assignee ?? '').toLowerCase().includes(q) &&
-        !pt.status.toLowerCase().includes(q)
-      ) return false;
-    }
-    return true;
-  };
-
+  // ── Build hierarchy: Milestone → Drawing → Tasks ───────────────────────────
   const hierarchy = useMemo(() => {
     type DrawingNode = { drawing: Drawing; tasks: Task[] };
-    type MilestoneNode = {
-      milestone: Milestone | null;
-      drawings: DrawingNode[];
-      projectTaskItems: ProjectTask[];
-    };
+    type MilestoneNode = { milestone: Milestone | null; drawings: DrawingNode[] };
     const nodes: MilestoneNode[] = [];
 
     projectMilestones.forEach((ms) => {
-      // drawing-scoped tasks for this milestone
+      // All drawing-pinned tasks for this milestone
       const msTasks = drawingTasks.filter((t) => t.milestoneId === ms.id && filterTask(t));
+
+      // Group by drawing
       const drawingIds = [...new Set(msTasks.map((t) => t.drawingId))];
       const drawingNodes: DrawingNode[] = drawingIds
         .map((dId) => {
           const drawing = projectDrawings.find((d) => d.id === dId);
           if (!drawing) return null;
-          return {
-            drawing,
-            tasks: sortTasks(msTasks.filter((t) => t.drawingId === dId)),
-          };
+          return { drawing, tasks: sortTasks(msTasks.filter((t) => t.drawingId === dId)) };
         })
         .filter(Boolean) as DrawingNode[];
 
-      // project-level tasks for this milestone
-      const ptItems = scopedProjectTasks.filter(
-        (pt) => pt.milestoneId === ms.id && filterProjectTask(pt)
-      );
+      // Also include drawings assigned to this milestone that have NO tasks yet
+      projectDrawings
+        .filter((d) => d.milestoneId === ms.id && !drawingIds.includes(d.id))
+        .forEach((d) => drawingNodes.push({ drawing: d, tasks: [] }));
 
-      nodes.push({ milestone: ms, drawings: drawingNodes, projectTaskItems: ptItems });
+      nodes.push({ milestone: ms, drawings: drawingNodes });
     });
 
-    // Unassigned drawing-tasks (no milestoneId)
+    // Unassigned drawing-tasks (no milestoneId match)
     const unassignedTasks = drawingTasks.filter((t) => !t.milestoneId && filterTask(t));
-    // Unassigned project-level tasks (no milestoneId)
-    const unassignedPTs = scopedProjectTasks.filter((pt) => !pt.milestoneId && filterProjectTask(pt));
-    if (unassignedTasks.length > 0 || unassignedPTs.length > 0) {
-      const drawingIds = [...new Set(unassignedTasks.map((t) => t.drawingId))];
+    // Drawings with no milestone assigned that have unassigned tasks
+    const unassignedDrawingIds = [...new Set(unassignedTasks.map((t) => t.drawingId))];
+    if (unassignedDrawingIds.length > 0) {
       nodes.push({
         milestone: null,
-        drawings: drawingIds
+        drawings: unassignedDrawingIds
           .map((dId) => {
             const drawing = projectDrawings.find((d) => d.id === dId);
             if (!drawing) return null;
-            return {
-              drawing,
-              tasks: sortTasks(unassignedTasks.filter((t) => t.drawingId === dId)),
-            };
+            return { drawing, tasks: sortTasks(unassignedTasks.filter((t) => t.drawingId === dId)) };
           })
           .filter(Boolean) as DrawingNode[],
-        projectTaskItems: unassignedPTs,
       });
     }
-    return nodes;
-  }, [projectMilestones, projectDrawings, drawingTasks, scopedProjectTasks, search, statusFilter, priorityFilter, sortKey, sortAsc]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Milestone helpers
-  const openCreateMs = () => { setEditingMs(null); setMsForm({ name: '', description: '', dueDate: '', status: 'Active' }); setShowMsModal(true); };
-  const openEditMs = (ms: Milestone, e: React.MouseEvent) => { e.stopPropagation(); setEditingMs(ms); setMsForm({ name: ms.name, description: ms.description, dueDate: ms.dueDate, status: ms.status }); setShowMsModal(true); };
+    return nodes;
+  }, [projectMilestones, projectDrawings, drawingTasks, search, statusFilter, priorityFilter, sortKey, sortAsc]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Milestone helpers ──────────────────────────────────────────────────────
+  const openCreateMs = () => {
+    setEditingMs(null);
+    setMsForm({ name: '', description: '', dueDate: '', status: 'Active' });
+    setShowMsModal(true);
+  };
+  const openEditMs = (ms: Milestone, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingMs(ms);
+    setMsForm({ name: ms.name, description: ms.description, dueDate: ms.dueDate, status: ms.status });
+    setShowMsModal(true);
+  };
   const saveMilestone = async () => {
     if (!msForm.name.trim()) { toast.error('Milestone name required'); return; }
     const projectId = activeProject?.id;
@@ -299,12 +306,17 @@ export default function TaskList() {
     toast.success('Milestone deleted');
   };
 
-  // Drawing helpers
-  const openDrawingMs = (drawing: Drawing, e: React.MouseEvent) => { e.stopPropagation(); setDrawingToAssign(drawing); setDrawingMsId(drawing.milestoneId ?? ''); setShowDrawingMs(true); };
+  // ── Drawing helpers ────────────────────────────────────────────────────────
+  const openDrawingMs = (drawing: Drawing, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDrawingToAssign(drawing);
+    setDrawingMsId(drawing.milestoneId ?? '');
+    setShowDrawingMs(true);
+  };
   const saveDrawingMs = async () => {
     if (!drawingToAssign) return;
     try {
-      await DrawingsAPI.update(drawingToAssign.id, { milestoneId: drawingMsId || null } as any);
+      await DrawingsAPI.update(drawingToAssign.id, { milestoneId: drawingMsId || null, projectId: drawingToAssign.projectId } as any);
       await refreshDrawings();
       toast.success('Drawing updated');
       setShowDrawingMs(false);
@@ -320,7 +332,7 @@ export default function TaskList() {
     } catch { toast.error('Failed to delete drawing'); }
   };
 
-  const totalFiltered = tasks.filter(filterTask).length;
+  const totalFiltered = drawingTasks.filter(filterTask).length;
 
   return (
     <div className="p-7 h-full flex flex-col overflow-hidden" style={{ background: 'radial-gradient(ellipse 90% 55% at 15% 5%, rgba(190,24,93,0.18) 0%, transparent 60%), #09090b' }}>
@@ -335,7 +347,7 @@ export default function TaskList() {
             </span>
           </h1>
           <p className="text-sm text-rose-300/60 mt-0.5">
-            {activeProject?.name ?? 'Project'} · {projectMilestones.length} milestones · {projectDrawings.length} drawings · {totalFiltered} tasks
+            {activeProject?.name ?? 'Project'} · {projectMilestones.length} milestones · {projectDrawings.length} drawings · {tasksLoading ? '…' : totalFiltered} tasks
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -371,19 +383,29 @@ export default function TaskList() {
 
       {/* Tree */}
       <div className="flex-1 overflow-auto space-y-5">
-        {hierarchy.length === 0 && (
-          <div className="flex flex-col items-center py-16 text-slate-500 rounded-2xl border border-rose-900/20" style={{ background: 'rgba(20,4,8,0.7)' }}>
-            <ClipboardList size={32} className="mb-2 text-rose-900/60" />
-            <span className="text-sm">No data yet</span>
+        {tasksLoading && (
+          <div className="flex items-center justify-center py-12 text-slate-400 text-sm gap-2">
+            <svg className="animate-spin w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            Loading tasks…
           </div>
         )}
 
-        {hierarchy.map(({ milestone, drawings: drawingNodes, projectTaskItems }) => {
+        {!tasksLoading && hierarchy.length === 0 && (
+          <div className="flex flex-col items-center py-16 text-slate-500 rounded-2xl border border-rose-900/20" style={{ background: 'rgba(20,4,8,0.7)' }}>
+            <ClipboardList size={32} className="mb-2 text-rose-900/60" />
+            <span className="text-sm">No milestones or tasks yet. Create a milestone to get started.</span>
+          </div>
+        )}
+
+        {hierarchy.map(({ milestone, drawings: drawingNodes }) => {
           const msId = milestone?.id ?? '__none__';
           const msCollapsed = collapsedMs.has(msId);
           const allTasks = drawingNodes.flatMap((d) => d.tasks);
-          const msDone = allTasks.filter((t) => t.status === 'Completed').length + (projectTaskItems ?? []).filter((pt) => pt.status === 'Done').length;
-          const msTotal = allTasks.length + (projectTaskItems ?? []).length;
+          const msDone = allTasks.filter((t) => t.status === 'Completed').length;
+          const msTotal = allTasks.length;
           const msStyle = milestone ? (MS_STYLE[milestone.status] ?? MS_STYLE.Active) : null;
 
           return (
@@ -417,7 +439,12 @@ export default function TaskList() {
                 {milestone && (
                   <div className="flex items-center gap-1 ml-2">
                     <button
-                      onClick={(e) => { e.stopPropagation(); setAddTaskMsId(milestone.id); setTaskForm({ ...defaultTaskForm(), drawingId: drawings.find((d) => d.milestoneId === milestone.id)?.id ?? '' }); setShowAddTask(true); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAddTaskMsId(milestone.id);
+                        setTaskForm(defaultTaskForm());
+                        setShowAddTask(true);
+                      }}
                       className="flex items-center gap-0.5 text-[10px] text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded hover:bg-emerald-950/40 transition-colors font-semibold"
                     >
                       <Plus size={10} /> Add Task
@@ -428,58 +455,18 @@ export default function TaskList() {
                 )}
               </div>
 
-              {/* ── DRAWINGs ── */}
+              {/* ── DRAWINGs under this milestone ── */}
               {!msCollapsed && (
                 <div className="divide-y divide-zinc-800 border-t border-zinc-800">
-                  {drawingNodes.length === 0 && (projectTaskItems ?? []).length === 0 && (
-                    <p className="px-8 py-4 text-xs text-slate-400 italic">No drawings or tasks in this milestone yet.</p>
-                  )}
-
-                  {/* ── PROJECT-LEVEL TASKS (no drawing) ── */}
-                  {(projectTaskItems ?? []).length > 0 && (
-                    <div className="bg-black/30 border-b border-zinc-800/60">
-                      {/* Sub-header */}
-                      <div className="flex items-center gap-2 pl-8 pr-5 py-2.5" style={{ background: 'rgba(99,102,241,0.06)' }}>
-                        <ClipboardCheck size={13} className="text-indigo-400 shrink-0" />
-                        <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex-1">Project Tasks</span>
-                        <span className="text-[10px] text-zinc-500">{(projectTaskItems ?? []).filter((pt) => pt.status === 'Done').length}/{(projectTaskItems ?? []).length} done</span>
-                      </div>
-                      {/* Task rows */}
-                      <div className="pl-12 pr-5 pb-3">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr>
-                              {(['name', 'status', 'assignee', 'priority', 'dueDate'] as const).map((col) => (
-                                <th key={col} className="text-left px-2 py-1.5 font-semibold text-[10px] uppercase tracking-wide text-indigo-400/50 whitespace-nowrap">
-                                  {col === 'assignee' ? 'Assignee' : col === 'dueDate' ? 'Due' : col.charAt(0).toUpperCase() + col.slice(1)}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(projectTaskItems ?? []).map((pt) => (
-                              <tr key={pt.id} className="hover:bg-indigo-950/20 transition-colors rounded">
-                                <td className="px-2 py-1.5 text-slate-300 max-w-[200px] truncate font-medium">{pt.name}</td>
-                                <td className="px-2 py-1.5">
-                                  <span
-                                    className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                                    style={{ backgroundColor: `${STATUS_COLORS[pt.status] ?? '#6b7280'}18`, color: STATUS_COLORS[pt.status] ?? '#9ca3af' }}
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STATUS_COLORS[pt.status] ?? '#6b7280' }} />
-                                    {pt.status}
-                                  </span>
-                                </td>
-                                <td className="px-2 py-1.5 text-slate-400">{pt.assignee || <span className="text-zinc-600">—</span>}</td>
-                                <td className="px-2 py-1.5">
-                                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${PRIORITY_STYLE[pt.priority] ?? 'bg-zinc-800 text-slate-400'}`}>{pt.priority}</span>
-                                </td>
-                                <td className="px-2 py-1.5 text-slate-400 tabular-nums">{pt.dueDate || <span className="text-zinc-600">—</span>}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+                  {drawingNodes.length === 0 && (
+                    <p className="px-8 py-4 text-xs text-slate-400 italic">
+                      No drawings assigned to this milestone yet.
+                      {milestone && (
+                        <span className="ml-1 text-emerald-400 cursor-pointer hover:underline" onClick={() => { setAddTaskMsId(milestone.id); setTaskForm(defaultTaskForm()); setShowAddTask(true); }}>
+                          Add a task to get started.
+                        </span>
+                      )}
+                    </p>
                   )}
 
                   {drawingNodes.map(({ drawing, tasks: dTasks }) => {
@@ -498,7 +485,6 @@ export default function TaskList() {
                           </span>
                           <FileImage size={14} className="text-blue-500 shrink-0" />
                           <span className="font-semibold text-slate-200 text-sm flex-1">{drawing.name}</span>
-                          {/* Grid info badge */}
                           <span className="flex items-center gap-1 text-[10px] text-slate-500 bg-zinc-800 px-2 py-0.5 rounded-full">
                             <LayoutGrid size={9} />
                             {drawing.gridCols}×{drawing.gridRows}
@@ -510,7 +496,6 @@ export default function TaskList() {
                             </div>
                           )}
                           <div className="flex items-center gap-1 ml-2">
-                            {/* Location pin — green if set, slate if not */}
                             <button
                               onClick={(e) => openLocationModal(drawing, e)}
                               title={drawing.lat != null ? `Lat: ${drawing.lat}, Lng: ${drawing.lng} — click to edit` : 'Set site location'}
@@ -519,7 +504,6 @@ export default function TaskList() {
                               <MapPin size={10} />
                               {drawing.lat != null ? 'Location' : 'Set Location'}
                             </button>
-                            {/* Navigate button — only shown when lat/lng exist */}
                             {drawing.lat != null && drawing.lng != null && (
                               <button
                                 onClick={(e) => openGoogleMaps(drawing, e)}
@@ -542,7 +526,7 @@ export default function TaskList() {
                         {!drawingCollapsed && (
                           <div className="pl-12 pr-5 pb-4">
                             {dTasks.length === 0 ? (
-                              <p className="text-[11px] text-slate-400 italic py-2">No matching tasks</p>
+                              <p className="text-[11px] text-slate-400 italic py-2">No tasks for this drawing yet.</p>
                             ) : (
                               <table className="w-full text-xs">
                                 <thead>
@@ -559,6 +543,7 @@ export default function TaskList() {
                                         </span>
                                       </th>
                                     ))}
+                                    <th />
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -568,25 +553,24 @@ export default function TaskList() {
                                       onClick={() => goToGrid(t)}
                                       className="hover:bg-rose-950/20 cursor-pointer transition-colors rounded"
                                     >
-                                       <td className="px-2 py-1.5 font-semibold text-slate-200">
-                                         <span className="flex items-center gap-1">
-                                           {t.elementType === 'beam'
-                                             ? <Minus size={10} className="text-amber-500" />
-                                             : <LayoutGrid size={10} className="text-slate-400" />}
-                                           {(() => {
-                                             const labels = drawing.columnLabels ?? {};
-                                             if (t.elementType === 'beam') {
-                                               // Beam gridCode is like "A1" but elementId is "Beam_A1_B1"
-                                               const parts = t.elementId.replace('Beam_', '').split('_');
-                                               const la = labels[parts[0]] ?? parts[0];
-                                               const lb = labels[parts[1]] ?? parts[1];
-                                               return parts.length >= 2 ? `${la} – ${lb}` : t.gridCode;
-                                             }
-                                             const code = t.elementId.replace('Column_', '');
-                                             return labels[code] ?? t.gridCode;
-                                           })()}
-                                         </span>
-                                       </td>
+                                      <td className="px-2 py-1.5 font-semibold text-slate-200">
+                                        <span className="flex items-center gap-1">
+                                          {t.elementType === 'beam'
+                                            ? <Minus size={10} className="text-amber-500" />
+                                            : <LayoutGrid size={10} className="text-slate-400" />}
+                                          {(() => {
+                                            const labels = drawing.columnLabels ?? {};
+                                            if (t.elementType === 'beam') {
+                                              const parts = t.elementId.replace('Beam_', '').split('_');
+                                              const la = labels[parts[0]] ?? parts[0];
+                                              const lb = labels[parts[1]] ?? parts[1];
+                                              return parts.length >= 2 ? `${la} – ${lb}` : t.gridCode;
+                                            }
+                                            const code = t.elementId.replace('Column_', '');
+                                            return labels[code] ?? t.gridCode;
+                                          })()}
+                                        </span>
+                                      </td>
                                       <td className="px-2 py-1.5 text-slate-300 max-w-[180px] truncate">{t.name}</td>
                                       <td className="px-2 py-1.5">
                                         <span
@@ -619,7 +603,7 @@ export default function TaskList() {
                                           <span className="tabular-nums text-slate-400 w-6">{t.progress}%</span>
                                         </div>
                                       </td>
-                                      {/* Cliq report button — only for completed tasks */}
+                                      {/* Cliq report button */}
                                       <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
                                         {t.status === 'Completed' && (
                                           <button
@@ -692,23 +676,15 @@ export default function TaskList() {
               boxShadow: '0 0 0 1px rgba(216,72,110,0.08), 0 32px 64px rgba(0,0,0,0.75), 0 0 80px rgba(190,24,93,0.14)',
             }}
           >
-            {/* Top gradient accent bar */}
             <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #8b0a2e, #d6486e, #fb923c, #d6486e, #8b0a2e)' }} />
-
-            {/* Ambient glow orb */}
             <div className="absolute top-0 right-0 w-48 h-48 pointer-events-none opacity-10 rounded-full"
               style={{ background: 'radial-gradient(circle, #d6486e 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
 
             <div className="relative p-6 space-y-5">
-              {/* Header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{
-                      background: 'linear-gradient(145deg, #d6486e 0%, #8b0a2e 100%)',
-                      border: '1px solid rgba(216,72,110,0.5)',
-                      boxShadow: '0 0 20px rgba(214,72,110,0.35)',
-                    }}>
+                    style={{ background: 'linear-gradient(145deg, #d6486e 0%, #8b0a2e 100%)', border: '1px solid rgba(216,72,110,0.5)', boxShadow: '0 0 20px rgba(214,72,110,0.35)' }}>
                     <Flag size={16} className="text-white" />
                   </div>
                   <div>
@@ -731,23 +707,16 @@ export default function TaskList() {
                 </button>
               </div>
 
-              {/* Divider */}
               <div className="h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(216,72,110,0.3), transparent)' }} />
 
-              {/* Form fields */}
               <div className="space-y-4">
-                {/* Name */}
                 <div>
                   <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>
                     Milestone Name <span className="text-red-400">*</span>
                   </label>
                   <input
                     className="w-full px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold text-white outline-none transition-all placeholder:font-normal"
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(216,72,110,0.25)',
-                      color: '#ffffff',
-                    }}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(216,72,110,0.25)', color: '#ffffff' }}
                     placeholder="e.g. Foundation Works Complete"
                     value={msForm.name}
                     onChange={(e) => setMsForm({ ...msForm, name: e.target.value })}
@@ -756,7 +725,6 @@ export default function TaskList() {
                   />
                 </div>
 
-                {/* Description */}
                 <div>
                   <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>
                     Description
@@ -764,11 +732,7 @@ export default function TaskList() {
                   <textarea
                     className="w-full px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-white outline-none resize-none transition-all placeholder:font-normal"
                     rows={3}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(216,72,110,0.25)',
-                      color: '#ffffff',
-                    }}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(216,72,110,0.25)', color: '#ffffff' }}
                     placeholder="Brief description of what this milestone represents…"
                     value={msForm.description}
                     onChange={(e) => setMsForm({ ...msForm, description: e.target.value })}
@@ -777,20 +741,13 @@ export default function TaskList() {
                   />
                 </div>
 
-                {/* Due Date + Status */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>
-                      Due Date
-                    </label>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>Due Date</label>
                     <input
                       type="date"
                       className="w-full px-3.5 py-2.5 rounded-xl text-[13px] font-semibold text-white outline-none transition-all"
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(216,72,110,0.25)',
-                        colorScheme: 'dark',
-                      }}
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(216,72,110,0.25)', colorScheme: 'dark' }}
                       value={msForm.dueDate}
                       onChange={(e) => setMsForm({ ...msForm, dueDate: e.target.value })}
                       onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.7)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(190,24,93,0.15)'; }}
@@ -798,15 +755,10 @@ export default function TaskList() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>
-                      Status
-                    </label>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(232,138,165,0.7)' }}>Status</label>
                     <select
                       className="w-full px-3.5 py-2.5 rounded-xl text-[13px] font-semibold text-white outline-none transition-all appearance-none cursor-pointer"
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(216,72,110,0.25)',
-                      }}
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(216,72,110,0.25)' }}
                       value={msForm.status}
                       onChange={(e) => setMsForm({ ...msForm, status: e.target.value as any })}
                       onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(216,72,110,0.7)'; }}
@@ -820,9 +772,8 @@ export default function TaskList() {
                 </div>
               </div>
 
-              {/* Status colour hint chips */}
               <div className="flex items-center gap-2 flex-wrap">
-                {(['Active','Completed','On Hold','Cancelled'] as const).map((s) => {
+                {(['Active', 'Completed', 'On Hold', 'Cancelled'] as const).map((s) => {
                   const colors: Record<string, string> = { Active: '#f87171', Completed: '#4ade80', 'On Hold': '#fbbf24', Cancelled: '#6b7280' };
                   const selected = msForm.status === s;
                   return (
@@ -844,19 +795,15 @@ export default function TaskList() {
                 })}
               </div>
 
-              {/* Divider */}
               <div className="h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(216,72,110,0.2), transparent)' }} />
 
-              {/* Action buttons */}
               <div className="flex gap-2.5">
                 <button
                   onClick={saveMilestone}
                   disabled={!msForm.name.trim()}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
-                    background: msForm.name.trim()
-                      ? 'linear-gradient(135deg, #d6486e 0%, #8b0a2e 60%, #5a0620 100%)'
-                      : 'rgba(100,0,30,0.3)',
+                    background: msForm.name.trim() ? 'linear-gradient(135deg, #d6486e 0%, #8b0a2e 60%, #5a0620 100%)' : 'rgba(100,0,30,0.3)',
                     color: '#ffffff',
                     border: '1px solid rgba(216,72,110,0.4)',
                     boxShadow: msForm.name.trim() ? '0 4px 18px rgba(190,24,93,0.45), inset 0 1px 0 rgba(255,255,255,0.1)' : 'none',
@@ -882,22 +829,18 @@ export default function TaskList() {
         </div>
       )}
 
-      {/* ── Add Task Modal ── */}
+      {/* ── Add Task Modal (drawing-pinned task under milestone) ── */}
       {showAddTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
-          {/* Card */}
           <div
-            className="relative w-[520px] max-w-[96vw] max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl flex flex-col"
+            className="relative w-[480px] max-w-[96vw] max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl"
             style={{
               background: 'linear-gradient(160deg, #130509 0%, #220b14 40%, #1a0a10 100%)',
               border: '1px solid rgba(216,72,110,0.3)',
               boxShadow: '0 0 0 1px rgba(216,72,110,0.1), 0 32px 64px rgba(0,0,0,0.7), 0 0 80px rgba(190,24,93,0.12)',
             }}
           >
-            {/* Top gradient accent bar */}
-            <div className="h-1 w-full rounded-t-3xl flex-shrink-0"
-              style={{ background: 'linear-gradient(90deg, #8b0a2e, #d6486e, #fb923c)' }} />
-
+            <div className="h-1 w-full rounded-t-3xl" style={{ background: 'linear-gradient(90deg, #8b0a2e, #d6486e, #fb923c)' }} />
             <div className="p-6 space-y-5">
               {/* Header */}
               <div className="flex items-center justify-between">
@@ -907,23 +850,18 @@ export default function TaskList() {
                     <Plus size={16} className="text-white" />
                   </div>
                   <div>
-                    <h2 className="font-extrabold text-white text-[16px] leading-tight">Add Task to Milestone</h2>
-                    <p className="text-[10px] font-semibold text-pink-300/50 mt-0.5 uppercase tracking-widest">New task entry</p>
+                    <h2 className="font-extrabold text-white text-[16px] leading-tight">Add Task</h2>
+                    <p className="text-[10px] font-semibold text-pink-300/50 mt-0.5 uppercase tracking-widest">Task under Milestone → Drawing</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowAddTask(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10"
-                  style={{ border: '1px solid rgba(255,255,255,0.1)' }}
-                >
+                <button onClick={() => setShowAddTask(false)} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
                   <X size={15} className="text-pink-200/70" />
                 </button>
               </div>
 
-              {/* Milestone context pill */}
+              {/* Milestone pill */}
               {addTaskMsId && (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-                  style={{ background: 'rgba(139,10,46,0.2)', border: '1px solid rgba(216,72,110,0.25)' }}>
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(139,10,46,0.2)', border: '1px solid rgba(216,72,110,0.25)' }}>
                   <Flag size={12} className="text-rose-400 shrink-0" />
                   <span className="text-[11.5px] text-pink-200/80 font-medium">
                     Milestone: <span className="font-bold text-white">{milestones.find((m) => m.id === addTaskMsId)?.name}</span>
@@ -931,32 +869,45 @@ export default function TaskList() {
                 </div>
               )}
 
-              {/* Divider */}
               <div className="h-px" style={{ background: 'rgba(216,72,110,0.15)' }} />
 
-              {/* Form fields */}
+              {/* Form */}
               <div className="space-y-4">
-                {/* Drawing */}
+                {/* Drawing selector — required */}
                 <div>
-                  <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Drawing *</label>
+                  <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">
+                    Drawing <span className="text-red-400">*</span>
+                  </label>
                   <select
                     className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white outline-none transition-all"
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
                     value={taskForm.drawingId}
                     onChange={(e) => setTaskForm({ ...taskForm, drawingId: e.target.value })}
                   >
-                    <option value="">— Select drawing —</option>
-                    {projectDrawings.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    <option value="">— Select a drawing —</option>
+                    {addTaskDrawings.length === 0 ? (
+                      <option value="" disabled>No drawings assigned to this milestone yet</option>
+                    ) : (
+                      addTaskDrawings.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))
+                    )}
                   </select>
+                  {addTaskDrawings.length === 0 && (
+                    <p className="text-[10px] text-amber-400 mt-1">
+                      ⚠ No drawings are assigned to this milestone. Assign a drawing to the milestone first, or select from all project drawings.
+                    </p>
+                  )}
                 </div>
 
-                {/* Task name */}
+                {/* Task Name */}
                 <div>
                   <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Task Name *</label>
                   <input
+                    autoFocus
                     className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white placeholder:text-white/25 outline-none transition-all"
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-                    placeholder="e.g. Reinforcement Inspection"
+                    placeholder="e.g. Concrete pouring inspection"
                     value={taskForm.name}
                     onChange={(e) => setTaskForm({ ...taskForm, name: e.target.value })}
                   />
@@ -966,7 +917,7 @@ export default function TaskList() {
                 <div>
                   <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Description</label>
                   <textarea
-                    className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white placeholder:text-white/25 outline-none resize-none min-h-[72px] transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white placeholder:text-white/25 outline-none resize-none min-h-[60px] transition-all"
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
                     placeholder="Optional details…"
                     value={taskForm.description}
@@ -974,7 +925,7 @@ export default function TaskList() {
                   />
                 </div>
 
-                {/* Grid: Status + Priority */}
+                {/* Status + Priority + Assigned To + Due Date */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Status</label>
@@ -982,7 +933,7 @@ export default function TaskList() {
                       className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white outline-none transition-all"
                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
                       value={taskForm.status}
-                      onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value as Task['status'] })}
+                      onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}
                     >
                       {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -993,20 +944,9 @@ export default function TaskList() {
                       className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white outline-none transition-all"
                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
                       value={taskForm.priority}
-                      onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value as Task['priority'] })}
+                      onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
                     >
                       {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">Category</label>
-                    <select
-                      className="w-full px-3 py-2.5 rounded-xl text-sm font-medium text-white outline-none transition-all"
-                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
-                      value={taskForm.category}
-                      onChange={(e) => setTaskForm({ ...taskForm, category: e.target.value })}
-                    >
-                      {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
@@ -1029,29 +969,9 @@ export default function TaskList() {
                       onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
                     />
                   </div>
-                  <div>
-                    <label className="block text-[10.5px] font-bold text-pink-300/60 uppercase tracking-widest mb-1.5">
-                      Progress
-                      <span className="ml-1 text-white font-black">{taskForm.progress}%</span>
-                    </label>
-                    <div className="relative pt-1">
-                      <input
-                        type="range" min={0} max={100} step={5}
-                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                        style={{ accentColor: '#d6486e' }}
-                        value={taskForm.progress}
-                        onChange={(e) => setTaskForm({ ...taskForm, progress: Number(e.target.value) })}
-                      />
-                      {/* Custom track fill */}
-                      <div className="h-1.5 rounded-full -mt-1.5 pointer-events-none absolute top-1 left-0 right-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                        <div className="h-full rounded-full transition-all" style={{ width: `${taskForm.progress}%`, background: 'linear-gradient(90deg, #8b0a2e, #d6486e)' }} />
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              {/* Divider */}
               <div className="h-px" style={{ background: 'rgba(216,72,110,0.15)' }} />
 
               {/* Actions */}
@@ -1061,27 +981,30 @@ export default function TaskList() {
                   onClick={async () => {
                     if (!taskForm.name.trim()) { toast.error('Task name required'); return; }
                     if (!taskForm.drawingId) { toast.error('Please select a drawing'); return; }
+                    if (!activeProject?.id) { toast.error('No active project'); return; }
                     setSavingTask(true);
                     try {
-                      await createTask({
+                      await TasksAPI.create({
+                        projectId: activeProject.id,
                         drawingId: taskForm.drawingId,
-                        milestoneId: addTaskMsId,
-                        name: taskForm.name,
+                        milestoneId: addTaskMsId ?? undefined,
+                        name: taskForm.name.trim(),
                         description: taskForm.description,
                         status: taskForm.status,
                         priority: taskForm.priority,
-                        category: taskForm.category,
                         assignedTo: taskForm.assignedTo,
                         dueDate: taskForm.dueDate,
-                        progress: taskForm.progress,
-                        gridCode: 'TBD',
+                        // Required fields for Task type
+                        gridCode: '',
+                        elementId: '',
                         elementType: 'column',
-                        elementId: `manual-${Date.now()}`,
-                      });
-                      await refreshTasks();
+                        progress: 0,
+                      } as any);
                       toast.success('Task added');
                       setShowAddTask(false);
                       setTaskForm(defaultTaskForm());
+                      // Reload tasks locally
+                      loadTasks();
                     } catch {
                       toast.error('Failed to add task');
                     } finally {
@@ -1089,10 +1012,7 @@ export default function TaskList() {
                     }
                   }}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
-                  style={{
-                    background: 'linear-gradient(135deg, #d6486e, #8b0a2e)',
-                    boxShadow: '0 4px 16px rgba(214,72,110,0.35)',
-                  }}
+                  style={{ background: 'linear-gradient(135deg, #d6486e, #8b0a2e)', boxShadow: '0 4px 16px rgba(214,72,110,0.35)' }}
                   onMouseEnter={(e) => !savingTask && (e.currentTarget.style.boxShadow = '0 4px 24px rgba(214,72,110,0.55)')}
                   onMouseLeave={(e) => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(214,72,110,0.35)')}
                 >
@@ -1155,7 +1075,6 @@ export default function TaskList() {
                 />
               </label>
             </div>
-            {/* Quick preview link if both filled */}
             {locLat.trim() && locLng.trim() && !isNaN(parseFloat(locLat)) && !isNaN(parseFloat(locLng)) && (
               <a
                 href={`https://www.google.com/maps?q=${locLat},${locLng}`}
@@ -1166,13 +1085,12 @@ export default function TaskList() {
                 <Navigation size={11} /> Preview on Google Maps
               </a>
             )}
-            {/* Clear location */}
             {locationDrawing.lat != null && (
               <button
                 onClick={async () => {
                   setSavingLoc(true);
                   try {
-                    await DrawingsAPI.update(locationDrawing.id, { lat: null, lng: null } as any);
+                    await DrawingsAPI.update(locationDrawing.id, { lat: null, lng: null, projectId: locationDrawing.projectId } as any);
                     await refreshDrawings();
                     toast.success('Location cleared');
                     setShowLocationModal(false);

@@ -580,6 +580,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     deleteDrawingBeam,
     addCustomBeam,
     removeCustomBeam,
+    activeProjectId,
   } = useApp();
 
   // ── Join mode: user clicks two nodes to connect them with a custom beam ──
@@ -876,7 +877,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     // Update local state immediately — no full refresh, no image flicker
     patchDrawingColumnPositions(currentDrawing.id, code, x, y);
     // Fire-and-forget persist to backend
-    DrawingsAPI.update(currentDrawing.id, { columnPositions: { [code]: { x, y } } }).catch(() => {
+    DrawingsAPI.update(currentDrawing.id, { columnPositions: { [code]: { x, y } }, projectId: activeProjectId ?? undefined } as any).catch(() => {
       // best-effort; local state already reflects the drag
     });
     toast.success(`${code} position saved`, { id: `calib-${code}`, duration: 1400, icon: '📍' });
@@ -917,7 +918,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
       }
 
       // Persist all at once
-      await DrawingsAPI.update(currentDrawing.id, { columnPositions: updates });
+      await DrawingsAPI.update(currentDrawing.id, { columnPositions: updates, projectId: activeProjectId ?? undefined } as any);
       toast.dismiss(t);
       toast.success(`Auto-calibrated ${Object.keys(updates).length} columns from drawing analysis`, { icon: '🎯', duration: 3000 });
     } catch (err) {
@@ -1183,7 +1184,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     segDeltaRef.current = null;
     DrawingsAPI.update(currentDrawing.id, {
       columnPositions: { [codeB]: { x, y } },
-    }).catch(() => {/* best-effort */});
+      projectId: activeProjectId ?? undefined,
+    } as any).catch(() => {/* best-effort */});
     toast.success(`Grid boundary ${codeA}↔${codeB} adjusted`, { id: `seg-${codeA}-${codeB}`, duration: 1200, icon: '↔' });
   }, [currentDrawing, image, columnElements]);
 

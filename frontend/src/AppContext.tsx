@@ -135,8 +135,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   /** Clear all manual column-position overrides for a drawing, reverting to the evenly-spaced default grid. */
   const resetDrawingColumnPositions = useCallback(async (drawingId: string) => {
     setDrawings((prev) => prev.map((d) => (d.id === drawingId ? { ...d, columnPositions: {} } : d)));
-    await DrawingsAPI.update(drawingId, { resetColumnPositions: true } as any);
-  }, []);
+    const drawing = drawings.find((d) => d.id === drawingId);
+    await DrawingsAPI.update(drawingId, { resetColumnPositions: true, projectId: drawing?.projectId } as any);
+  }, [drawings]);
 
   /** Set a custom type label (e.g. "column" → "Anchor Bolt", "beam" → "Rafter"). Persists to backend. */
   const patchDrawingElementTypeLabel = useCallback(async (drawingId: string, elementType: string, label: string) => {
@@ -148,8 +149,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         return { ...d, elementTypeLabels: newLabels };
       })
     );
-    await DrawingsAPI.update(drawingId, { elementTypeLabels: { [elementType]: label } } as any);
-  }, []);
+    const drawing = drawings.find((d) => d.id === drawingId);
+    await DrawingsAPI.update(drawingId, { elementTypeLabels: { [elementType]: label }, projectId: drawing?.projectId } as any);
+  }, [drawings]);
 
   /** Set a custom display label for a column (e.g. "A1" → "P1"). Persists to backend. */
   const patchDrawingColumnLabel = useCallback(async (drawingId: string, code: string, label: string) => {
@@ -161,15 +163,24 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         return { ...d, columnLabels: newLabels };
       })
     );
-    await DrawingsAPI.update(drawingId, { columnLabels: { [code]: label } } as any);
-  }, []);
+    const drawing = drawings.find((d) => d.id === drawingId);
+    await DrawingsAPI.update(drawingId, { columnLabels: { [code]: label }, projectId: drawing?.projectId } as any);
+  }, [drawings]);
 
   const refreshTasks = useCallback(async () => {
-    // Tasks are scoped to a drawing; without a drawingId we skip the fetch.
-    // Individual pages (DrawingPage) load tasks directly when they need them.
-    // Here we just clear stale tasks so the context stays consistent.
-    setTasks([]);
-  }, []);
+    // Fetch tasks for the currently selected drawing.
+    // If no drawing is selected, clear stale tasks.
+    if (!currentDrawingId) { setTasks([]); return; }
+    const list = await TasksAPI.list({ drawingId: currentDrawingId });
+    setTasks(list);
+  }, [currentDrawingId]);
+
+  // Reload tasks whenever the active drawing changes (e.g. user taps a different drawing).
+  // This ensures pinned tasks always reflect the currently selected drawing.
+  useEffect(() => {
+    if (!currentDrawingId) return;
+    refreshTasks();
+  }, [currentDrawingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshProjectTasks = useCallback(async () => {
     if (!activeProjectId) { setProjectTasks([]); return; }
@@ -329,8 +340,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         return { ...d, deletedNodes: next };
       })
     );
-    await DrawingsAPI.update(drawingId, { deletedNodes: { [code]: !restore } } as any);
-  }, []);
+    const drawing = drawings.find((d) => d.id === drawingId);
+    await DrawingsAPI.update(drawingId, { deletedNodes: { [code]: !restore }, projectId: drawing?.projectId } as any);
+  }, [drawings]);
 
   /** Mark or un-mark a single auto-derived beam as deleted. Optimistic local update + backend persist. */
   const deleteDrawingBeam = useCallback(async (drawingId: string, beamId: string, restore = false) => {
@@ -344,8 +356,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         return { ...d, deletedBeams: next };
       })
     );
-    await DrawingsAPI.update(drawingId, { deletedBeams: { [beamId]: !restore } } as any);
-  }, []);
+    const drawing = drawings.find((d) => d.id === drawingId);
+    await DrawingsAPI.update(drawingId, { deletedBeams: { [beamId]: !restore }, projectId: drawing?.projectId } as any);
+  }, [drawings]);
 
   /** Add a custom beam between two nodes. Optimistic local update + backend persist. */
   const addCustomBeam = useCallback(async (drawingId: string, from: string, to: string) => {
@@ -360,8 +373,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         return { ...d, customBeams: [...existing, { from, to }] };
       })
     );
-    await DrawingsAPI.update(drawingId, { customBeams: { add: [{ from, to }] } } as any);
-  }, []);
+    const drawing = drawings.find((d) => d.id === drawingId);
+    await DrawingsAPI.update(drawingId, { customBeams: { add: [{ from, to }] }, projectId: drawing?.projectId } as any);
+  }, [drawings]);
 
   /** Remove a custom beam between two nodes. Optimistic local update + backend persist. */
   const removeCustomBeam = useCallback(async (drawingId: string, from: string, to: string) => {
@@ -376,8 +390,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         };
       })
     );
-    await DrawingsAPI.update(drawingId, { customBeams: { remove: [{ from, to }] } } as any);
-  }, []);
+    const drawing = drawings.find((d) => d.id === drawingId);
+    await DrawingsAPI.update(drawingId, { customBeams: { remove: [{ from, to }] }, projectId: drawing?.projectId } as any);
+  }, [drawings]);
 
   const currentDrawing = useMemo(() => drawings.find((d) => d.id === currentDrawingId), [drawings, currentDrawingId]);
   const tasksForCurrentDrawing = useMemo(

@@ -288,17 +288,20 @@ export const ZohoBackboneAPI = {
   seed: () => SeedAPI.seed(),
 };
 
-// ─── Stub: removed APIs (Cliq, Geocode) ──────────────────────────────────────
-// These were AppSail-only features. Stubbed to avoid import errors.
-
+// ─── Cliq API (stub — Zoho Projects doesn't expose a public Cliq endpoint) ────
 export const CliqAPI = {
   sendReport: (_taskId: string): Promise<{ ok: boolean; message: string }> =>
     Promise.resolve({ ok: false, message: 'Cliq reporting not available in Functions mode' }),
 };
 
+// ─── Geocode API ──────────────────────────────────────────────────────────────
+// Calls the AppSail backend's reverse-geocoding proxy (Nominatim).
 export const GeocodeAPI = {
-  reverse: (_lat: number, _lng: number): Promise<string> =>
-    Promise.resolve(''),
+  reverse: (lat: number, lng: number): Promise<string> =>
+    api
+      .get<{ displayName: string }>('/geocode/reverse', { params: { lat, lng } })
+      .then((r) => r.data.displayName || '')
+      .catch(() => ''),
 };
 
 // ─── Zoho Projects (legacy direct portal/project references) ─────────────────

@@ -945,7 +945,9 @@ async function handleGetDrawing(req, res, params, qs) {
 async function handleUpdateDrawing(req, res, params) {
   try {
     const body = await readBody(req);
-    const projectId = body.projectId;
+    // Accept projectId from body OR query string (belt-and-suspenders)
+    const qs = parseQS(req.url);
+    const projectId = body.projectId || qs.projectId;
     if (!projectId) return sendError(res, 400, 'projectId required');
 
     // Fetch current task list (for its name) and meta task (for its metadata)
@@ -956,22 +958,26 @@ async function handleUpdateDrawing(req, res, params) {
     const metaTask = await getDrawingMetaTask(projectId, params.id);
     const meta = metaTask ? safeParseMeta(metaTask.description) : {};
 
-    // Merge updates
+    // Helper: use body value when key is explicitly present (even if null),
+    // otherwise fall back to current meta value.
+    const pick = (key, fallback) => Object.prototype.hasOwnProperty.call(body, key) ? body[key] : fallback;
+
+    // Merge updates — explicit null is honoured (e.g. clearing lat/lng)
     const merged = {
       ...meta,
       _type: DRAWING_TAG,
-      milestoneId: body.milestoneId ?? meta.milestoneId,
-      fileUrl: body.fileUrl ?? meta.fileUrl,
-      gridCols: body.gridCols ?? meta.gridCols,
-      gridRows: body.gridRows ?? meta.gridRows,
-      columnPositions: body.columnPositions ?? meta.columnPositions,
-      deletedNodes: body.deletedNodes ?? meta.deletedNodes,
-      customBeams: body.customBeams ?? meta.customBeams,
-      deletedBeams: body.deletedBeams ?? meta.deletedBeams,
-      columnLabels: body.columnLabels ?? meta.columnLabels,
-      elementTypeLabels: body.elementTypeLabels ?? meta.elementTypeLabels,
-      lat: body.lat ?? meta.lat,
-      lng: body.lng ?? meta.lng,
+      milestoneId: pick('milestoneId', meta.milestoneId),
+      fileUrl: pick('fileUrl', meta.fileUrl),
+      gridCols: pick('gridCols', meta.gridCols),
+      gridRows: pick('gridRows', meta.gridRows),
+      columnPositions: pick('columnPositions', meta.columnPositions),
+      deletedNodes: pick('deletedNodes', meta.deletedNodes),
+      customBeams: pick('customBeams', meta.customBeams),
+      deletedBeams: pick('deletedBeams', meta.deletedBeams),
+      columnLabels: pick('columnLabels', meta.columnLabels),
+      elementTypeLabels: pick('elementTypeLabels', meta.elementTypeLabels),
+      lat: pick('lat', meta.lat),
+      lng: pick('lng', meta.lng),
     };
 
     await zohoPut(`/projects/${projectId}/tasklists/${params.id}/`, {

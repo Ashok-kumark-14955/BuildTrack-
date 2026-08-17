@@ -45,6 +45,49 @@ export async function run(req: Request, sql: string, params: any[] = []) {
 }
 
 /**
+ * Insert a row via the DataStore SDK table API (bypasses ZCQL INSERT).
+ * In local-dev SQLite mode this falls back to a regular ZCQL-style INSERT.
+ */
+export async function insertRow(req: Request, tableName: string, data: Record<string, any>): Promise<any> {
+  if (useCatalystDataStore) {
+    return catalystDb.insertRow(req, tableName, data);
+  }
+  // Local SQLite fallback — build and run an INSERT from the data object
+  const cols = Object.keys(data);
+  const vals = Object.values(data);
+  const sql = `INSERT INTO ${tableName} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`;
+  return localDb().run(req, sql, vals);
+}
+
+/**
+ * Update a row via the DataStore SDK table API (bypasses ZCQL UPDATE).
+ * `data` must include `ROWID` for DataStore; in SQLite mode we use the `id` UUID column instead.
+ */
+export async function updateRow(req: Request, tableName: string, data: Record<string, any>): Promise<any> {
+  if (useCatalystDataStore) {
+    return catalystDb.updateRow(req, tableName, data);
+  }
+  // Local SQLite fallback — build UPDATE from data object (using 'id' as the key)
+  const { id, ROWID, ...rest } = data;
+  const lookupId = id ?? ROWID;
+  const cols = Object.keys(rest);
+  const vals = Object.values(rest);
+  const sql = `UPDATE ${tableName} SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE id = ?`;
+  return localDb().run(req, sql, [...vals, lookupId]);
+}
+
+/**
+ * Get the DataStore ROWID for a row identified by its custom UUID `id` column.
+ * In local-dev SQLite mode always returns null (ROWID not needed).
+ */
+export async function getRowId(req: Request, tableName: string, customId: string): Promise<number | null> {
+  if (useCatalystDataStore) {
+    return catalystDb.getRowId(req, tableName, customId);
+  }
+  return null;
+}
+
+/**
  * Returns the raw Catalyst DataStore instance for operations that need the
  * table-level SDK API (insertRow, updateRow, deleteRow, getPagedRows …).
  * Throws in local-dev mode where Catalyst is unavailable.

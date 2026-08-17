@@ -75,17 +75,36 @@ router.post('/', async (req, res) => {
 
   const id = uuid();
   const now = new Date().toISOString();
-  await db.run(
-    req,
-    `INSERT INTO project_tasks (id, projectId, name, description, priorityLevel, status, assignee, dueDate, estimatedHours, tags, milestoneId, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id, projectId, name.trim(), description || '', priority || 'Medium', status || 'To Do',
-      assignee || '', dueDate || '', estimatedHours != null && estimatedHours !== '' ? Number(estimatedHours) : null,
-      JSON.stringify(Array.isArray(tags) ? tags : []), milestoneId || null, now, now,
-    ]
-  );
-  res.status(201).json(serialize(await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [id])));
+  const tagsJson = JSON.stringify(Array.isArray(tags) ? tags : []);
+  const estHours = estimatedHours != null && estimatedHours !== '' ? Number(estimatedHours) : null;
+
+  // Use SDK insertRow to avoid ZCQL "Unknown column" errors for optional columns.
+  // NOTE: milestoneId is not yet a column in the production DataStore table —
+  // it is silently omitted here. It is stored in the local SQLite schema but the
+  // DataStore table was created before this column was added.
+  const rowData: Record<string, any> = {
+    id,
+    projectId,
+    name: name.trim(),
+    description: description || '',
+    priorityLevel: priority || 'Medium',
+    status: status || 'To Do',
+    assignee: assignee || '',
+    dueDate: dueDate || '',
+    estimatedHours: estHours,
+    tags: tagsJson,
+    createdAt: now,
+    updatedAt: now,
+  };
+  // Include milestoneId only if we have it — the DataStore table may not have this column.
+  // We try first with it; if the SDK throws we silently retry without it.
+  try {
+    await db.insertRow(req, 'project_tasks', { ...rowData, milestoneId: milestoneId || null });
+  } catch {
+    await db.insertRow(req, 'project_tasks', rowData);
+  }
+  const inserted = await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [id]);
+  res.status(201).json(serialize(inserted));
 });
 
 router.put('/:id', async (req, res) => {
