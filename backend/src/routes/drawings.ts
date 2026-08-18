@@ -167,8 +167,8 @@ router.get('/:id', async (req, res) => {
   res.json(await serializeWithUrl(req, row));
 });
 
-// Upload a new drawing
-router.post('/upload', upload.single('file'), async (req, res) => {
+// Upload a new drawing — registered on both /upload (legacy scripts) and / (frontend DrawingsAPI.upload)
+async function handleDrawingUpload(req: any, res: any) {
   try {
     const { projectId, name, gridCols, gridRows } = req.body;
     if (!req.file) return res.status(400).json({ error: 'File is required' });
@@ -216,7 +216,13 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       error: err?.message || 'Upload failed. Ensure the Stratus bucket "buildtrack" exists in your Catalyst project.',
     });
   }
-});
+}
+
+// Register upload handler on both routes:
+//   POST /drawings        — called by frontend DrawingsAPI.upload()
+//   POST /drawings/upload — called by legacy seeding scripts
+router.post('/', upload.single('file'), handleDrawingUpload);
+router.post('/upload', upload.single('file'), handleDrawingUpload);
 
 // Update grid config (also supports milestoneId, columnPositions, deletedNodes, columnLabels, elementTypeLabels, lat, lng)
 // Accepts both PATCH and PUT so that DrawingsAPI.update() (which uses PUT) works correctly.
