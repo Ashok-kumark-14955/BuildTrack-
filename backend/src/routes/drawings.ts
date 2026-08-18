@@ -48,7 +48,9 @@ function serialize(row: any) {
   const deletedBeams = parseMaybeJson<string[]>(row.deletedBeams, []);
   const columnLabels = parseMaybeJson(row.columnLabels, {});
   const elementTypeLabels = parseMaybeJson(row.elementTypeLabels, {});
-  return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels };
+  // Ensure caption is included (may be null/undefined if not set)
+  const caption = row.caption ?? undefined;
+  return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, caption };
 }
 
 /**
@@ -223,6 +225,7 @@ async function handleDrawingUpdate(req: any, res: any) {
     console.log('[handleDrawingUpdate] body keys:', Object.keys(req.body));
     const {
       gridCols, gridRows, name, milestoneId,
+      caption,
       columnPositions, resetColumnPositions,
       deletedNodes,                         // { [code]: true|false } — true=delete, false=restore
       resetDeletedNodes,                    // boolean — clear all deletions
@@ -259,6 +262,8 @@ async function handleDrawingUpdate(req: any, res: any) {
       lat:         newLat,
       lng:         newLng,
       fileUrl:     fileUrl     ?? existing.fileUrl,
+      // caption is optional — only write it when the client explicitly sends it
+      ...('caption' in req.body ? { caption: caption ?? null } : {}),
     };
 
     // Helper: compute new value for a JSON field and add to updateData

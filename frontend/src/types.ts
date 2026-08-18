@@ -42,6 +42,8 @@ export interface Drawing {
   lat: number | null;
   lng: number | null;
   sortOrder?: number;
+  /** Short descriptive caption shown below the drawing name — e.g. "Excavation, footings, grade beams, plinth" */
+  caption?: string;
   createdAt: string;
 }
 
@@ -148,7 +150,7 @@ export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
 export const PROJECT_TASK_STATUS_OPTIONS: ProjectTaskStatus[] = ['To Do', 'In Progress', 'Review', 'Done'];
 export const PROJECT_TASK_STATUS_COLORS: Record<ProjectTaskStatus, string> = {
   'To Do': '#94a3b8',
-  'In Progress': '#3b82f6',
+  'In Progress': '#0ea5e9',
   Review: '#f59e0b',
   Done: '#10b981',
 };
@@ -164,7 +166,7 @@ export interface ActivityItem {
 export const STATUS_COLORS: Record<string, string> = {
   'No Task':    '#64748b', // slate grey
   'Assigned':   '#3b82f6', // blue
-  'In Progress':'#f97316', // orange
+  'In Progress':'#0ea5e9', // sky blue
   'Completed':  '#22c55e', // green
   'Blocked':    '#ef4444', // red
   'Delayed':    '#1e293b', // black/dark

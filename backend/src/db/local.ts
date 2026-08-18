@@ -192,6 +192,8 @@ ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN columnLabels TEXT DEFAULT 
 ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN elementTypeLabels TEXT DEFAULT '{}'");
 ignoreExistingColumn('ALTER TABLE drawings ADD COLUMN lat REAL');
 ignoreExistingColumn('ALTER TABLE drawings ADD COLUMN lng REAL');
+ignoreExistingColumn('ALTER TABLE drawings ADD COLUMN sortOrder INTEGER DEFAULT 9999');
+ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN caption TEXT");
 ignoreExistingColumn("ALTER TABLE tasks ADD COLUMN elementType TEXT DEFAULT 'column'");
 ignoreExistingColumn('ALTER TABLE tasks ADD COLUMN elementId TEXT');
 ignoreExistingColumn('ALTER TABLE project_tasks ADD COLUMN estimatedHours REAL');

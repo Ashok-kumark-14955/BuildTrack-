@@ -657,7 +657,7 @@ export default function Sidebar() {
                           <FileImage size={12} style={{ color: active ? '#fb7185' : 'rgba(255,225,238,0.6)' }} />
                         </div>
 
-                        <div className="flex-1 min-w-0">
+                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-1 pr-6">
                             <span className="text-[11.5px] font-bold leading-tight truncate"
                               style={{ color: active ? '#fff' : 'rgba(255,225,238,0.88)' }}>
@@ -668,6 +668,38 @@ export default function Sidebar() {
                               {d.gridCols}×{d.gridRows}
                             </span>
                           </div>
+
+                          {/* Caption */}
+                          {d.caption && (
+                            <div
+                              className="text-[10px] font-medium leading-tight block truncate max-w-xs mt-0.5"
+                              style={{ color: 'rgba(232,138,165,0.5)' }}
+                              title={d.caption}
+                            >
+                              {d.caption}
+                            </div>
+                          )}
+
+                          {/* Milestone badge */}
+                          {d.milestoneId && (() => {
+                            const ms = milestones.find((m) => m.id === d.milestoneId);
+                            if (!ms) return null;
+                            const msColor = ms.status === 'Completed' ? '#4ade80' : ms.status === 'On Hold' ? '#94a3b8' : ms.status === 'Cancelled' ? '#ef4444' : '#fbbf24';
+                            return (
+                              <div
+                                className="flex items-center gap-1 mt-1"
+                                title={`Milestone: ${ms.name} — ${ms.status}`}
+                              >
+                                <Milestone size={8} style={{ color: msColor, flexShrink: 0 }} />
+                                <span
+                                  className="text-[9px] font-semibold truncate"
+                                  style={{ color: msColor }}
+                                >
+                                  {ms.name}
+                                </span>
+                              </div>
+                            );
+                          })()}
 
                           {/* Per-drawing progress bar */}
                           {dt.total > 0 && (

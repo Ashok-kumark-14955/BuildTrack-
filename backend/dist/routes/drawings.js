@@ -89,7 +89,9 @@ function serialize(row) {
     const deletedBeams = parseMaybeJson(row.deletedBeams, []);
     const columnLabels = parseMaybeJson(row.columnLabels, {});
     const elementTypeLabels = parseMaybeJson(row.elementTypeLabels, {});
-    return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels };
+    // Ensure caption is included (may be null/undefined if not set)
+    const caption = row.caption ?? undefined;
+    return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, caption };
 }
 /**
  * If the stored fileUrl is a Stratus object key (starts with "stratus://"),
@@ -247,7 +249,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 async function handleDrawingUpdate(req, res) {
     try {
         console.log('[handleDrawingUpdate] body keys:', Object.keys(req.body));
-        const { gridCols, gridRows, name, milestoneId, columnPositions, resetColumnPositions, deletedNodes, // { [code]: true|false } — true=delete, false=restore
+        const { gridCols, gridRows, name, milestoneId, caption, columnPositions, resetColumnPositions, deletedNodes, // { [code]: true|false } — true=delete, false=restore
         resetDeletedNodes, // boolean — clear all deletions
         customBeams: customBeamsPatch, // { add?: {from,to}[], remove?: {from,to}[] }
         resetCustomBeams, // boolean — clear all custom beams
@@ -276,6 +278,8 @@ async function handleDrawingUpdate(req, res) {
             lat: newLat,
             lng: newLng,
             fileUrl: fileUrl ?? existing.fileUrl,
+            // caption is optional — only write it when the client explicitly sends it
+            ...('caption' in req.body ? { caption: caption ?? null } : {}),
         };
         // Helper: compute new value for a JSON field and add to updateData
         function mergeJsonField(col, patch, resetFlag, applyPatch, emptyValue) {

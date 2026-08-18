@@ -420,8 +420,10 @@ export default function TaskList() {
                   {msCollapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
                 </span>
                 <Flag size={14} className={milestone ? 'text-rose-500' : 'text-slate-400'} />
-                <span className="font-bold text-white text-[15px] flex-1">
-                  {milestone ? milestone.name : '— Unassigned Drawings —'}
+                <span className="flex-1 min-w-0">
+                  <span className="font-bold text-white text-[15px] block leading-tight">
+                    {milestone ? milestone.name : '— Unassigned Drawings —'}
+                  </span>
                 </span>
                 {milestone && msStyle && (
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${msStyle.bg} ${msStyle.text} flex items-center gap-1`}>
@@ -484,7 +486,10 @@ export default function TaskList() {
                             {drawingCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
                           </span>
                           <FileImage size={14} className="text-blue-500 shrink-0" />
-                          <span className="font-semibold text-slate-200 text-sm flex-1">{drawing.name}</span>
+                          <span className="flex-1 min-w-0 flex items-center gap-2">
+                            <span className="font-semibold text-slate-200 text-sm leading-tight truncate">{drawing.name}</span>
+                            <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-blue-950/60 text-blue-400 border border-blue-800/40">Drawing</span>
+                          </span>
                           <span className="flex items-center gap-1 text-[10px] text-slate-500 bg-zinc-800 px-2 py-0.5 rounded-full">
                             <LayoutGrid size={9} />
                             {drawing.gridCols}×{drawing.gridRows}
@@ -571,7 +576,9 @@ export default function TaskList() {
                                           })()}
                                         </span>
                                       </td>
-                                      <td className="px-2 py-1.5 text-slate-300 max-w-[180px] truncate">{t.name}</td>
+                                      <td className="px-2 py-1.5 max-w-[180px]">
+                                        <span className="block truncate text-slate-300 leading-tight">{t.name}</span>
+                                      </td>
                                       <td className="px-2 py-1.5">
                                         <span
                                           className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full"

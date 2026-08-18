@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useApp } from '../AppContext';
-import { DrawingsAPI } from '../api';
+import { DrawingsAPI } from '../api'; // still used for handleGridSizeChange
 import DrawingCanvas from '../components/DrawingCanvas';
 import TaskPanel from '../components/TaskPanel';
 import TopToolbar from '../components/TopToolbar';
@@ -43,6 +43,7 @@ export default function DrawingPage() {
           onShareSnapshot={getSnapshot}
         />
       )}
+
       <div className="flex-1 flex overflow-hidden relative">
         <div className="flex-1 min-w-0 relative">
           <DrawingCanvas

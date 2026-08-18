@@ -11,7 +11,7 @@
  */
 
 const DB_NAME = 'buildtrack-db';
-const DB_VERSION = 5; // v5: repair any store whose existing schema doesn't match KV_STORES
+const DB_VERSION = 6; // v6: wall task quality refresh + sortOrder force-apply
 
 const STORES = [
   'projects',
@@ -335,7 +335,7 @@ export async function drawingUpdate(id: string, data: Record<string, unknown>): 
     updated.customBeams = beams;
   }
   // Generic field updates
-  const plain = ['name','milestoneId','gridCols','gridRows','lat','lng'] as const;
+  const plain = ['name','milestoneId','gridCols','gridRows','lat','lng','sortOrder'] as const;
   for (const key of plain) {
     if (key in data) (updated as any)[key] = data[key];
   }

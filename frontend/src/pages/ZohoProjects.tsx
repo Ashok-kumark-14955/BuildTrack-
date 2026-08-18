@@ -82,7 +82,7 @@ const FIELD_TYPE_LABELS: Record<FieldType, string> = {
 const BADGE_COLORS: Record<string, string> = {
   // Status
   'Not Started':   'bg-slate-700/80 text-slate-300 border border-slate-600',
-  'In Progress':   'bg-blue-900/60 text-blue-300 border border-blue-700/60',
+  'In Progress':   'bg-sky-900/60 text-sky-300 border border-sky-700/60',
   'Done':          'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60',
   'Blocked':       'bg-red-900/60 text-red-300 border border-red-700/60',
   'Review':        'bg-amber-900/60 text-amber-300 border border-amber-700/60',
@@ -271,70 +271,6 @@ function SiteEntryStatsBar({ records, fields }: SiteEntryStatsProps) {
   );
 }
 
-// ─── Filter chips bar ─────────────────────────────────────────────────────────
-
-interface FilterChipsBarProps {
-  fields: CustomField[];
-  activeFilter: { fieldId: string; value: string } | null;
-  onFilterChange: (f: { fieldId: string; value: string } | null) => void;
-  records: CustomRecord[];
-}
-
-function FilterChipsBar({ fields, activeFilter, onFilterChange, records }: FilterChipsBarProps) {
-  // Find select fields that make sense to filter by
-  const selectFields = fields.filter((f) => f.type === 'select' && (f.options?.length ?? 0) > 0);
-  if (selectFields.length === 0) return null;
-
-  // Show chips for the most useful field (Status or the first select)
-  const priorityField = selectFields.find((f) => f.label.toLowerCase().includes('status')) ?? selectFields[0];
-  const options = priorityField.options ?? [];
-
-  return (
-    <div className="flex items-center gap-2 mb-3 flex-wrap">
-      <span className="text-[10px] text-slate-600 font-semibold uppercase tracking-widest flex-shrink-0">
-        {priorityField.label}:
-      </span>
-      <button
-        onClick={() => onFilterChange(null)}
-        className={cn(
-          'px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-150',
-          !activeFilter || activeFilter.fieldId !== priorityField.id
-            ? 'text-white'
-            : 'text-slate-400',
-        )}
-        style={{
-          background: !activeFilter || activeFilter.fieldId !== priorityField.id
-            ? 'linear-gradient(135deg, rgba(220,38,90,0.3) 0%, rgba(120,10,30,0.4) 100%)'
-            : 'rgba(255,255,255,0.04)',
-          border: !activeFilter || activeFilter.fieldId !== priorityField.id
-            ? '1px solid rgba(220,38,90,0.4)'
-            : '1px solid rgba(255,255,255,0.08)',
-        }}
-      >
-        All ({records.length})
-      </button>
-      {options.map((opt) => {
-        const count = records.filter((r) => r.data[priorityField.id] === opt).length;
-        const isActive = activeFilter?.fieldId === priorityField.id && activeFilter.value === opt;
-        const colorClass = BADGE_COLORS[opt] ?? 'bg-slate-700/80 text-slate-300 border border-slate-600';
-        return (
-          <button
-            key={opt}
-            onClick={() => onFilterChange(isActive ? null : { fieldId: priorityField.id, value: opt })}
-            className={cn(
-              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-150',
-              colorClass,
-              isActive ? 'ring-2 ring-white/20 scale-105' : 'opacity-60 hover:opacity-100',
-            )}
-          >
-            {opt}
-            <span className="opacity-70 font-bold">{count}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 // ─── Styled Checkbox ─────────────────────────────────────────────────────────
 
@@ -1967,7 +1903,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
   // ── Site Entry enhanced features ──────────────────────────
   const isSiteEntry = isSiteEntryModule(module.fields);
-  const [activeFilter, setActiveFilter] = useState<{ fieldId: string; value: string } | null>(null);
+  const [activeFilter] = useState<{ fieldId: string; value: string } | null>(null);
   const [detailRecord, setDetailRecord] = useState<{ record: CustomRecord; idx: number } | null>(null);
 
   const { colWidths, onResizeStart, resetWidth, resetAllWidths, fitToContent } =
@@ -2136,16 +2072,6 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
       {/* ── Site Entry stats bar ── */}
       {isSiteEntry && !loading && records.length > 0 && (
         <SiteEntryStatsBar records={records} fields={module.fields} />
-      )}
-
-      {/* ── Site Entry filter chips ── */}
-      {isSiteEntry && !loading && records.length > 0 && (
-        <FilterChipsBar
-          fields={module.fields}
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
-          records={records}
-        />
       )}
 
       {/* Module header */}
