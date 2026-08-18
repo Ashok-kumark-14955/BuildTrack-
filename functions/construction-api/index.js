@@ -1158,10 +1158,49 @@ async function handleDrawingFile(req, res, params) {
     const fileUrl = meta.fileUrl || '';
 
     if (fileUrl.startsWith('stratus://')) {
+      // Proxy the file bytes directly instead of redirecting.
+      // A 302 redirect to Stratus causes cross-origin SVG loading which strips
+      // embedded CSS styles/colors when the browser renders SVG via <img>.
+      // Serving the bytes from the same function origin preserves all styles.
       const signed = await getStratusSignedUrl(req, fileUrl);
       if (!signed) return sendError(res, 500, 'Could not generate signed URL');
-      res.writeHead(302, { Location: signed });
-      return res.end();
+
+      // Determine content-type from the Stratus key extension
+      const keyPart = fileUrl.replace(/^stratus:\/\/[^/]+\//, '');
+      const ext = keyPart.split('.').pop()?.toLowerCase();
+      const mimeMap = {
+        svg: 'image/svg+xml',
+        png: 'image/png',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        pdf: 'application/pdf',
+      };
+      const contentType = mimeMap[ext] || 'application/octet-stream';
+
+      // Fetch bytes from Stratus signed URL and stream them back
+      try {
+        const fileBytes = await new Promise((resolve, reject) => {
+          const parsedUrl = new URL(signed);
+          const lib = parsedUrl.protocol === 'https:' ? https : http;
+          lib.get(signed, (upstream) => {
+            const chunks = [];
+            upstream.on('data', (c) => chunks.push(c));
+            upstream.on('end', () => resolve(Buffer.concat(chunks)));
+            upstream.on('error', reject);
+          }).on('error', reject);
+        });
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Length': fileBytes.length,
+          'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*',
+        });
+        return res.end(fileBytes);
+      } catch (fetchErr) {
+        console.error('[handleDrawingFile] proxy fetch failed, falling back to redirect:', fetchErr.message);
+        res.writeHead(302, { Location: signed });
+        return res.end();
+      }
     } else if (fileUrl.startsWith('data:')) {
       const [header, b64] = fileUrl.split(',');
       const mimeMatch = header.match(/data:([^;]+)/);

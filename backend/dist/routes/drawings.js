@@ -438,7 +438,17 @@ router.get('/:id/file', async (req, res) => {
         // Stratus signed URL — proxy it
         const client = signedUrl.startsWith('https') ? https_1.default : http_1.default;
         client.get(signedUrl, (upstream) => {
-            res.setHeader('Content-Type', upstream.headers['content-type'] || 'image/svg+xml');
+            // Force correct Content-Type for SVG files — Stratus may serve files
+            // stored with a ".svg+xml" key (old bug) as application/octet-stream.
+            // We detect SVG by inspecting the stored fileUrl key extension OR the
+            // upstream content-type, and always respond with image/svg+xml so that
+            // the browser and Konva can render the image correctly.
+            const storedKey = (row.fileUrl || '').replace(/^stratus:\/\//, '');
+            const upstreamCt = upstream.headers['content-type'] || '';
+            const isSvg = storedKey.match(/\.(svg|svg\+xml)$/i) ||
+                upstreamCt.includes('svg');
+            const contentType = isSvg ? 'image/svg+xml' : upstreamCt || 'application/octet-stream';
+            res.setHeader('Content-Type', contentType);
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Cache-Control', 'public, max-age=3600');
             if (upstream.statusCode && upstream.statusCode !== 200) {

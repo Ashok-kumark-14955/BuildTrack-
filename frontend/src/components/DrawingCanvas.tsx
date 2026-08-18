@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';
 import { Stage, Layer, Image as KonvaImage, Circle, Line, Group, Text } from 'react-konva';
 import Konva from 'konva';
-// Ensure Konva filter is available
-import 'konva/lib/filters/Invert';
+// (Konva Invert filter no longer needed — drawing is displayed as-is)
 import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp, Trash2, Link, Unlink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../AppContext';
@@ -11,17 +10,24 @@ import { resolveFileUrl } from '../utils/imageStorage';
 import { STATUS_COLORS } from '../types';
 import { detectColumnPositions } from '../utils/autoCalibrate';
 
-// High-contrast mode inverts the whole canvas via a CSS filter (see stageContainerRef
-// below) so the underlying drawing image reads well in both light and dark originals.
-// That same filter would also flip our meaningful status colours (green/blue/orange/
-// red/slate/dark) into confusing hues. Pre-inverting status colours here means the
-// CSS filter flips them right back to their true, intended colour on screen.
-function invertHex(hex: string): string {
+// Light mode: darken status colours so they remain legible on a light canvas background.
+// The uploaded drawing image is NEVER filtered or modified — it is always displayed as-is.
+function lightenStatusColor(hex: string): string {
+  // For light mode we simply use the original status colour as-is; the circles/beams
+  // are rendered on top of the (possibly light) background and remain visible because
+  // they already have strong hues (red, green, blue, amber, slate).
+  // However, 'No Task' slate (#475569) can be hard to see on white, so we darken it.
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);
   if (!m) return hex;
   const num = parseInt(m[1], 16);
-  const inverted = 0xffffff ^ num;
-  return `#${inverted.toString(16).padStart(6, '0')}`;
+  const r = (num >> 16) & 0xff;
+  const g = (num >> 8) & 0xff;
+  const b = num & 0xff;
+  // Darken by 40% for light mode visibility
+  const dr = Math.round(r * 0.6);
+  const dg = Math.round(g * 0.6);
+  const db = Math.round(b * 0.6);
+  return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
 }
 
 // ─── Custom hook: load an image with cleanup (supports idb:// keys) ──────────
@@ -137,7 +143,7 @@ const ColumnHotspot = memo(function ColumnHotspot({
   onSelect, onHover, onReposition, onDoubleClick,
 }: ColumnProps) {
   const statusColor = STATUS_COLORS[status] ?? STATUS_COLORS['No Task'];
-  const color = highContrast ? invertHex(statusColor) : statusColor;
+  const color = highContrast ? lightenStatusColor(statusColor) : statusColor;
   const isEmpty = false; // always use status colour
   const r = isHovered || isSelected ? radius * 1.22 : radius;
   const [snapGuide, setSnapGuide] = useState<{ axis: 'x' | 'y'; value: number } | null>(null);
@@ -521,7 +527,7 @@ const BeamHotspot = memo(function BeamHotspot({
 }: BeamProps) {
   const isEmpty = status === 'No Task';
   const statusColor = isEmpty ? '#475569' : (STATUS_COLORS[status] ?? STATUS_COLORS['No Task']);
-  const color = highContrast ? invertHex(statusColor) : statusColor;
+  const color = highContrast ? lightenStatusColor(statusColor) : statusColor;
 
   // Stroke widths:
   //  • No task  → thin dotted line (doesn't disturb the drawing)
@@ -1314,14 +1320,17 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
       tabIndex={-1}
       onMouseEnter={() => containerRef.current?.focus({ preventScroll: true })}
     >
-      {/* ── Konva Stage — CSS filter on wrapper inverts the whole canvas safely ── */}
+      {/* ── Konva Stage wrapper — background changes for light/dark mode, but
+           the uploaded drawing image is NEVER filtered or altered. ── */}
       <div
         ref={stageContainerRef}
         style={{
           position: 'absolute',
           inset: 0,
-          filter: highContrast ? 'invert(1) contrast(1.15) brightness(0.95)' : 'none',
-          transition: 'filter 0.2s ease',
+          // Light mode: show a white canvas background so the drawing reads well
+          // in environments with bright ambient light. The image itself is untouched.
+          backgroundColor: highContrast ? '#f0f4f8' : 'transparent',
+          transition: 'background-color 0.2s ease',
         }}
       >
       {/* Konva's shadow-caching path draws into an internal canvas sized off the
@@ -1381,7 +1390,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               const isSelected = selectedElementId === cbId;
               const cbStatus = statusByElement[cbId] ?? 'No Task';
               const cbStatusColor = cbStatus === 'No Task' ? '#334155' : (STATUS_COLORS[cbStatus] ?? STATUS_COLORS['No Task']);
-              const cbColor = highContrast ? invertHex(cbStatusColor) : cbStatusColor;
+              const cbColor = highContrast ? lightenStatusColor(cbStatusColor) : cbStatusColor;
               return (
                 <Group key={cbId} listening={calibrating ? false : true}
                   onClick={(e) => { e.cancelBubble = true; setSelectedElementId(cbId); }}
@@ -1794,9 +1803,9 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
             color: highContrast ? '#bae6fd' : '#cbd5e1',
             border: '1px solid rgba(148,163,184,0.2)',
           }}
-          title={highContrast ? 'Disable high contrast mode' : 'Enable high contrast mode'}
+          title={highContrast ? 'Switch to Dark Mode (drawing displayed as-is)' : 'Switch to Light Mode (white background)'}
         >
-          {highContrast ? 'High Contrast On' : 'High Contrast Off'}
+          {highContrast ? '☀ Light Mode' : '🌙 Dark Mode'}
         </button>
       </div>
 

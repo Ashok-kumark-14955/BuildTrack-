@@ -35,7 +35,15 @@ function adminApp(req) {
  * The key is stored in the DB; call getSignedUrl(req, key) to get a fresh link.
  */
 async function uploadFile(req, buffer, mimetype, folder = 'uploads') {
-    const ext = mimetype.split('/')[1]?.replace('jpeg', 'jpg') || 'bin';
+    // Normalize MIME subtype to a valid file extension:
+    //   image/svg+xml → svg (not "svg+xml")
+    //   image/jpeg    → jpg
+    //   image/png     → png
+    //   application/pdf → pdf
+    const rawSub = mimetype.split('/')[1] || 'bin';
+    const ext = rawSub
+        .replace(/\+.*$/, '') // strip "+xml", "+json", etc.
+        .replace('jpeg', 'jpg'); // jpeg → jpg
     const key = `${folder}/${(0, uuid_1.v4)()}.${ext}`;
     const bucket = adminApp(req).stratus().bucket(BUCKET_NAME);
     await bucket.putObject(key, buffer, { contentType: mimetype, overwrite: false });

@@ -37,7 +37,15 @@ export async function uploadFile(
   mimetype: string,
   folder = 'uploads'
 ): Promise<string> {
-  const ext = mimetype.split('/')[1]?.replace('jpeg', 'jpg') || 'bin';
+  // Normalize MIME subtype to a valid file extension:
+  //   image/svg+xml → svg (not "svg+xml")
+  //   image/jpeg    → jpg
+  //   image/png     → png
+  //   application/pdf → pdf
+  const rawSub = mimetype.split('/')[1] || 'bin';
+  const ext = rawSub
+    .replace(/\+.*$/, '')   // strip "+xml", "+json", etc.
+    .replace('jpeg', 'jpg'); // jpeg → jpg
   const key = `${folder}/${uuid()}.${ext}`;
   const bucket = adminApp(req).stratus().bucket(BUCKET_NAME);
   await bucket.putObject(key, buffer, { contentType: mimetype, overwrite: false });
