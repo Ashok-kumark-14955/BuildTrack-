@@ -215,7 +215,7 @@ export default function Dashboard() {
   const statCards = [
     { label: 'Total Tasks',  value: stats.total,           icon: ListTodo,      color: '#d6486e', glow: 'rgba(214,72,110,0.25)' },
     { label: 'Completed',    value: stats.completed,        icon: CheckCircle2,  color: '#4ade80', glow: 'rgba(74,222,128,0.2)' },
-    { label: 'In Progress',  value: stats.inProgress,       icon: Zap,           color: '#0ea5e9', glow: 'rgba(14,165,233,0.2)' },
+    { label: 'In Progress',  value: stats.inProgress,       icon: Zap,           color: '#ec4899', glow: 'rgba(236,72,153,0.2)' },
     { label: 'Overdue',      value: stats.overdue,          icon: AlertTriangle, color: '#f97316', glow: 'rgba(249,115,22,0.2)' },
     { label: 'Blocked',      value: stats.blocked,          icon: Ban,           color: '#ef4444', glow: 'rgba(239,68,68,0.2)' },
     { label: 'Avg Progress', value: `${stats.avgProgress}%`, icon: TrendingUp,  color: '#a78bfa', glow: 'rgba(167,139,250,0.2)' },

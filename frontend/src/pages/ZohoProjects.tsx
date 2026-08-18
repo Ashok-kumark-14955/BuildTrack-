@@ -82,7 +82,7 @@ const FIELD_TYPE_LABELS: Record<FieldType, string> = {
 const BADGE_COLORS: Record<string, string> = {
   // Status
   'Not Started':   'bg-slate-700/80 text-slate-300 border border-slate-600',
-  'In Progress':   'bg-sky-900/60 text-sky-300 border border-sky-700/60',
+  'In Progress':   'bg-pink-900/50 text-[#ec4899] border border-pink-700/40',
   'Done':          'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60',
   'Blocked':       'bg-red-900/60 text-red-300 border border-red-700/60',
   'Review':        'bg-amber-900/60 text-amber-300 border border-amber-700/60',
