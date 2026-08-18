@@ -520,9 +520,21 @@ const BeamHotspot = memo(function BeamHotspot({
   id, x1, y1, x2, y2, thickness, status, isHovered, isSelected, highContrast, onSelect, onHover,
 }: BeamProps) {
   const isEmpty = status === 'No Task';
-  const statusColor = isEmpty ? '#334155' : (STATUS_COLORS[status] ?? STATUS_COLORS['No Task']);
+  const statusColor = isEmpty ? '#475569' : (STATUS_COLORS[status] ?? STATUS_COLORS['No Task']);
   const color = highContrast ? invertHex(statusColor) : statusColor;
-  const strokeWidth = isHovered || isSelected ? thickness * 1.6 : thickness;
+
+  // Stroke widths:
+  //  • No task  → thin dotted line (doesn't disturb the drawing)
+  //  • Has task → thick solid highlight
+  //  • Hovered  → slightly thicker
+  //  • Selected → thickest + glow ring
+  const baseStroke = isEmpty
+    ? thickness * 0.55                          // thin when no task
+    : isSelected
+      ? thickness * 5.5                         // thick when selected
+      : isHovered
+        ? thickness * 4.5                       // medium on hover
+        : thickness * 3.8;                      // solid when task exists
 
   return (
     <Group
@@ -539,19 +551,33 @@ const BeamHotspot = memo(function BeamHotspot({
         if (stage) stage.container().style.cursor = 'default';
       }}
     >
+      {/* Glow ring when selected */}
       {isSelected && (
-        <Line points={[x1, y1, x2, y2]} stroke="#1d4ed8" strokeWidth={strokeWidth + 6} opacity={0.45} lineCap="round" listening={false} />
+        <Line
+          points={[x1, y1, x2, y2]}
+          stroke={color}
+          strokeWidth={baseStroke + 8}
+          opacity={0.25}
+          lineCap="round"
+          listening={false}
+        />
       )}
       <Line
         points={[x1, y1, x2, y2]}
         stroke={color}
-        strokeWidth={strokeWidth}
-        opacity={isHovered || isSelected ? 1 : isEmpty ? 0.65 : 0.9}
+        strokeWidth={baseStroke}
+        opacity={
+          isSelected ? 1
+          : isHovered ? 0.95
+          : isEmpty ? 0.35           // very faint when no task
+          : 0.88
+        }
+        dash={isEmpty ? [6, 6] : undefined}   // dotted when no task
         lineCap="round"
-        hitStrokeWidth={Math.max(18, strokeWidth * 4)}
-        shadowColor="black"
-        shadowBlur={isHovered ? 6 : 0}
-        shadowOpacity={0.25}
+        hitStrokeWidth={Math.max(18, baseStroke * 4)}
+        shadowColor={isEmpty ? undefined : color}
+        shadowBlur={isSelected ? 10 : isHovered ? 6 : isEmpty ? 0 : 3}
+        shadowOpacity={isSelected ? 0.5 : 0.25}
       />
     </Group>
   );
@@ -603,7 +629,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   const [renameValue, setRenameValue] = useState('');
   const [autoCalibrating, setAutoCalibrating] = useState(false);
   const [calibPanelOpen, setCalibPanelOpen] = useState(true);
-  const [highContrast, setHighContrast] = useState(true);
+  const [highContrast, setHighContrast] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const imageNodeRef = useRef<Konva.Image | null>(null);
@@ -1739,19 +1765,30 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
         </div>
       )}
 
-      {/* ── Zoom Controls ── */}
+      {/* ── Labels / High Contrast toggle bar ── */}
       <div
-        className="absolute top-4 left-1/2 -translate-x-1/2 rounded-2xl border px-3 py-2 flex items-center gap-2 z-20"
+        className="absolute top-3 left-1/2 -translate-x-1/2 rounded-xl border px-2 py-1 flex items-center gap-1.5 z-20"
         style={{
           background: 'rgba(15, 23, 42, 0.78)',
           backdropFilter: 'blur(14px)',
           borderColor: 'rgba(148,163,184,0.22)',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+          boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
         }}
       >
         <button
+          onClick={() => setShowLabels((v) => !v)}
+          className="px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-colors"
+          style={{
+            background: showLabels ? 'rgba(192,132,252,0.18)' : 'rgba(51,65,85,0.65)',
+            color: showLabels ? '#e9d5ff' : '#cbd5e1',
+            border: '1px solid rgba(148,163,184,0.2)',
+          }}
+        >
+          {showLabels ? 'Labels On' : 'Labels Off'}
+        </button>
+        <button
           onClick={() => setHighContrast((v) => !v)}
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
+          className="px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-colors"
           style={{
             background: highContrast ? 'rgba(56,189,248,0.18)' : 'rgba(51,65,85,0.65)',
             color: highContrast ? '#bae6fd' : '#cbd5e1',
@@ -1760,17 +1797,6 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
           title={highContrast ? 'Disable high contrast mode' : 'Enable high contrast mode'}
         >
           {highContrast ? 'High Contrast On' : 'High Contrast Off'}
-        </button>
-        <button
-          onClick={() => setShowLabels((v) => !v)}
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
-          style={{
-            background: showLabels ? 'rgba(192,132,252,0.18)' : 'rgba(51,65,85,0.65)',
-            color: showLabels ? '#e9d5ff' : '#cbd5e1',
-            border: '1px solid rgba(148,163,184,0.2)',
-          }}
-        >
-          {showLabels ? 'Labels On' : 'Labels Off'}
         </button>
       </div>
 

@@ -43,6 +43,18 @@ const https_1 = __importDefault(require("https"));
 const http_1 = __importDefault(require("http"));
 const db = __importStar(require("../db"));
 const stratus_1 = require("../db/stratus");
+// ---------------------------------------------------------------------------
+// SDK updateRow wrapper — used by handleDrawingUpdate instead of ZCQL so that
+// JSON-valued optional columns (deletedBeams, customBeams, deletedNodes) are
+// reliably persisted. ZCQL UPDATE silently drops or corrupts JSON text values
+// in some Catalyst DataStore environments.
+// ---------------------------------------------------------------------------
+async function sdkUpdateDrawing(req, rowId, updateData) {
+    if (!rowId)
+        throw new Error('Cannot updateRow: ROWID not found');
+    // The SDK updateRow expects ROWID as the primary key field
+    await db.updateRow(req, 'drawings', { ROWID: rowId, ...updateData });
+}
 const router = (0, express_1.Router)();
 // Memory storage — buffer is uploaded to Stratus (production) or stored
 // as a base64 data URL (local dev, where Stratus is not available).
@@ -119,11 +131,68 @@ async function createTasksForGrid(req, drawingId, cols, rows, createdAt) {
 // List drawings (optionally by project)
 router.get('/', async (req, res) => {
     const { projectId } = req.query;
+    // ZCQL does not support COALESCE() in ORDER BY — sort by createdAt instead.
+    // sortOrder-based ordering is applied client-side by the frontend after receiving all rows.
     const rows = projectId
         ? await db.all(req, 'SELECT * FROM drawings WHERE projectId = ? ORDER BY createdAt ASC', [projectId])
         : await db.all(req, 'SELECT * FROM drawings ORDER BY createdAt ASC');
-    const resolved = await Promise.all(rows.map((r) => serializeWithUrl(req, r)));
+    // Client-side sortOrder fallback: rows that have a sortOrder come first, rest by createdAt
+    const sorted = rows.slice().sort((a, b) => {
+        const sa = a.sortOrder != null ? Number(a.sortOrder) : 9999;
+        const sb = b.sortOrder != null ? Number(b.sortOrder) : 9999;
+        if (sa !== sb)
+            return sa - sb;
+        return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+    });
+    const resolved = await Promise.all(sorted.map((r) => serializeWithUrl(req, r)));
     res.json(resolved);
+});
+// Persist drag-reorder: update each drawing's sortOrder in the DB.
+// Must be registered BEFORE /:id routes to avoid "reorder" being treated as an :id param.
+router.post('/reorder', async (req, res) => {
+    const { projectId, orderedIds } = req.body;
+    if (!projectId || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ error: 'projectId and orderedIds required' });
+    }
+    try {
+        // Add sortOrder column if it doesn't exist yet (idempotent — fails silently if already present).
+        // This is needed for the local SQLite path; in DataStore the column must exist in the schema.
+        try {
+            await db.run(req, 'ALTER TABLE drawings ADD COLUMN sortOrder INTEGER DEFAULT 9999');
+        }
+        catch { }
+        for (let i = 0; i < orderedIds.length; i++) {
+            const drawingId = orderedIds[i];
+            // Look up the ROWID so we can use the SDK updateRow API (identical to handleDrawingUpdate).
+            // ZCQL UPDATE silently fails for columns that were added after the DataStore table was created
+            // (the column exists in the schema but ZCQL may not recognise it in UPDATE statements).
+            // The SDK table.updateRow() API is the reliable path for optional/newer columns.
+            const rowId = await db.getRowId(req, 'drawings', drawingId);
+            if (rowId) {
+                // Production DataStore: use SDK updateRow — reliable for sortOrder column
+                try {
+                    await db.updateRow(req, 'drawings', { ROWID: rowId, sortOrder: i });
+                }
+                catch (sdkErr) {
+                    console.warn(`[reorder] SDK updateRow failed for drawing ${drawingId}, falling back to ZCQL:`, sdkErr?.message);
+                    // Fallback to ZCQL (may fail silently if column missing in DataStore schema)
+                    try {
+                        await db.run(req, 'UPDATE drawings SET sortOrder = ? WHERE id = ? AND projectId = ?', [i, drawingId, projectId]);
+                    }
+                    catch { }
+                }
+            }
+            else {
+                // Local SQLite: no ROWID, use plain SQL UPDATE
+                await db.run(req, 'UPDATE drawings SET sortOrder = ? WHERE id = ? AND projectId = ?', [i, drawingId, projectId]);
+            }
+        }
+        res.json({ ok: true, reordered: orderedIds.length });
+    }
+    catch (err) {
+        console.error('[reorder] Failed:', err?.message || err);
+        res.status(500).json({ error: err?.message || 'Reorder failed' });
+    }
 });
 router.get('/:id', async (req, res) => {
     const row = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
@@ -176,82 +245,133 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 // Update grid config (also supports milestoneId, columnPositions, deletedNodes, columnLabels, elementTypeLabels, lat, lng)
 // Accepts both PATCH and PUT so that DrawingsAPI.update() (which uses PUT) works correctly.
 async function handleDrawingUpdate(req, res) {
-    const { gridCols, gridRows, name, milestoneId, columnPositions, resetColumnPositions, deletedNodes, // { [code]: true|false } — true=delete, false=restore
-    resetDeletedNodes, // boolean — clear all deletions
-    customBeams: customBeamsPatch, // { add?: {from,to}[], remove?: {from,to}[] }
-    resetCustomBeams, // boolean — clear all custom beams
-    deletedBeams, // { [beamId]: true|false } — true=delete, false=restore
-    resetDeletedBeams, // boolean — clear all beam deletions
-    columnLabels, resetColumnLabels, elementTypeLabels, resetElementTypeLabels, lat, lng, fileUrl, } = req.body;
-    const existing = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
-    if (!existing)
-        return res.status(404).json({ error: 'Not found' });
-    const newMilestoneId = 'milestoneId' in req.body ? (milestoneId || null) : existing.milestoneId;
-    const newLat = 'lat' in req.body ? (lat ?? null) : existing.lat;
-    const newLng = 'lng' in req.body ? (lng ?? null) : existing.lng;
-    const sets = ['gridCols = ?', 'gridRows = ?', 'name = ?', 'milestoneId = ?', 'lat = ?', 'lng = ?', 'fileUrl = ?'];
-    const params = [
-        gridCols ?? existing.gridCols,
-        gridRows ?? existing.gridRows,
-        name ?? existing.name,
-        newMilestoneId,
-        newLat,
-        newLng,
-        fileUrl ?? existing.fileUrl,
-    ];
-    // These grid-editor columns aren't present in every environment's DataStore
-    // table yet, so only touch a column when this request actually changes it —
-    // an unconditional blanket UPDATE fails the whole request with "Invalid
-    // column name X" if any one of them is missing.
-    function mergeJsonField(col, patch, resetFlag, applyPatch, emptyValue) {
-        if (resetFlag) {
-            sets.push(`${col} = ?`);
-            params.push(JSON.stringify(emptyValue));
+    try {
+        console.log('[handleDrawingUpdate] body keys:', Object.keys(req.body));
+        const { gridCols, gridRows, name, milestoneId, columnPositions, resetColumnPositions, deletedNodes, // { [code]: true|false } — true=delete, false=restore
+        resetDeletedNodes, // boolean — clear all deletions
+        customBeams: customBeamsPatch, // { add?: {from,to}[], remove?: {from,to}[] }
+        resetCustomBeams, // boolean — clear all custom beams
+        deletedBeams, // { [beamId]: true|false } — true=delete, false=restore
+        resetDeletedBeams, // boolean — clear all beam deletions
+        columnLabels, resetColumnLabels, elementTypeLabels, resetElementTypeLabels, lat, lng, fileUrl, } = req.body;
+        const existing = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
+        if (!existing)
+            return res.status(404).json({ error: 'Not found' });
+        const newMilestoneId = 'milestoneId' in req.body ? (milestoneId || null) : existing.milestoneId;
+        const newLat = 'lat' in req.body ? (lat ?? null) : existing.lat;
+        const newLng = 'lng' in req.body ? (lng ?? null) : existing.lng;
+        // -----------------------------------------------------------------------
+        // Build the update payload as a plain object.
+        // We use the DataStore SDK updateRow() API (via db.updateRow) instead of
+        // ZCQL so that JSON-valued text columns are correctly persisted.
+        // ZCQL UPDATE silently drops or truncates values that contain JSON special
+        // characters (brackets, quotes) in certain DataStore environments.
+        // -----------------------------------------------------------------------
+        // Always-present columns (every DataStore row has these)
+        const updateData = {
+            gridCols: gridCols ?? existing.gridCols,
+            gridRows: gridRows ?? existing.gridRows,
+            name: name ?? existing.name,
+            milestoneId: newMilestoneId,
+            lat: newLat,
+            lng: newLng,
+            fileUrl: fileUrl ?? existing.fileUrl,
+        };
+        // Helper: compute new value for a JSON field and add to updateData
+        function mergeJsonField(col, patch, resetFlag, applyPatch, emptyValue) {
+            if (resetFlag) {
+                updateData[col] = JSON.stringify(emptyValue);
+            }
+            else if (patch && typeof patch === 'object') {
+                const current = parseMaybeJson(existing[col], emptyValue);
+                updateData[col] = JSON.stringify(applyPatch(current));
+            }
+            // If neither resetFlag nor patch is provided, don't touch the column
         }
-        else if (patch && typeof patch === 'object') {
-            const current = parseMaybeJson(existing[col], emptyValue);
-            sets.push(`${col} = ?`);
-            params.push(JSON.stringify(applyPatch(current)));
-        }
-    }
-    mergeJsonField('columnPositions', columnPositions, resetColumnPositions, (current) => ({ ...current, ...columnPositions }), {});
-    // deletedNodes patch: { [code]: true } adds the code; { [code]: false } removes it.
-    mergeJsonField('deletedNodes', deletedNodes, resetDeletedNodes, (current) => {
-        let next = [...current];
-        for (const [code, remove] of Object.entries(deletedNodes)) {
-            next = remove ? (next.includes(code) ? next : [...next, code]) : next.filter((c) => c !== code);
-        }
-        return next;
-    }, []);
-    mergeJsonField('columnLabels', columnLabels, resetColumnLabels, (current) => ({ ...current, ...columnLabels }), {});
-    // customBeams: { add?: {from,to}[], remove?: {from,to}[] }
-    mergeJsonField('customBeams', customBeamsPatch, resetCustomBeams, (current) => {
-        let next = [...current];
-        const { add, remove: rem } = customBeamsPatch;
-        if (add) {
-            for (const b of add) {
-                const exists = next.some((c) => (c.from === b.from && c.to === b.to) || (c.from === b.to && c.to === b.from));
-                if (!exists)
-                    next.push(b);
+        mergeJsonField('columnPositions', columnPositions, resetColumnPositions, (current) => ({ ...current, ...columnPositions }), {});
+        mergeJsonField('columnLabels', columnLabels, resetColumnLabels, (current) => ({ ...current, ...columnLabels }), {});
+        mergeJsonField('elementTypeLabels', elementTypeLabels, resetElementTypeLabels, (current) => ({ ...current, ...elementTypeLabels }), {});
+        // deletedNodes patch: { [code]: true } adds the code; { [code]: false } removes it.
+        mergeJsonField('deletedNodes', deletedNodes, resetDeletedNodes, (current) => {
+            let next = [...current];
+            for (const [code, remove] of Object.entries(deletedNodes)) {
+                next = remove ? (next.includes(code) ? next : [...next, code]) : next.filter((c) => c !== code);
+            }
+            return next;
+        }, []);
+        // customBeams: { add?: {from,to}[], remove?: {from,to}[] }
+        mergeJsonField('customBeams', customBeamsPatch, resetCustomBeams, (current) => {
+            let next = [...current];
+            const { add, remove: rem } = customBeamsPatch;
+            if (add) {
+                for (const b of add) {
+                    const exists = next.some((c) => (c.from === b.from && c.to === b.to) || (c.from === b.to && c.to === b.from));
+                    if (!exists)
+                        next.push(b);
+                }
+            }
+            if (rem) {
+                next = next.filter((c) => !rem.some((r) => (r.from === c.from && r.to === c.to) || (r.from === c.to && r.to === c.from)));
+            }
+            return next;
+        }, []);
+        // deletedBeams patch: { [beamId]: true } adds the id; { [beamId]: false } removes it.
+        mergeJsonField('deletedBeams', deletedBeams, resetDeletedBeams, (current) => {
+            let next = [...current];
+            for (const [beamId, remove] of Object.entries(deletedBeams)) {
+                next = remove ? (next.includes(beamId) ? next : [...next, beamId]) : next.filter((c) => c !== beamId);
+            }
+            return next;
+        }, []);
+        // -----------------------------------------------------------------------
+        // Persist via SDK updateRow (bypasses ZCQL — correctly handles JSON text)
+        // Falls back to ZCQL UPDATE on local SQLite (where ROWID is not needed).
+        // -----------------------------------------------------------------------
+        // ROWID is a large integer (e.g. 59125000000124003). JavaScript's Number
+        // loses precision for integers > 2^53, so we must keep it as a string and
+        // pass it directly to the SDK without converting to Number.
+        const rowId = existing.ROWID ? String(existing.ROWID) : (existing.rowid ? String(existing.rowid) : null);
+        if (rowId) {
+            // Production DataStore: use SDK updateRow for reliable JSON persistence
+            console.log('[handleDrawingUpdate] Using SDK updateRow, ROWID=', rowId, 'cols:', Object.keys(updateData));
+            try {
+                await sdkUpdateDrawing(req, rowId, updateData);
+            }
+            catch (sdkErr) {
+                // If SDK updateRow fails for optional columns (e.g. column doesn't exist),
+                // fall back to per-column ZCQL updates skipping missing ones
+                console.warn('[handleDrawingUpdate] SDK updateRow failed, falling back to per-column ZCQL:', sdkErr?.message);
+                // Required columns first (always exist)
+                const requiredCols = ['gridCols', 'gridRows', 'name', 'milestoneId', 'lat', 'lng', 'fileUrl'];
+                const requiredData = {};
+                for (const k of requiredCols)
+                    requiredData[k] = updateData[k];
+                await sdkUpdateDrawing(req, rowId, requiredData);
+                // Optional columns one at a time
+                for (const [col, val] of Object.entries(updateData)) {
+                    if (requiredCols.includes(col))
+                        continue;
+                    try {
+                        await sdkUpdateDrawing(req, rowId, { [col]: val });
+                    }
+                    catch (colErr) {
+                        console.warn(`[handleDrawingUpdate] Skipping optional column ${col}: ${colErr?.message}`);
+                    }
+                }
             }
         }
-        if (rem) {
-            next = next.filter((c) => !rem.some((r) => (r.from === c.from && r.to === c.to) || (r.from === c.to && r.to === c.from)));
+        else {
+            // Local SQLite fallback: no ROWID, use ZCQL UPDATE with id
+            const sets = Object.keys(updateData).map(k => `${k} = ?`);
+            const params = [...Object.values(updateData), req.params.id];
+            await db.run(req, `UPDATE drawings SET ${sets.join(', ')} WHERE id = ?`, params);
         }
-        return next;
-    }, []);
-    // deletedBeams patch: { [beamId]: true } adds the id; { [beamId]: false } removes it.
-    mergeJsonField('deletedBeams', deletedBeams, resetDeletedBeams, (current) => {
-        let next = [...current];
-        for (const [beamId, remove] of Object.entries(deletedBeams)) {
-            next = remove ? (next.includes(beamId) ? next : [...next, beamId]) : next.filter((c) => c !== beamId);
-        }
-        return next;
-    }, []);
-    mergeJsonField('elementTypeLabels', elementTypeLabels, resetElementTypeLabels, (current) => ({ ...current, ...elementTypeLabels }), {});
-    params.push(req.params.id);
-    await db.run(req, `UPDATE drawings SET ${sets.join(', ')} WHERE id = ?`, params);
-    res.json(await serializeWithUrl(req, await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id])));
+        res.json(await serializeWithUrl(req, await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id])));
+    }
+    catch (err) {
+        console.error('[handleDrawingUpdate] ERROR:', err?.message || err, '\nStack:', err?.stack);
+        res.status(500).json({ error: err?.message || 'Internal server error' });
+    }
 }
 // Register both PATCH and PUT so that DrawingsAPI.update() (which uses PUT) works correctly.
 router.patch('/:id', handleDrawingUpdate);

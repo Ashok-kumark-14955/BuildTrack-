@@ -60,15 +60,20 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
-  const [currentDrawingId, setCurrentDrawingIdRaw] = useState<string | null>(null);
+  const [currentDrawingId, setCurrentDrawingIdRaw] = useState<string | null>(
+    () => localStorage.getItem('currentDrawingId')
+  );
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [focusElementRequest, setFocusElementRequest] = useState<string | null>(null);
   const [calibrating, setCalibrating] = useState(false);
 
-  // Wrap setCurrentDrawingId so switching to a *different* drawing resets calibration.
+  // Wrap setCurrentDrawingId so switching to a *different* drawing resets calibration
+  // and persists the selection to localStorage so it survives a page refresh.
   const setCurrentDrawingId = useCallback((id: string | null) => {
     setCurrentDrawingIdRaw((prev) => {
       if (prev !== id) setCalibrating(false);
+      if (id) localStorage.setItem('currentDrawingId', id);
+      else localStorage.removeItem('currentDrawingId');
       return id;
     });
   }, []);
@@ -264,10 +269,16 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
 
         if (chosenId) {
           localStorage.setItem('activeProjectId', chosenId);
-          // Auto-select first drawing for that project
-          const firstDrawing = (loadedDrawings as any[]).find((d: any) => d.projectId === chosenId);
-          if (firstDrawing) {
-            setCurrentDrawingId(firstDrawing.id);
+          // Restore the previously selected drawing if it still exists in the loaded list,
+          // otherwise fall back to the first drawing in the active project.
+          const storedDrawingId = localStorage.getItem('currentDrawingId');
+          const projectDrawings = (loadedDrawings as any[]).filter((d: any) => d.projectId === chosenId);
+          const restoredDrawing =
+            (storedDrawingId && projectDrawings.find((d: any) => d.id === storedDrawingId)) ||
+            projectDrawings[0] ||
+            null;
+          if (restoredDrawing) {
+            setCurrentDrawingId(restoredDrawing.id);
           }
         } else {
           localStorage.removeItem('activeProjectId');
@@ -315,7 +326,13 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     await DrawingsAPI.remove(id, (drawing as any)?.projectId ?? activeProjectId ?? '');
     setDrawings((prev) => prev.filter((d) => d.id !== id));
     setTasks((prev) => prev.filter((t) => t.drawingId !== id));
-    setCurrentDrawingIdRaw((prev) => (prev === id ? null : prev));
+    setCurrentDrawingIdRaw((prev) => {
+      if (prev === id) {
+        localStorage.removeItem('currentDrawingId');
+        return null;
+      }
+      return prev;
+    });
   }, []);
 
   const createMilestone = useCallback(async (data: Partial<Milestone>) => {
@@ -342,6 +359,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
 
   /** Mark or un-mark a single grid node as deleted. Optimistic local update + backend persist. */
   const deleteDrawingNode = useCallback(async (drawingId: string, code: string, restore = false) => {
+    // Capture projectId BEFORE optimistic state update (find works on current state)
+    const drawing = drawings.find((d) => d.id === drawingId);
+    const projectId = drawing?.projectId ?? activeProjectId ?? undefined;
     setDrawings((prev) =>
       prev.map((d) => {
         if (d.id !== drawingId) return d;
@@ -352,12 +372,18 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         return { ...d, deletedNodes: next };
       })
     );
-    const drawing = drawings.find((d) => d.id === drawingId);
-    await DrawingsAPI.update(drawingId, { deletedNodes: { [code]: !restore }, projectId: drawing?.projectId } as any);
-  }, [drawings]);
+    try {
+      await DrawingsAPI.update(drawingId, { deletedNodes: { [code]: !restore }, projectId } as any);
+    } catch (err) {
+      console.error('[deleteDrawingNode] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
 
   /** Mark or un-mark a single auto-derived beam as deleted. Optimistic local update + backend persist. */
   const deleteDrawingBeam = useCallback(async (drawingId: string, beamId: string, restore = false) => {
+    // Capture projectId BEFORE optimistic state update
+    const drawing = drawings.find((d) => d.id === drawingId);
+    const projectId = drawing?.projectId ?? activeProjectId ?? undefined;
     setDrawings((prev) =>
       prev.map((d) => {
         if (d.id !== drawingId) return d;
@@ -368,12 +394,18 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         return { ...d, deletedBeams: next };
       })
     );
-    const drawing = drawings.find((d) => d.id === drawingId);
-    await DrawingsAPI.update(drawingId, { deletedBeams: { [beamId]: !restore }, projectId: drawing?.projectId } as any);
-  }, [drawings]);
+    try {
+      await DrawingsAPI.update(drawingId, { deletedBeams: { [beamId]: !restore }, projectId } as any);
+    } catch (err) {
+      console.error('[deleteDrawingBeam] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
 
   /** Add a custom beam between two nodes. Optimistic local update + backend persist. */
   const addCustomBeam = useCallback(async (drawingId: string, from: string, to: string) => {
+    // Capture projectId BEFORE optimistic state update
+    const drawing = drawings.find((d) => d.id === drawingId);
+    const projectId = drawing?.projectId ?? activeProjectId ?? undefined;
     setDrawings((prev) =>
       prev.map((d) => {
         if (d.id !== drawingId) return d;
@@ -385,12 +417,18 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         return { ...d, customBeams: [...existing, { from, to }] };
       })
     );
-    const drawing = drawings.find((d) => d.id === drawingId);
-    await DrawingsAPI.update(drawingId, { customBeams: { add: [{ from, to }] }, projectId: drawing?.projectId } as any);
-  }, [drawings]);
+    try {
+      await DrawingsAPI.update(drawingId, { customBeams: { add: [{ from, to }] }, projectId } as any);
+    } catch (err) {
+      console.error('[addCustomBeam] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
 
   /** Remove a custom beam between two nodes. Optimistic local update + backend persist. */
   const removeCustomBeam = useCallback(async (drawingId: string, from: string, to: string) => {
+    // Capture projectId BEFORE optimistic state update
+    const drawing = drawings.find((d) => d.id === drawingId);
+    const projectId = drawing?.projectId ?? activeProjectId ?? undefined;
     setDrawings((prev) =>
       prev.map((d) => {
         if (d.id !== drawingId) return d;
@@ -402,9 +440,12 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
         };
       })
     );
-    const drawing = drawings.find((d) => d.id === drawingId);
-    await DrawingsAPI.update(drawingId, { customBeams: { remove: [{ from, to }] }, projectId: drawing?.projectId } as any);
-  }, [drawings]);
+    try {
+      await DrawingsAPI.update(drawingId, { customBeams: { remove: [{ from, to }] }, projectId } as any);
+    } catch (err) {
+      console.error('[removeCustomBeam] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
 
   const currentDrawing = useMemo(() => drawings.find((d) => d.id === currentDrawingId), [drawings, currentDrawingId]);
   const tasksForCurrentDrawing = useMemo(

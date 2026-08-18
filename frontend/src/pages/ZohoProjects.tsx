@@ -168,6 +168,8 @@ function formatDuration(entryVal: string, exitVal: string): string | null {
   if (h === 0) return `${m}m`;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
+// Suppress unused warning — kept for potential future display
+void formatDuration;
 
 // ─── Stats bar for site entry modules ────────────────────────────────────────
 
@@ -1146,13 +1148,15 @@ interface NewEntryDrawerProps {
   onClose: () => void;
   onAdd: (data: Record<string, any>) => void;
   onAddMore: (data: Record<string, any>) => void;
+  initialData?: Record<string, any>;
+  onDelete?: () => void;
 }
 
-function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore }: NewEntryDrawerProps) {
+function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore, initialData, onDelete }: NewEntryDrawerProps) {
   // draft uses stable Zoho keys + field.id keys for custom fields
-  const [draft, setDraft] = useState<Record<string, any>>({
-    [ZOHO_STATUS_ID]: 'Active',
-  });
+  const [draft, setDraft] = useState<Record<string, any>>(
+    initialData ?? { [ZOHO_STATUS_ID]: 'Active' }
+  );
   const [saving, setSaving] = useState(false);
 
   // Custom fields that are NOT one of the 4 default Zoho fields
@@ -1224,7 +1228,7 @@ function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore }: NewEnt
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-          <h2 className="text-white font-semibold text-lg">New {module.name}</h2>
+          <h2 className="text-white font-semibold text-lg">{initialData ? 'Edit' : 'New'} {module.name}</h2>
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1">
               <XIcon />
@@ -1394,21 +1398,31 @@ function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore }: NewEnt
             disabled={saving || titleIsEmpty}
             className="px-5 py-2 rounded-lg bg-rose-700 hover:bg-rose-600 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
           >
-            {saving ? 'Adding…' : 'Add'}
+            {saving ? 'Saving…' : initialData ? 'Save' : 'Add'}
           </button>
-          <button
-            onClick={handleAddMore}
-            disabled={saving || titleIsEmpty}
-            className="px-5 py-2 rounded-lg border border-rose-700 hover:bg-rose-900/30 disabled:opacity-50 text-rose-300 text-sm font-medium transition-colors"
-          >
-            Add More
-          </button>
+          {!initialData && (
+            <button
+              onClick={handleAddMore}
+              disabled={saving || titleIsEmpty}
+              className="px-5 py-2 rounded-lg border border-rose-700 hover:bg-rose-900/30 disabled:opacity-50 text-rose-300 text-sm font-medium transition-colors"
+            >
+              Add More
+            </button>
+          )}
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-lg border border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white text-sm font-medium transition-colors"
           >
             Cancel
           </button>
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="ml-auto px-5 py-2 rounded-lg border border-red-800 hover:bg-red-900/30 text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -2452,14 +2466,17 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
       {/* ── Site Entry: Record Detail Panel ── */}
       {isSiteEntry && detailRecord && (
-        <RecordDetailPanel
-          record={detailRecord.record}
-          fields={module.fields}
-          rowIndex={detailRecord.idx}
+        <NewEntryDrawer
+          projectId={projectId}
+          module={module}
+          initialData={detailRecord.record.data}
           onClose={() => setDetailRecord(null)}
-          onUpdate={(data) => {
+          onAdd={(data) => {
             handleUpdateRecord(detailRecord.record, data);
-            // Keep detail panel open but update the local record snapshot
+            setDetailRecord((prev) => prev ? { ...prev, record: { ...prev.record, data } } : null);
+          }}
+          onAddMore={(data) => {
+            handleUpdateRecord(detailRecord.record, data);
             setDetailRecord((prev) => prev ? { ...prev, record: { ...prev.record, data } } : null);
           }}
           onDelete={() => {

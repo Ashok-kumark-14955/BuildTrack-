@@ -149,32 +149,35 @@ function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[
   });
 
   // Sync whenever sourceDrawings changes (project switch or data refresh).
-  // The server already returns drawings sorted by sortOrder, so we use that
-  // as the authoritative order and only append truly new IDs at the end.
+  // Server sortOrder is ALWAYS the authoritative source of truth — it is set
+  // by the backend whenever the user drags to reorder and must win on refresh.
   useEffect(() => {
     if (sourceDrawings.length === 0) return;
 
-    // Sort source by the backend's sortOrder field so server wins over cache.
+    // Sort source by the backend's sortOrder field (server always wins).
     const byServer = [...sourceDrawings].sort(
       (a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999)
     );
     const serverIds = byServer.map((d) => d.id);
 
     setOrderedIds((prev) => {
-      // Keep only IDs still present on the server.
+      // Check whether any drawing has an explicit server-persisted sortOrder.
+      const anyHaveServerOrder = sourceDrawings.some((d) => (d.sortOrder ?? 9999) !== 9999);
+
+      if (anyHaveServerOrder) {
+        // Server has persisted order data — always use server order.
+        // Append any truly-new IDs (just uploaded) at the end.
+        const newIds = serverIds.filter((id) => !prev.includes(id));
+        const serverFirst = [...serverIds, ...newIds.filter((id) => !serverIds.includes(id))];
+        return serverFirst;
+      }
+
+      // No server order yet — preserve cached local order and append new IDs.
       const stillValid = prev.filter((id) => serverIds.includes(id));
-      // Append new IDs that weren't in the cached list yet.
       const newIds = serverIds.filter((id) => !stillValid.includes(id));
-      const merged = [...stillValid, ...newIds];
-
-      // If the server says all items have explicit sortOrder values (not the
-      // default 9999), prefer the server order entirely over the local cache.
-      const allHaveServerOrder = sourceDrawings.every((d) => (d.sortOrder ?? 9999) !== 9999);
-      if (allHaveServerOrder) return serverIds;
-
-      return merged;
+      return [...stillValid, ...newIds];
     });
-  }, [sourceDrawings, storageKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sourceDrawings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mirror to localStorage as a fast cache for future page loads on same device.
   useEffect(() => {

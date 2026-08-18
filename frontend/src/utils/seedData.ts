@@ -541,6 +541,120 @@ const STEEL_RAFTER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" h
   <text x="1385" y="973" font-size="11" fill="white" text-anchor="middle">REV: A | DATE: 2026-08-06</text>
 </svg>`;
 
+const WALL_DRAWING_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Arial,Helvetica,sans-serif">
+  <rect width="1600" height="1000" fill="#f5f3ef"/>
+  <rect x="10" y="10" width="1580" height="980" fill="none" stroke="#1a1a2e" stroke-width="2"/>
+  <rect x="15" y="15" width="1570" height="970" fill="none" stroke="#1a1a2e" stroke-width="0.7"/>
+  <text x="800" y="50" font-size="24" fill="#1a1a2e" text-anchor="middle" font-weight="900" letter-spacing="2">WALL LAYOUT PLAN</text>
+  <text x="800" y="70" font-size="12" fill="#5a6a80" text-anchor="middle" letter-spacing="1">HOUSE BUILDING PROJECT — GROUND FLOOR — SCALE 1:50</text>
+  <!-- Grid lines (dashed, light) -->
+  <line x1="200" y1="120" x2="200" y2="880" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="600" y1="120" x2="600" y2="880" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1000" y1="120" x2="1000" y2="880" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="1400" y1="120" x2="1400" y2="880" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="200" x2="1480" y2="200" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="550" x2="1480" y2="550" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <line x1="120" y1="880" x2="1480" y2="880" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="6,4"/>
+  <!-- ── Outer boundary walls (thick hatched walls) ── -->
+  <!-- Top wall A1–D1 -->
+  <rect x="180" y="180" width="1240" height="40" fill="#c8c0b0" stroke="#3a2e1a" stroke-width="2.5"/>
+  <line x1="188" y1="188" x2="1412" y2="188" stroke="#7a6a50" stroke-width="0.8" stroke-dasharray="6,4"/>
+  <!-- Bottom wall A3–D3 -->
+  <rect x="180" y="860" width="1240" height="40" fill="#c8c0b0" stroke="#3a2e1a" stroke-width="2.5"/>
+  <!-- Left wall A1–A3 -->
+  <rect x="180" y="200" width="40" height="680" fill="#c8c0b0" stroke="#3a2e1a" stroke-width="2.5"/>
+  <!-- Right wall D1–D3 -->
+  <rect x="1380" y="200" width="40" height="680" fill="#c8c0b0" stroke="#3a2e1a" stroke-width="2.5"/>
+  <!-- ── Internal partition walls ── -->
+  <!-- Horizontal partition @ grid row 2 (y=550), B1–C2 span -->
+  <rect x="220" y="536" width="760" height="28" fill="#d8d0c0" stroke="#5a4a30" stroke-width="1.5"/>
+  <!-- Vertical partition @ grid col B (x=600), row 2–3 -->
+  <rect x="586" y="550" width="28" height="310" fill="#d8d0c0" stroke="#5a4a30" stroke-width="1.5"/>
+  <!-- Vertical partition @ grid col C (x=1000), row 1–3 -->
+  <rect x="986" y="200" width="28" height="660" fill="#d8d0c0" stroke="#5a4a30" stroke-width="1.5"/>
+  <!-- ── Door openings ── -->
+  <!-- Door in left wall (A1–A2 span, y~350) -->
+  <rect x="180" y="340" width="40" height="90" fill="#f5f3ef" stroke="none"/>
+  <line x1="180" y1="340" x2="220" y2="340" stroke="#3a2e1a" stroke-width="2.5"/>
+  <line x1="180" y1="430" x2="220" y2="430" stroke="#3a2e1a" stroke-width="2.5"/>
+  <path d="M220,340 Q260,385 220,430" fill="none" stroke="#7a6a50" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- Door in top wall (B1–C1 span, x~750) -->
+  <rect x="740" y="180" width="100" height="40" fill="#f5f3ef" stroke="none"/>
+  <line x1="740" y1="180" x2="740" y2="220" stroke="#3a2e1a" stroke-width="2.5"/>
+  <line x1="840" y1="180" x2="840" y2="220" stroke="#3a2e1a" stroke-width="2.5"/>
+  <path d="M740,220 Q790,175 840,220" fill="none" stroke="#7a6a50" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- Door in internal partition (vertical col C, y~400) -->
+  <rect x="986" y="390" width="28" height="80" fill="#f5f3ef" stroke="none"/>
+  <line x1="986" y1="390" x2="1014" y2="390" stroke="#5a4a30" stroke-width="1.5"/>
+  <line x1="986" y1="470" x2="1014" y2="470" stroke="#5a4a30" stroke-width="1.5"/>
+  <!-- ── Window openings ── -->
+  <!-- Window in top wall (A1–B1 span, x~350) -->
+  <rect x="310" y="180" width="130" height="40" fill="#cce8f4" stroke="none"/>
+  <line x1="310" y1="180" x2="310" y2="220" stroke="#3a2e1a" stroke-width="2.5"/>
+  <line x1="440" y1="180" x2="440" y2="220" stroke="#3a2e1a" stroke-width="2.5"/>
+  <line x1="310" y1="200" x2="440" y2="200" stroke="#1a7aad" stroke-width="1.2"/>
+  <line x1="375" y1="180" x2="375" y2="220" stroke="#1a7aad" stroke-width="1.2"/>
+  <!-- Window in right wall (D2–D3 span, y~700) -->
+  <rect x="1380" y="670" width="40" height="130" fill="#cce8f4" stroke="none"/>
+  <line x1="1380" y1="670" x2="1420" y2="670" stroke="#3a2e1a" stroke-width="2.5"/>
+  <line x1="1380" y1="800" x2="1420" y2="800" stroke="#3a2e1a" stroke-width="2.5"/>
+  <line x1="1400" y1="670" x2="1400" y2="800" stroke="#1a7aad" stroke-width="1.2"/>
+  <line x1="1380" y1="735" x2="1420" y2="735" stroke="#1a7aad" stroke-width="1.2"/>
+  <!-- ── Column stubs at grid intersections ── -->
+  <rect x="188" y="188" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="588" y="188" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="988" y="188" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="1388" y="188" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="188" y="538" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="588" y="538" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="988" y="538" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="1388" y="538" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="188" y="868" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="588" y="868" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="988" y="868" width="24" height="24" fill="#1a1a2e"/>
+  <rect x="1388" y="868" width="24" height="24" fill="#1a1a2e"/>
+  <!-- ── Room labels ── -->
+  <text x="480" y="380" font-size="13" fill="#2c3e50" text-anchor="middle" font-weight="700">LIVING ROOM</text>
+  <text x="480" y="398" font-size="10" fill="#5a6a80" text-anchor="middle">CAVITY BRICK WALL, 230mm</text>
+  <text x="800" y="380" font-size="13" fill="#2c3e50" text-anchor="middle" font-weight="700">DINING / KITCHEN</text>
+  <text x="800" y="398" font-size="10" fill="#5a6a80" text-anchor="middle">SOLID BLOCK, 200mm</text>
+  <text x="1200" y="380" font-size="13" fill="#2c3e50" text-anchor="middle" font-weight="700">MASTER BEDROOM</text>
+  <text x="1200" y="398" font-size="10" fill="#5a6a80" text-anchor="middle">CAVITY BRICK WALL, 230mm</text>
+  <text x="400" y="720" font-size="13" fill="#2c3e50" text-anchor="middle" font-weight="700">BEDROOM 2</text>
+  <text x="400" y="738" font-size="10" fill="#5a6a80" text-anchor="middle">SOLID BLOCK, 200mm</text>
+  <text x="800" y="720" font-size="13" fill="#2c3e50" text-anchor="middle" font-weight="700">CORRIDOR</text>
+  <text x="1200" y="720" font-size="13" fill="#2c3e50" text-anchor="middle" font-weight="700">STUDY</text>
+  <text x="1200" y="738" font-size="10" fill="#5a6a80" text-anchor="middle">SOLID BLOCK, 200mm</text>
+  <!-- ── Wall type legend ── -->
+  <rect x="30" y="870" width="460" height="100" fill="white" stroke="#c0c0c0" stroke-width="1" rx="4"/>
+  <text x="260" y="888" font-size="12" fill="#1a1a2e" text-anchor="middle" font-weight="700">WALL LEGEND</text>
+  <rect x="45" y="898" width="30" height="14" fill="#c8c0b0" stroke="#3a2e1a" stroke-width="1.5"/>
+  <text x="83" y="910" font-size="10" fill="#1a1a2e">Outer Brick Wall (230mm)</text>
+  <rect x="45" y="920" width="30" height="14" fill="#d8d0c0" stroke="#5a4a30" stroke-width="1.5"/>
+  <text x="83" y="932" font-size="10" fill="#1a1a2e">Internal Partition (200mm)</text>
+  <rect x="240" y="898" width="30" height="14" fill="#cce8f4" stroke="#3a2e1a" stroke-width="1.5"/>
+  <text x="278" y="910" font-size="10" fill="#1a1a2e">Window Opening</text>
+  <rect x="240" y="920" width="30" height="14" fill="#f5f3ef" stroke="#3a2e1a" stroke-width="1.5"/>
+  <text x="278" y="932" font-size="10" fill="#1a1a2e">Door Opening</text>
+  <!-- ── Grid labels ── -->
+  <text x="200" y="108" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">A</text>
+  <text x="600" y="108" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">B</text>
+  <text x="1000" y="108" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">C</text>
+  <text x="1400" y="108" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">D</text>
+  <text x="90" y="205" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">1</text>
+  <text x="90" y="555" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">2</text>
+  <text x="90" y="885" font-size="14" fill="#1a1a2e" text-anchor="middle" font-weight="700">3</text>
+  <!-- ── Dimensions ── -->
+  <line x1="200" y1="950" x2="1400" y2="950" stroke="#2c3e50" stroke-width="1" marker-start="url(#arrl)" marker-end="url(#arro)"/>
+  <text x="800" y="968" font-size="11" fill="#2c3e50" text-anchor="middle">12.0 m</text>
+  <line x1="50" y1="200" x2="50" y2="880" stroke="#2c3e50" stroke-width="1" marker-start="url(#arrl)" marker-end="url(#arro)"/>
+  <text x="28" y="545" font-size="11" fill="#2c3e50" text-anchor="middle" transform="rotate(-90,28,545)">6.8 m</text>
+  <!-- Title block -->
+  <rect x="1200" y="930" width="370" height="55" fill="#1a1a2e"/>
+  <text x="1385" y="954" font-size="11" fill="white" text-anchor="middle">DWG NO: HBP-WL-001</text>
+  <text x="1385" y="972" font-size="11" fill="white" text-anchor="middle">REV: A | DATE: 2026-08-18</text>
+</svg>`;
+
 const STEEL_ROOF_SHEET_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Arial,Helvetica,sans-serif">
   <rect width="1600" height="1000" fill="#f8fafc"/>
   <rect x="10" y="10" width="1580" height="980" fill="none" stroke="#0f172a" stroke-width="2"/>
@@ -755,6 +869,11 @@ const SAMPLE_DRAWING_DEFS: Array<{
     gridCols: 4, gridRows: 3, createdAt: '2026-08-09T06:07:35.000Z',
   },
   {
+    id: 'drw-wl-001', projectId: P1, milestoneId: MS2,
+    name: 'Wall Layout Plan', svg: WALL_DRAWING_SVG,
+    gridCols: 4, gridRows: 3, createdAt: '2026-08-09T06:07:31.000Z',
+  },
+  {
     id: 'drw-col-001', projectId: P2, milestoneId: MS3,
     name: 'Steel Column Erection Plan', svg: STEEL_COLUMN_SVG,
     gridCols: 4, gridRows: 2, createdAt: '2026-08-06T08:43:37.000Z',
@@ -802,6 +921,13 @@ const SAMPLE_TASKS: Task[] = [
   // Electrical Plan tasks
   { id: 'task-el-a1', drawingId: 'drw-el-001', milestoneId: MS2, elementType: 'column', elementId: 'A1', gridCode: 'A1', name: 'Conduit Laying — Living Room', description: '', category: 'Electrical', priority: 'Medium', assignedTo: 'Elec. Team', startDate: '2026-06-01', dueDate: '2026-09-30', status: 'In Progress', progress: 50, createdAt: '2026-08-01T08:00:00.000Z', updatedAt: '2026-08-01T08:00:00.000Z' },
   { id: 'task-el-b1', drawingId: 'drw-el-001', milestoneId: MS2, elementType: 'column', elementId: 'B1', gridCode: 'B1', name: 'Wiring — Kitchen Circuit', description: '', category: 'Electrical', priority: 'High', assignedTo: 'Elec. Team', startDate: '2026-06-01', dueDate: '2026-09-30', status: 'Assigned', progress: 0, createdAt: '2026-08-01T08:00:00.000Z', updatedAt: '2026-08-01T08:00:00.000Z' },
+  // Wall Layout Plan tasks
+  { id: 'task-wl-a1', drawingId: 'drw-wl-001', milestoneId: MS2, elementType: 'wall', elementId: 'WL-A1', gridCode: 'A1', name: 'Outer Wall A1 Brickwork', description: 'Lay 230mm cavity brick outer wall from DPC to lintel level.', category: 'Structural', priority: 'High', assignedTo: 'Ramesh K.', startDate: '2026-07-01', dueDate: '2026-07-20', status: 'Completed', progress: 100, createdAt: '2026-08-09T06:07:31.000Z', updatedAt: '2026-08-09T06:07:31.000Z' },
+  { id: 'task-wl-b1', drawingId: 'drw-wl-001', milestoneId: MS2, elementType: 'wall', elementId: 'WL-B1', gridCode: 'B1', name: 'Outer Wall B1 Plastering', description: 'Apply 15mm cement plaster on outer wall — B1 bay.', category: 'Finishing', priority: 'Medium', assignedTo: 'Mohan R.', startDate: '2026-07-22', dueDate: '2026-08-05', status: 'In Progress', progress: 55, createdAt: '2026-08-09T06:07:31.000Z', updatedAt: '2026-08-09T06:07:31.000Z' },
+  { id: 'task-wl-c1', drawingId: 'drw-wl-001', milestoneId: MS2, elementType: 'wall', elementId: 'WL-C1', gridCode: 'C1', name: 'Partition Wall C1 Block Work', description: 'Lay 200mm solid concrete block internal partition — C zone.', category: 'Structural', priority: 'Medium', assignedTo: 'Vikram M.', startDate: '2026-08-10', dueDate: '2026-08-25', status: 'Assigned', progress: 0, createdAt: '2026-08-09T06:07:31.000Z', updatedAt: '2026-08-09T06:07:31.000Z' },
+  { id: 'task-wl-d1', drawingId: 'drw-wl-001', milestoneId: MS2, elementType: 'wall', elementId: 'WL-D1', gridCode: 'D1', name: 'Outer Wall D1 QA Inspection', description: 'Inspect plumb, bond pattern, and mortar joints — D1 outer wall.', category: 'Quality', priority: 'Critical', assignedTo: 'QA Team', startDate: '2026-07-25', dueDate: '2026-08-02', status: 'Blocked', progress: 0, createdAt: '2026-08-09T06:07:31.000Z', updatedAt: '2026-08-09T06:07:31.000Z' },
+  { id: 'task-wl-a2', drawingId: 'drw-wl-001', milestoneId: MS2, elementType: 'wall', elementId: 'WL-A2', gridCode: 'A2', name: 'Internal Partition A2 Block Laying', description: 'Lay horizontal partition between A and B grids, row 2.', category: 'Structural', priority: 'High', assignedTo: 'Suresh P.', startDate: '2026-08-01', dueDate: '2026-08-15', status: 'Delayed', progress: 20, createdAt: '2026-08-09T06:07:31.000Z', updatedAt: '2026-08-09T06:07:31.000Z' },
+  { id: 'task-wl-b2', drawingId: 'drw-wl-001', milestoneId: MS2, elementType: 'wall', elementId: 'WL-B2', gridCode: 'B2', name: 'Wall B2 Waterproofing Treatment', description: 'Apply 2-coat bitumen waterproofing on basement retaining wall face.', category: 'Civil', priority: 'Low', assignedTo: 'Site Team', startDate: '2026-08-20', dueDate: '2026-08-30', status: 'Assigned', progress: 0, createdAt: '2026-08-09T06:07:31.000Z', updatedAt: '2026-08-09T06:07:31.000Z' },
   // Steel Column tasks
   { id: 'task-col-a1', drawingId: 'drw-col-001', milestoneId: MS3, elementType: 'column', elementId: 'A1', gridCode: 'A1', name: 'Column C-A1 Erection', description: '', category: 'Structural', priority: 'High', assignedTo: 'Steel Team', startDate: '2026-06-01', dueDate: '2026-09-30', status: 'Completed', progress: 100, createdAt: '2026-07-15T08:00:00.000Z', updatedAt: '2026-07-15T08:00:00.000Z' },
   { id: 'task-col-b1', drawingId: 'drw-col-001', milestoneId: MS3, elementType: 'column', elementId: 'B1', gridCode: 'B1', name: 'Column C-B1 Plumbing & Grouting', description: '', category: 'Structural', priority: 'High', assignedTo: 'Steel Team', startDate: '2026-06-01', dueDate: '2026-09-30', status: 'Completed', progress: 100, createdAt: '2026-07-15T08:00:00.000Z', updatedAt: '2026-07-15T08:00:00.000Z' },
@@ -848,6 +974,7 @@ const SAMPLE_ACTIVITY: ActivityItem[] = [
   { id: 'act-fp-001', taskId: null, drawingId: 'drw-fp-001', message: 'Foundation Plan added', createdAt: '2026-08-09T06:07:27.000Z' },
   { id: 'act-rp-001', taskId: null, drawingId: 'drw-rp-001', message: 'Roof Plan added', createdAt: '2026-08-09T06:07:32.000Z' },
   { id: 'act-el-001', taskId: null, drawingId: 'drw-el-001', message: 'Electrical Layout Plan added', createdAt: '2026-08-09T06:07:35.000Z' },
+  { id: 'act-wl-001', taskId: null, drawingId: 'drw-wl-001', message: 'Wall Layout Plan added', createdAt: '2026-08-09T06:07:31.000Z' },
   { id: 'act-col-001', taskId: null, drawingId: 'drw-col-001', message: 'Steel Column Erection Plan added', createdAt: '2026-08-06T08:43:37.000Z' },
   { id: 'act-sfd-001', taskId: null, drawingId: 'drw-sfd-001', message: 'Foundation Plan added', createdAt: '2026-08-09T22:00:00.000Z' },
   { id: 'act-sbe-001', taskId: null, drawingId: 'drw-sbe-001', message: 'Steel Beam Erection Plan added', createdAt: '2026-08-09T22:00:01.000Z' },
@@ -956,7 +1083,28 @@ export async function ensureSampleData(): Promise<void> {
     await upsertMissing(db, 'drawings', drawingRecords);
     console.log(`[BuildTrack/seedData] ✓ ${drawingRecords.length} drawings`);
 
-    // 3b. One-time calibration backfill for 'Steel Column Erection Plan'.
+    // 3b. One-time sortOrder backfill — organise drawings hierarchically by floor.
+    const SORT_ORDER_MAP: Record<string, number> = {
+      'drw-gf-001': 0,  // Ground Floor Plan — first (floor drawing)
+      'drw-wl-001': 1,  // Wall Layout Plan
+      'drw-el-001': 2,  // Electrical Layout Plan
+      'drw-rp-001': 3,  // Roof Plan
+      'drw-fp-001': 4,  // Foundation Plan
+      'drw-sfd-001': 0, // Foundation Plan (Steel) — first
+      'drw-col-001': 1, // Steel Column Erection Plan
+      'drw-sbe-001': 2, // Steel Beam Erection Plan
+      'drw-sra-001': 3, // Steel Rafter / Roof Framing Plan
+      'drw-srs-001': 4, // Roof Sheet Layout Plan
+    };
+    for (const [drawingId, order] of Object.entries(SORT_ORDER_MAP)) {
+      const existingDrawing = await drawingGet(drawingId);
+      if (existingDrawing && (existingDrawing.sortOrder == null || existingDrawing.sortOrder === 9999)) {
+        await drawingUpdate(drawingId, { sortOrder: order });
+      }
+    }
+    console.log('[BuildTrack/seedData] ✓ sortOrder backfill complete');
+
+    // 3c. One-time calibration backfill for 'Steel Column Erection Plan'.
     // Early seeds of this drawing shipped with columnPositions: {}, which made
     // DrawingCanvas fall back to a naive edge-to-edge grid that doesn't match
     // this SVG's inset column symbols. Only patch it if it still has that

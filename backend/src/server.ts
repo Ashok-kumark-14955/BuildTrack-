@@ -61,7 +61,265 @@ app.post('/api/cliq-report', async (req, res) => {
   res.status(result.ok ? 200 : 500).json(result);
 });
 
+// Migration endpoint: Add deletedBeams, customBeams, deletedNodes columns to drawings table
+// Uses the Zoho refresh token (stored in env vars) to get a fresh Zoho OAuth token,
+// then calls the Catalyst Management REST API directly to add the columns.
+// The graceful fallback in drawings.ts handles the case where columns don't exist yet,
+// so this migration is run once to permanently add the columns.
+app.post('/api/migrate/add-beam-columns', async (req, res) => {
+  try {
+    console.log('🚀 [Migration] Adding beam/node editor columns to drawings table...');
+
+    if (!process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
+      return res.json({ ok: true, message: 'Local dev — columns already exist in SQLite', results: [] });
+    }
+
+    // Get a fresh Zoho access token using the stored refresh token
+    const freshToken = await getZohoAccessToken();
+    console.log('[Migration] Token obtained:', freshToken ? 'YES (' + freshToken.substring(0, 20) + '...)' : 'NO');
+
+    if (!freshToken) {
+      return res.status(500).json({
+        ok: false,
+        error: 'Could not obtain Zoho access token. Check ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN env vars.',
+      });
+    }
+
+    const { catalystRequest } = makeCatalystManagementApi(req);
+
+    // Step 1: Get all tables to find the drawings table ID
+    const tableListRaw = await catalystRequest('GET', '/table', undefined, freshToken);
+    console.log('[Migration] Table list:', JSON.stringify(tableListRaw).substring(0, 200));
+
+    let tablesRaw: any[];
+    if (Array.isArray(tableListRaw)) {
+      tablesRaw = tableListRaw;
+    } else if (Array.isArray(tableListRaw?.data)) {
+      tablesRaw = tableListRaw.data;
+    } else {
+      return res.json({ ok: false, error: 'Unexpected table list shape', raw: tableListRaw });
+    }
+
+    const drawingsTableInfo = tablesRaw.find((t: any) => (t.table_name || '').toLowerCase() === 'drawings');
+    if (!drawingsTableInfo) {
+      return res.json({
+        ok: false,
+        error: 'drawings table not found',
+        tablesFound: tablesRaw.map((t: any) => t.table_name),
+      });
+    }
+
+    const tableId = String(drawingsTableInfo.table_id);
+    console.log(`[Migration] Found drawings table, id=${tableId}`);
+
+    // Step 2: Get existing columns so we don't duplicate
+    const colListRaw = await catalystRequest('GET', `/table/${tableId}/column`, undefined, freshToken);
+    const existingCols: string[] = (Array.isArray(colListRaw?.data) ? colListRaw.data : [])
+      .map((c: any) => (c.column_name || '').toLowerCase());
+    console.log('[Migration] Existing columns:', existingCols.join(', '));
+
+    // Step 3: Add each missing column
+    const columnsToAdd = ['deletedBeams', 'customBeams', 'deletedNodes'];
+    const results: any[] = [];
+
+    for (const colName of columnsToAdd) {
+      if (existingCols.includes(colName.toLowerCase())) {
+        console.log(`[Migration] ℹ️  Column ${colName} already exists`);
+        results.push({ column: colName, status: 'exists' });
+        continue;
+      }
+      try {
+        const colResp = await catalystRequest('POST', `/table/${tableId}/column`, [{ column_name: colName, data_type: 'text' }], freshToken);
+        console.log(`[Migration] Column ${colName} response:`, JSON.stringify(colResp));
+        if (colResp?.status === 'success') {
+          results.push({ column: colName, status: 'added' });
+        } else {
+          results.push({ column: colName, status: 'unexpected', response: colResp });
+        }
+      } catch (e: any) {
+        results.push({ column: colName, status: 'error', error: e.message });
+      }
+    }
+
+    console.log('[Migration] ✨ Done:', JSON.stringify(results));
+    res.json({ ok: true, tableId, results });
+
+  } catch (error: any) {
+    console.error('[Migration] ❌ Migration failed:', error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+// ---------------------------------------------------------------------------
+// Debug: test SDK updateRow directly for a drawing row
+// POST /api/debug-update-drawing  body: { drawingId, col, value }
+// ---------------------------------------------------------------------------
+app.post('/api/debug-update-drawing', async (req, res) => {
+  try {
+    const { drawingId, col, value } = req.body || {};
+    if (!drawingId || !col) return res.status(400).json({ error: 'drawingId and col required' });
+
+    const catalyst = require('zcatalyst-sdk-node');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const zcql = catalystApp.zcql();
+
+    // 1. Fetch ROWID
+    const selectSql = `SELECT ROWID FROM drawings WHERE id = '${drawingId}'`;
+    const selectResult = await zcql.executeZCQLQuery(selectSql);
+    console.log('[debug] selectResult:', JSON.stringify(selectResult));
+
+    let rowId: number | null = null;
+    if (Array.isArray(selectResult) && selectResult[0]) {
+      const inner = selectResult[0].drawings || selectResult[0];
+      rowId = Number(inner.ROWID || inner.rowid);
+    }
+
+    if (!rowId) return res.json({ ok: false, error: 'ROWID not found', selectResult });
+
+    // 2. Try SDK updateRow
+    const table = catalystApp.datastore().table('drawings');
+    const updatePayload = { ROWID: rowId, [col]: value };
+    console.log('[debug] updatePayload:', JSON.stringify(updatePayload));
+
+    let sdkResult: any;
+    try {
+      sdkResult = await table.updateRow(updatePayload as any);
+      console.log('[debug] sdkResult:', JSON.stringify(sdkResult));
+    } catch (sdkErr: any) {
+      return res.json({ ok: false, rowId, error: sdkErr.message, updatePayload });
+    }
+
+    // 3. Read back
+    const readResult = await zcql.executeZCQLQuery(`SELECT ${col} FROM drawings WHERE id = '${drawingId}'`);
+    console.log('[debug] readResult:', JSON.stringify(readResult));
+
+    res.json({ ok: true, rowId, updatePayload, sdkResult, readResult });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message, stack: err.stack });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Auto-migration: ensure beam/node editor columns exist in DataStore on startup
+// ---------------------------------------------------------------------------
+async function runMigrations() {
+  if (!process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
+    // Local dev: SQLite auto-creates these columns — nothing to do
+    return;
+  }
+  try {
+    const https = require('https');
+    // Use the Catalyst Management API to add columns via REST
+    // This works at startup without a real req/session object.
+    const PROJECT_ID = '59125000000013030';
+    const PROJECT_KEY = '50044693287';
+    const ENVIRONMENT = 'Development';
+
+    // Get access token from environment (injected by Catalyst at runtime)
+    const accessToken = process.env.CATALYST_AUTH_TOKEN || process.env.ZOHO_ACCESS_TOKEN || '';
+
+    if (!accessToken) {
+      console.warn('[migration] No access token available — skipping startup migration. Use /api/migrate/add-beam-columns endpoint to run manually.');
+      return;
+    }
+
+    const headers: Record<string, string> = {
+      'Authorization': `Zoho-oauthtoken ${accessToken}`,
+      'PROJECT_ID': PROJECT_KEY,
+      'X-Catalyst-Environment': ENVIRONMENT,
+      'X-CATALYST-USER': 'admin',
+      'Content-Type': 'application/json',
+    };
+
+    // First, get the drawings table ID
+    const tableListResult = await new Promise<any>((resolve, reject) => {
+      const req = https.request({
+        hostname: 'api.catalyst.zoho.in',
+        path: `/baas/v1/project/${PROJECT_ID}/table`,
+        method: 'GET',
+        headers,
+      }, (res: any) => {
+        let data = '';
+        res.on('data', (c: any) => data += c);
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(data); } });
+      });
+      req.on('error', reject);
+      req.end();
+    });
+
+    const tables: any[] = tableListResult?.data || [];
+    const drawingsTable = tables.find((t: any) => (t.table_name || '').toLowerCase() === 'drawings');
+    if (!drawingsTable) {
+      console.warn('[migration] drawings table not found — skipping column migration');
+      return;
+    }
+
+    const tableId = String(drawingsTable.table_id);
+
+    // Get existing columns
+    const colListResult = await new Promise<any>((resolve, reject) => {
+      const req = https.request({
+        hostname: 'api.catalyst.zoho.in',
+        path: `/baas/v1/project/${PROJECT_ID}/table/${tableId}/column`,
+        method: 'GET',
+        headers,
+      }, (res: any) => {
+        let data = '';
+        res.on('data', (c: any) => data += c);
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(data); } });
+      });
+      req.on('error', reject);
+      req.end();
+    });
+
+    const existingCols: string[] = (colListResult?.data || []).map((c: any) => (c.column_name || '').toLowerCase());
+    console.log('[migration] Existing drawings columns:', existingCols.join(', '));
+
+    const columnsToAdd = [
+      { column_name: 'deletedBeams', data_type: 'text' },
+      { column_name: 'customBeams',  data_type: 'text' },
+      { column_name: 'deletedNodes', data_type: 'text' },
+    ];
+
+    for (const col of columnsToAdd) {
+      if (existingCols.includes(col.column_name.toLowerCase())) {
+        console.log(`[migration] ℹ️  Column ${col.column_name} already exists — skipping`);
+        continue;
+      }
+
+      try {
+        const bodyStr = JSON.stringify([col]);
+        const result = await new Promise<any>((resolve, reject) => {
+          const req = https.request({
+            hostname: 'api.catalyst.zoho.in',
+            path: `/baas/v1/project/${PROJECT_ID}/table/${tableId}/column`,
+            method: 'POST',
+            headers: { ...headers, 'Content-Length': Buffer.byteLength(bodyStr) },
+          }, (res: any) => {
+            let data = '';
+            res.on('data', (c: any) => data += c);
+            res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(data); } });
+          });
+          req.on('error', reject);
+          req.write(bodyStr);
+          req.end();
+        });
+
+        if (result?.status === 'success') {
+          console.log(`[migration] ✅ Column ${col.column_name} added to drawings table`);
+        } else {
+          console.warn(`[migration] ⚠️  Column ${col.column_name}: unexpected response`, JSON.stringify(result));
+        }
+      } catch (err: any) {
+        console.warn(`[migration] ⚠️  Column ${col.column_name}: ${err.message}`);
+      }
+    }
+  } catch (err: any) {
+    console.warn('[migration] Could not run auto-migration at startup:', err.message);
+  }
+}
 
 /**
  * GET /api/me
@@ -118,8 +376,46 @@ app.get('/api/me', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Catalyst Management API helper (shared by setup-tables and debug-tables)
+// Catalyst Management API helper (shared by setup-tables, debug-tables, migrate)
 // ---------------------------------------------------------------------------
+
+/** Fetch a fresh Zoho access token using the stored refresh token. */
+async function getZohoAccessToken(): Promise<string> {
+  const https = require('https');
+  const clientId     = process.env.ZOHO_CLIENT_ID     || '';
+  const clientSecret = process.env.ZOHO_CLIENT_SECRET || '';
+  const refreshToken = process.env.ZOHO_REFRESH_TOKEN || '';
+
+  if (!clientId || !clientSecret || !refreshToken) return '';
+
+  return new Promise<string>((resolve) => {
+    const body = `grant_type=refresh_token&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}&refresh_token=${encodeURIComponent(refreshToken)}`;
+    const options = {
+      hostname: 'accounts.zoho.in',
+      path: '/oauth/v2/token',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+    const request = https.request(options, (resp: any) => {
+      let data = '';
+      resp.on('data', (c: any) => { data += c; });
+      resp.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          resolve(parsed.access_token || '');
+        } catch {
+          resolve('');
+        }
+      });
+    });
+    request.on('error', () => resolve(''));
+    request.write(body);
+    request.end();
+  });
+}
 
 function makeCatalystManagementApi(req: any) {
   const https = require('https');
@@ -152,16 +448,18 @@ function makeCatalystManagementApi(req: any) {
     'Content-Type': 'application/json',
   };
 
-  function catalystRequest(method: string, apiPath: string, body?: any): Promise<any> {
+  function catalystRequest(method: string, apiPath: string, body?: any, overrideToken?: string): Promise<any> {
     return new Promise((resolve, reject) => {
       const url = new URL(`${BASE_URL}/baas/v1/project/${PROJECT_ID}${apiPath}`);
       const bodyStr = body ? JSON.stringify(body) : undefined;
+      const token = overrideToken || accessToken;
       const options = {
         hostname: url.hostname,
         path: url.pathname + url.search,
         method,
         headers: {
           ...headers,
+          'Authorization': `Zoho-oauthtoken ${token}`,
           ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
         },
       };
@@ -347,4 +645,6 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
+  // Run migrations after server starts to ensure DataStore has required columns
+  runMigrations().catch((err) => console.warn('[migration] startup error:', err?.message || err));
 });
