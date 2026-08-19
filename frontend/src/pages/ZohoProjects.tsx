@@ -854,14 +854,8 @@ interface RecordRowProps {
 
 
 // ─── New Entry Slide-in Drawer ────────────────────────────────────────────────
-// Mirrors the Zoho Projects "New <module>" form exactly:
-//   Always shows: Title (required), Description (textarea)
-//   Always shows in "<Module> Information" section: Status (dropdown w/ green dot, default "Active"), Multi User
-//   Then appends any extra custom fields from the module definition
-
-// Stable IDs for the always-present Zoho-default fields
-const ZOHO_TITLE_ID = '__zoho_title__';
-const ZOHO_DESC_ID  = '__zoho_description__';
+// Renders exactly the fields defined on the module (same set shown in Fields
+// settings and the sheet view) — no separate Title/Description/Status inputs.
 
 interface NewEntryDrawerProps {
   projectId: string;
@@ -874,31 +868,20 @@ interface NewEntryDrawerProps {
 }
 
 function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore, initialData, onDelete }: NewEntryDrawerProps) {
-  // draft uses stable Zoho keys + field.id keys for custom fields
+  // draft is keyed by each field's own id
   const [draft, setDraft] = useState<Record<string, any>>(initialData ?? {});
   const [saving, setSaving] = useState(false);
 
-  // Custom fields that are NOT one of the 4 default Zoho fields
-  // (we skip module fields that look like duplicates of the defaults)
-  const extraFields = module.fields.filter((f) => {
-    const lbl = f.label.toLowerCase();
-    if (lbl === 'title') return false;
-    if (lbl === 'description' || lbl === 'desc') return false;
-    if (f.type === 'multiuser') return false;
-    return true;
-  });
+  // Skip multi-user fields — not editable from this drawer yet
+  const extraFields = module.fields.filter((f) => f.type !== 'multiuser');
 
   function setValue(fieldId: string, value: any) {
     setDraft((d) => ({ ...d, [fieldId]: value }));
   }
 
-  // Build the data payload: merge Zoho defaults + custom field values
+  // Build the data payload — one entry per module field, keyed by field id
   function buildPayload() {
-    const payload: Record<string, any> = {
-      _title: draft[ZOHO_TITLE_ID] ?? '',
-      _desc:  draft[ZOHO_DESC_ID] ?? '',
-    };
-    // Also include any extra custom fields — strip _preview from attachment objects
+    const payload: Record<string, any> = {};
     extraFields.forEach((f) => {
       const val = draft[f.id] ?? '';
       if (val && typeof val === 'object' && '_preview' in val) {
@@ -912,7 +895,9 @@ function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore, initialD
     return payload;
   }
 
-  const titleIsEmpty = !String(draft[ZOHO_TITLE_ID] ?? '').trim();
+  // Require the module's first field to be filled, so a record always has an identifying value.
+  const primaryField = extraFields[0];
+  const titleIsEmpty = primaryField ? !String(draft[primaryField.id] ?? '').trim() : false;
 
   async function handleAdd() {
     setSaving(true);
@@ -955,48 +940,13 @@ function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore, initialD
         {/* ── Body ── */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
 
-          {/* ── 1. Title (always shown, required) ── */}
-          <div>
-            <label className="block text-slate-300 text-sm font-medium mb-1.5">
-              Title <span className="text-rose-500">*</span>
-            </label>
-            <input
-              autoFocus
-              type="text"
-              value={draft[ZOHO_TITLE_ID] ?? ''}
-              onChange={(e) => setValue(ZOHO_TITLE_ID, e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !titleIsEmpty && handleAdd()}
-              placeholder=""
-              className="w-full bg-[#0b0000] border border-slate-600 rounded-lg px-3 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-rose-600 transition-colors"
-            />
-          </div>
-
-          {/* ── 2. Description (always shown, textarea with toolbar look) ── */}
-          <div>
-            <label className="block text-slate-300 text-sm font-medium mb-1.5">Description</label>
-            {/* Toolbar strip mimicking Zoho's rich-text bar */}
-            <div className="flex items-center gap-1 px-2 py-1 bg-[#130000] border border-slate-600 border-b-0 rounded-t-lg">
-              {['B','I','U'].map((t) => (
-                <button key={t} type="button" className="px-1.5 py-0.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors">{t}</button>
-              ))}
-              <div className="w-px h-4 bg-slate-700 mx-1" />
-              {['≡','•'].map((t) => (
-                <button key={t} type="button" className="px-1.5 py-0.5 text-xs text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors">{t}</button>
-              ))}
-            </div>
-            <textarea
-              rows={6}
-              value={draft[ZOHO_DESC_ID] ?? ''}
-              onChange={(e) => setValue(ZOHO_DESC_ID, e.target.value)}
-              placeholder=""
-              className="w-full bg-[#0b0000] border border-slate-600 border-t-0 rounded-b-lg px-3 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-rose-600 resize-none transition-colors"
-            />
-          </div>
-
-          {/* ── 3. Extra custom fields (from module definition) ── */}
-          {extraFields.map((field) => (
+          {/* ── Fields from the module definition — same set shown in Fields settings and the sheet view ── */}
+          {extraFields.map((field, i) => (
             <div key={field.id}>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5">{field.label}</label>
+              <label className="block text-slate-300 text-sm font-medium mb-1.5">
+                {field.label}
+                {i === 0 && <span className="text-rose-500"> *</span>}
+              </label>
               {field.type === 'select' ? (
                 <select
                   value={draft[field.id] ?? ''}
