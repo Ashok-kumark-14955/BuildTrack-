@@ -234,6 +234,110 @@ function formatDuration(entryVal: string, exitVal: string): string | null {
 // Suppress unused warning — kept for potential future display
 void formatDuration;
 
+// ─── Stats bar for site entry modules ────────────────────────────────────────
+
+interface SiteEntryStatsProps {
+  records: CustomRecord[];
+  fields: CustomField[];
+}
+
+function SiteEntryStatsBar({ records, fields }: SiteEntryStatsProps) {
+  const statusField = fields.find((f) => f.label.toLowerCase() === 'status' || f.label.toLowerCase().includes('status'));
+  const exitField   = fields.find((f) => f.label.toLowerCase().includes('exit time'));
+
+  const total       = records.length;
+  const approved    = statusField ? records.filter((r) => ['Approved', 'Checked In'].includes(r.data[statusField.id] ?? '')).length : 0;
+  const pending     = statusField ? records.filter((r) => ['Pending'].includes(r.data[statusField.id] ?? '')).length : 0;
+  const exited      = exitField   ? records.filter((r) => r.data[exitField.id]?.toString().trim()).length : 0;
+  const flagged     = statusField ? records.filter((r) => r.data[statusField.id] === 'Flagged').length : 0;
+
+  const stats = [
+    {
+      label: 'Total Entries',
+      value: total,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      ),
+      color: 'rgba(148,163,184,0.8)',
+      bg: 'rgba(30,41,59,0.5)',
+      border: 'rgba(71,85,105,0.4)',
+    },
+    {
+      label: 'Approved',
+      value: approved,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      ),
+      color: '#34d399',
+      bg: 'rgba(6,78,59,0.3)',
+      border: 'rgba(16,185,129,0.25)',
+    },
+    {
+      label: 'Pending',
+      value: pending,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      ),
+      color: '#fbbf24',
+      bg: 'rgba(78,52,6,0.3)',
+      border: 'rgba(245,158,11,0.25)',
+    },
+    {
+      label: 'Exited',
+      value: exited,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      ),
+      color: '#94a3b8',
+      bg: 'rgba(15,23,42,0.5)',
+      border: 'rgba(71,85,105,0.3)',
+    },
+    ...(flagged > 0 ? [{
+      label: 'Flagged',
+      value: flagged,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+        </svg>
+      ),
+      color: '#f97316',
+      bg: 'rgba(78,35,6,0.4)',
+      border: 'rgba(249,115,22,0.3)',
+    }] : []),
+  ];
+
+  return (
+    <div className="flex items-stretch gap-2 mb-3 flex-wrap">
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg flex-1 min-w-[96px] transition-colors duration-150 hover:brightness-125"
+          style={{ background: s.bg, border: `1px solid ${s.border}` }}
+        >
+          <span
+            className="flex items-center justify-center w-6 h-6 rounded-md shrink-0"
+            style={{ color: s.color, background: `${s.color}1f` }}
+          >
+            {React.cloneElement(s.icon, { width: 12, height: 12 })}
+          </span>
+          <div className="flex flex-col leading-none min-w-0">
+            <span className="text-[9px] font-semibold uppercase tracking-wide truncate" style={{ color: s.color, opacity: 0.65 }}>{s.label}</span>
+            <span className="text-base font-extrabold tabular-nums leading-tight" style={{ color: s.color }}>{s.value}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ─── Styled Checkbox ─────────────────────────────────────────────────────────
 
@@ -2056,6 +2160,11 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
   return (
     <>
+      {/* ── Site Entry stats bar ── */}
+      {isSiteEntry && !loading && records.length > 0 && (
+        <SiteEntryStatsBar records={records} fields={module.fields} />
+      )}
+
       {/* Module header */}
       <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
         <div className="flex items-center gap-3">
