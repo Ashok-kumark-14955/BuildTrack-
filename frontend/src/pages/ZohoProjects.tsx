@@ -124,7 +124,59 @@ const BADGE_COLORS: Record<string, string> = {
   'Inspection':  'bg-violet-900/60 text-violet-300 border border-violet-700/60',
   'Meeting':     'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
   'Maintenance': 'bg-orange-900/60 text-orange-300 border border-orange-700/60',
+
+  // Site Entry — Status (real values from the seeded module)
+  'On Site':  'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60',
+  'Exited':   'bg-slate-700/70 text-sky-300 border border-slate-500/60',
+  'Denied':   'bg-red-900/60 text-red-300 border border-red-700/60',
+
+  // Site Entry — Entry Purpose (real values)
+  'Foundation Work':       'bg-amber-900/60 text-amber-300 border border-amber-700/60',
+  'Structural Erection':   'bg-blue-900/60 text-blue-300 border border-blue-700/60',
+  'Electrical Work':       'bg-yellow-900/60 text-yellow-300 border border-yellow-700/60',
+  'Plumbing & Drainage':   'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
+  'Interior Finishing':    'bg-violet-900/60 text-violet-300 border border-violet-700/60',
+  'Safety Inspection':     'bg-rose-900/60 text-rose-300 border border-rose-700/60',
+  'Material Delivery':     'bg-orange-900/60 text-orange-300 border border-orange-700/60',
+  'Equipment Maintenance': 'bg-slate-700/70 text-slate-300 border border-slate-600',
+  'Survey & Layout':       'bg-teal-900/60 text-teal-300 border border-teal-700/60',
+  'Other':                 'bg-slate-700/60 text-slate-400 border border-slate-600',
+
+  // Site Entry — Entry Gate (real values)
+  'Main Gate – Gate 01':  'bg-emerald-900/50 text-emerald-300 border border-emerald-700/50',
+  'East Gate – Gate 02':  'bg-sky-900/50 text-sky-300 border border-sky-700/50',
+  'West Gate – Gate 03':  'bg-indigo-900/50 text-indigo-300 border border-indigo-700/50',
+  'North Gate – Gate 04': 'bg-teal-900/50 text-teal-300 border border-teal-700/50',
+  'South Gate – Gate 05': 'bg-purple-900/50 text-purple-300 border border-purple-700/50',
+  'Rear Gate – Gate 06':  'bg-slate-700/60 text-slate-400 border border-slate-600',
+
+  // Workers — Trade (real values)
+  'Steel Erector':  'bg-orange-900/60 text-orange-300 border border-orange-700/60',
+  'Mason':          'bg-amber-900/60 text-amber-300 border border-amber-700/60',
+  'Carpenter':      'bg-yellow-900/50 text-yellow-300 border border-yellow-700/50',
+  'Electrician':    'bg-yellow-900/60 text-yellow-300 border border-yellow-700/60',
+  'Plumber':        'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
+  'Welder':         'bg-red-900/50 text-red-300 border border-red-700/50',
+  'Painter':        'bg-pink-900/50 text-pink-300 border border-pink-700/50',
+  'Tiler':          'bg-indigo-900/50 text-indigo-300 border border-indigo-700/50',
+  'Foreman':        'bg-violet-900/60 text-violet-300 border border-violet-700/60',
+  'Crane Operator': 'bg-blue-900/50 text-blue-300 border border-blue-700/50',
+  'General Labour': 'bg-slate-700/60 text-slate-400 border border-slate-600',
+
+  // Workers — ID Proof Type
+  'Aadhaar':         'bg-blue-900/50 text-blue-300 border border-blue-700/50',
+  'Passport':        'bg-violet-900/50 text-violet-300 border border-violet-700/50',
+  'Driving Licence': 'bg-cyan-900/50 text-cyan-300 border border-cyan-700/50',
+  'Voter ID':        'bg-amber-900/50 text-amber-300 border border-amber-700/50',
+
+  // Workers — Medical Fitness
+  'Not Required': 'bg-slate-700/60 text-slate-400 border border-slate-600',
 };
+
+// Values that represent an "attention" state — get a small pulsing dot in the Status column.
+const BADGE_ALERT_VALUES = new Set(['Denied', 'Blocked', 'Rejected', 'Expired', 'Terminated', 'Flagged']);
+// Values that represent an active/positive state — get a solid (non-pulsing) dot.
+const BADGE_ACTIVE_VALUES = new Set(['On Site', 'Active', 'Approved', 'Checked In', 'Valid', 'Done', 'In Progress']);
 
 // ─── Site-entry smart detector ───────────────────────────────────────────────
 // Detects if the current module is a "Site Entry" module by checking field labels
@@ -362,10 +414,18 @@ function StyledCheckbox({
   );
 }
 
-function StatusBadge({ value }: { value: string }) {
+function StatusBadge({ value, showDot }: { value: string; showDot?: boolean }) {
   const color = BADGE_COLORS[value] ?? 'bg-slate-700/80 text-slate-300 border border-slate-600';
+  const isAlert = BADGE_ALERT_VALUES.has(value);
+  const isActive = BADGE_ACTIVE_VALUES.has(value);
   return (
-    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', color)}>
+    <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium', color)}>
+      {showDot && (isAlert || isActive) && (
+        <span
+          className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', isActive && !isAlert && 'animate-pulse')}
+          style={{ background: 'currentColor' }}
+        />
+      )}
       {value || '—'}
     </span>
   );
@@ -1742,7 +1802,10 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
 
   function renderCellValue(field: CustomField) {
     const val = data[field.id] ?? '';
-    if (field.type === 'select') return <StatusBadge value={val} />;
+    if (field.type === 'select') {
+      const isStatusField = field.label.toLowerCase().includes('status');
+      return <StatusBadge value={val} showDot={isStatusField} />;
+    }
     if (field.type === 'multiuser') {
       return val
         ? <span className="text-slate-300 text-sm">{val}</span>
