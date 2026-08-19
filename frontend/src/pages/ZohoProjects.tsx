@@ -1727,6 +1727,8 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
   // ── Site Entry enhanced features ──────────────────────────
   const isSiteEntry = isSiteEntryModule(module.fields);
+  // Any module with a Status select field gets the ring-stats widget, not just Site Entry.
+  const moduleStatusField = module.fields.find((f) => f.type === 'select' && f.label.toLowerCase().includes('status'));
   const [activeFilter] = useState<{ fieldId: string; value: string } | null>(null);
   const [detailRecord, setDetailRecord] = useState<{ record: CustomRecord; idx: number } | null>(null);
 
@@ -1896,9 +1898,9 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
       {/* Module header */}
       <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          {/* ── Site Entry ring stats ── */}
-          {isSiteEntry && !loading && records.length > 0 && (() => {
-            const statusField = module.fields.find((f) => f.label.toLowerCase().includes('status'));
+          {/* ── Status ring stats — any module with a Status field gets this ── */}
+          {moduleStatusField && !loading && records.length > 0 && (() => {
+            const statusField = moduleStatusField;
             const total = records.length;
             // Palette cycles so any option added later in Fields settings still gets its own colour.
             const STATUS_PALETTE = ['#34d399', '#fbbf24', '#22d3ee', '#f43f5e', '#a78bfa', '#38bdf8', '#facc15', '#fb923c', '#4ade80', '#f472b6'];
