@@ -1899,12 +1899,11 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
           {/* ── Site Entry ring stats ── */}
           {isSiteEntry && !loading && records.length > 0 && (() => {
             const statusField = module.fields.find((f) => f.label.toLowerCase().includes('status'));
-            const exitField   = module.fields.find((f) => f.label.toLowerCase().includes('exit time'));
-            const total    = records.length;
-            const approved = statusField ? records.filter((r) => ['Approved','Checked In'].includes(r.data[statusField.id] ?? '')).length : 0;
-            const pending  = statusField ? records.filter((r) => r.data[statusField.id] === 'Pending').length : 0;
-            const exited   = exitField   ? records.filter((r) => r.data[exitField.id]?.toString().trim()).length : 0;
-            const flagged  = statusField ? records.filter((r) => r.data[statusField.id] === 'Flagged').length : 0;
+            const total   = records.length;
+            const onSite  = statusField ? records.filter((r) => r.data[statusField.id] === 'On Site').length : 0;
+            const pending = statusField ? records.filter((r) => r.data[statusField.id] === 'Pending').length : 0;
+            const exited  = statusField ? records.filter((r) => r.data[statusField.id] === 'Exited').length : 0;
+            const denied  = statusField ? records.filter((r) => r.data[statusField.id] === 'Denied').length : 0;
 
             // Mini ring SVG component (inline) — colored dot badge sits above the ring, like a status marker
             const MiniRing = ({ value, color, size = 28 }: { value: number; color: string; size?: number }) => {
@@ -1947,10 +1946,10 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               const size = 52, cx = 26, cy = 26, R = 20, sw = 4.5;
               const circ = 2 * Math.PI * R;
               const segs = [
-                { value: approved, color: '#34d399' },
-                { value: pending,  color: '#fbbf24' },
-                { value: exited,   color: '#22d3ee' },
-                ...(flagged > 0 ? [{ value: flagged, color: '#f97316' }] : []),
+                { value: onSite,  color: '#34d399' },
+                { value: pending, color: '#fbbf24' },
+                { value: exited,  color: '#22d3ee' },
+                { value: denied,  color: '#f43f5e' },
               ].filter(s => s.value > 0);
               let offset = 0;
               const gap = total > 0 ? circ * 0.02 : 0;
@@ -2016,12 +2015,12 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
             };
 
             const stats = [
-              { label: 'Approved', value: approved, color: '#34d399' },
-              { label: 'Pending',  value: pending,  color: '#fbbf24' },
-              { label: 'Exited',   value: exited,   color: '#22d3ee' },
-              ...(flagged > 0 ? [{ label: 'Flagged', value: flagged, color: '#f97316' }] : []),
+              { label: 'On Site', value: onSite,  color: '#34d399' },
+              { label: 'Pending', value: pending, color: '#fbbf24' },
+              { label: 'Exited',  value: exited,  color: '#22d3ee' },
+              { label: 'Denied',  value: denied,  color: '#f43f5e' },
             ];
-            const approvedPct = total > 0 ? Math.round((approved / total) * 100) : 0;
+            const onSitePct = total > 0 ? Math.round((onSite / total) * 100) : 0;
 
             return (
               <div className="flex items-center gap-3 px-1 py-1">
@@ -2037,7 +2036,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                     <span style={{ color: 'rgba(100,116,139,0.6)' }}> · </span>
                     <span className="inline-flex items-center gap-1">
                       <span className="w-1 h-1 rounded-full inline-block" style={{ background: '#34d399' }} />
-                      <span style={{ color: '#34d399', fontWeight: 700 }}>{approvedPct}%</span>
+                      <span style={{ color: '#34d399', fontWeight: 700 }}>{onSitePct}%</span> on site
                     </span>
                   </span>
                 </div>
