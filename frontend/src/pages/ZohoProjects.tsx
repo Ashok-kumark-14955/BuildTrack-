@@ -177,6 +177,17 @@ const BADGE_COLORS: Record<string, string> = {
 const BADGE_ALERT_VALUES = new Set(['Denied', 'Blocked', 'Rejected', 'Expired', 'Terminated', 'Flagged']);
 // Values that represent an active/positive state — get a solid (non-pulsing) dot.
 const BADGE_ACTIVE_VALUES = new Set(['On Site', 'Active', 'Approved', 'Checked In', 'Valid', 'Done', 'In Progress']);
+// Values that are informational/neutral-but-notable — a calmer amber accent.
+const BADGE_CAUTION_VALUES = new Set(['Pending', 'On Leave', 'Review']);
+
+/** Solid accent color for a status value — used for the row's left rail and the badge glow. */
+function statusAccentColor(value: string): string | null {
+  if (!value) return null;
+  if (BADGE_ALERT_VALUES.has(value)) return '#f87171';
+  if (BADGE_ACTIVE_VALUES.has(value)) return '#34d399';
+  if (BADGE_CAUTION_VALUES.has(value)) return '#fbbf24';
+  return '#64748b'; // neutral (e.g. Exited, Inactive) — still worth a faint marker
+}
 
 // ─── Site-entry smart detector ───────────────────────────────────────────────
 // Detects if the current module is a "Site Entry" module by checking field labels
@@ -222,111 +233,6 @@ function formatDuration(entryVal: string, exitVal: string): string | null {
 }
 // Suppress unused warning — kept for potential future display
 void formatDuration;
-
-// ─── Stats bar for site entry modules ────────────────────────────────────────
-
-interface SiteEntryStatsProps {
-  records: CustomRecord[];
-  fields: CustomField[];
-}
-
-function SiteEntryStatsBar({ records, fields }: SiteEntryStatsProps) {
-  const statusField = fields.find((f) => f.label.toLowerCase() === 'status' || f.label.toLowerCase().includes('status'));
-  const exitField   = fields.find((f) => f.label.toLowerCase().includes('exit time'));
-
-  const total       = records.length;
-  const approved    = statusField ? records.filter((r) => ['Approved', 'Checked In'].includes(r.data[statusField.id] ?? '')).length : 0;
-  const pending     = statusField ? records.filter((r) => ['Pending'].includes(r.data[statusField.id] ?? '')).length : 0;
-  const exited      = exitField   ? records.filter((r) => r.data[exitField.id]?.toString().trim()).length : 0;
-  const flagged     = statusField ? records.filter((r) => r.data[statusField.id] === 'Flagged').length : 0;
-
-  const stats = [
-    {
-      label: 'Total Entries',
-      value: total,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      ),
-      color: 'rgba(148,163,184,0.8)',
-      bg: 'rgba(30,41,59,0.5)',
-      border: 'rgba(71,85,105,0.4)',
-    },
-    {
-      label: 'Approved',
-      value: approved,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-      ),
-      color: '#34d399',
-      bg: 'rgba(6,78,59,0.3)',
-      border: 'rgba(16,185,129,0.25)',
-    },
-    {
-      label: 'Pending',
-      value: pending,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-        </svg>
-      ),
-      color: '#fbbf24',
-      bg: 'rgba(78,52,6,0.3)',
-      border: 'rgba(245,158,11,0.25)',
-    },
-    {
-      label: 'Exited',
-      value: exited,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-      ),
-      color: '#94a3b8',
-      bg: 'rgba(15,23,42,0.5)',
-      border: 'rgba(71,85,105,0.3)',
-    },
-    ...(flagged > 0 ? [{
-      label: 'Flagged',
-      value: flagged,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
-        </svg>
-      ),
-      color: '#f97316',
-      bg: 'rgba(78,35,6,0.4)',
-      border: 'rgba(249,115,22,0.3)',
-    }] : []),
-  ];
-
-  return (
-    <div className="flex items-stretch gap-2 mb-3 flex-wrap">
-      {stats.map((s) => (
-        <div
-          key={s.label}
-          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg flex-1 min-w-[96px] transition-colors duration-150 hover:brightness-125"
-          style={{ background: s.bg, border: `1px solid ${s.border}` }}
-        >
-          <span
-            className="flex items-center justify-center w-6 h-6 rounded-md shrink-0"
-            style={{ color: s.color, background: `${s.color}1f` }}
-          >
-            {React.cloneElement(s.icon, { width: 12, height: 12 })}
-          </span>
-          <div className="flex flex-col leading-none min-w-0">
-            <span className="text-[9px] font-semibold uppercase tracking-wide truncate" style={{ color: s.color, opacity: 0.65 }}>{s.label}</span>
-            <span className="text-base font-extrabold tabular-nums leading-tight" style={{ color: s.color }}>{s.value}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 
 // ─── Styled Checkbox ─────────────────────────────────────────────────────────
@@ -418,8 +324,12 @@ function StatusBadge({ value, showDot }: { value: string; showDot?: boolean }) {
   const color = BADGE_COLORS[value] ?? 'bg-slate-700/80 text-slate-300 border border-slate-600';
   const isAlert = BADGE_ALERT_VALUES.has(value);
   const isActive = BADGE_ACTIVE_VALUES.has(value);
+  const accent = showDot ? statusAccentColor(value) : null;
   return (
-    <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium', color)}>
+    <span
+      className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium transition-shadow duration-150', color)}
+      style={accent ? { boxShadow: `0 0 10px -3px ${accent}` } : undefined}
+    >
       {showDot && (isAlert || isActive) && (
         <span
           className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', isActive && !isAlert && 'animate-pulse')}
@@ -1826,7 +1736,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         </span>
       );
     }
-    return <span className={cn('text-sm', val ? 'text-slate-200' : 'text-slate-500')}>{val || '—'}</span>;
+    return <span className={cn('text-sm', val ? 'text-slate-200 font-medium' : 'text-slate-600 italic')}>{val || '—'}</span>;
   }
 
   const isEven = rowIndex % 2 === 0;
@@ -1836,12 +1746,20 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
       ? 'linear-gradient(135deg, rgba(18,0,4,0.95) 0%, rgba(10,0,2,0.98) 100%)'
       : 'linear-gradient(135deg, rgba(26,0,7,0.97) 0%, rgba(16,0,4,0.99) 100%)';
 
+  // Persistent left rail colored by this row's Status field, so state reads
+  // at a glance without needing to scroll to the Status column or hover.
+  const statusField = fields.find((f) => f.type === 'select' && f.label.toLowerCase().includes('status'));
+  const statusValue = statusField ? (data[statusField.id] ?? '') : '';
+  const railColor = !selected ? statusAccentColor(statusValue) : null;
+  const restBoxShadow = railColor ? `inset 3px 0 0 ${railColor}` : 'none';
+
   return (
     <tr
       className="group transition-all duration-150"
       style={{
         background: rowBg,
         borderBottom: '1px solid rgba(80,5,25,0.4)',
+        boxShadow: restBoxShadow,
       }}
       onMouseEnter={(e) => {
         if (!selected) {
@@ -1849,12 +1767,13 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
             'linear-gradient(135deg, rgba(220,38,90,0.13) 0%, rgba(40,3,12,0.97) 50%, rgba(20,0,5,0.95) 100%)';
         }
         (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(220,38,90,0.5)';
-        (e.currentTarget as HTMLElement).style.boxShadow = 'inset 3px 0 0 rgba(220,38,90,0.6), 0 1px 12px rgba(220,38,90,0.08)';
+        (e.currentTarget as HTMLElement).style.boxShadow =
+          `inset 3px 0 0 ${railColor ?? 'rgba(220,38,90,0.6)'}, 0 1px 12px rgba(220,38,90,0.08)`;
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.background = rowBg;
         (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(80,5,25,0.4)';
-        (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+        (e.currentTarget as HTMLElement).style.boxShadow = restBoxShadow;
       }}
     >
       {/* Checkbox */}
@@ -1863,7 +1782,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         style={{ borderRight: '1px solid rgba(80,5,25,0.5)' }}
         onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
       >
-        <span className="flex items-center justify-center py-4">
+        <span className="flex items-center justify-center py-3">
           <StyledCheckbox checked={selected} onChange={onToggleSelect} />
         </span>
       </td>
@@ -1874,7 +1793,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         style={{ borderRight: '1px solid rgba(80,5,25,0.5)' }}
       >
         <span
-          className="flex items-center justify-center h-full py-4 text-[10px] font-mono font-black tracking-wider"
+          className="flex items-center justify-center h-full py-3 text-[10px] font-mono font-black tracking-wider"
           style={{ color: 'rgba(220,38,90,0.45)', textShadow: '0 0 10px rgba(220,38,90,0.3)' }}
         >
           {String(rowIndex + 1).padStart(2, '0')}
@@ -1893,7 +1812,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
               style={{ background: 'rgba(220,38,90,0.1)', boxShadow: 'inset 0 0 0 2px rgba(220,38,90,0.5)' }}
             />
           )}
-          <div className="relative px-3 py-4">
+          <div className="relative px-3 py-3">
             {editingCell === field.id ? (
               <CellEditor
                 field={field}
@@ -2137,11 +2056,6 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
   return (
     <>
-      {/* ── Site Entry stats bar ── */}
-      {isSiteEntry && !loading && records.length > 0 && (
-        <SiteEntryStatsBar records={records} fields={module.fields} />
-      )}
-
       {/* Module header */}
       <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
         <div className="flex items-center gap-3">
