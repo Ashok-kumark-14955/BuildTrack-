@@ -4,7 +4,7 @@
     {
       "name": "backend",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd backend && npm run dev"],
+      "runtimeArgs": ["-c", "cd backend && set -a && [ -f .env ] && source .env; set +a && npm run dev"],
       "port": 4000
     },
     {

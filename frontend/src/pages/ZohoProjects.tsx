@@ -76,103 +76,6 @@ const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   attachment: 'Attachment',
 };
 
-// ─── Badge colour helpers ────────────────────────────────────────────────────
-
-// Maps specific values to tailwind colour classes
-const BADGE_COLORS: Record<string, string> = {
-  // Status
-  'Not Started': 'bg-slate-600 text-white',
-  'In Progress': 'bg-pink-600 text-white',
-  'Done': 'bg-emerald-600 text-white',
-  'Blocked': 'bg-red-600 text-white',
-  'Review': 'bg-amber-600 text-white',
-  'Active': 'bg-emerald-600 text-white',
-  'Inactive': 'bg-slate-600 text-white',
-  'On Leave': 'bg-amber-600 text-white',
-  'Terminated': 'bg-red-600 text-white',
-  // Skill
-  'Unskilled': 'bg-slate-600 text-white',
-  'Semi-Skilled': 'bg-sky-600 text-white',
-  'Skilled': 'bg-blue-600 text-white',
-  'Highly Skilled': 'bg-violet-600 text-white',
-  // Worker type
-  'Labour': 'bg-orange-600 text-white',
-  'Skilled Worker': 'bg-blue-600 text-white',
-  'Supervisor': 'bg-violet-600 text-white',
-  'Engineer': 'bg-cyan-600 text-white',
-  'Contractor Staff': 'bg-rose-600 text-white',
-  // Medical
-  'Valid': 'bg-emerald-600 text-white',
-  'Expired': 'bg-red-600 text-white',
-  'Pending': 'bg-amber-600 text-white',
-  // Site Entry statuses
-  'Approved': 'bg-emerald-600 text-white',
-  'Rejected': 'bg-red-600 text-white',
-  'Checked In': 'bg-blue-600 text-white',
-  'Checked Out': 'bg-slate-600 text-white',
-  'Flagged': 'bg-orange-600 text-white',
-  'Visitor': 'bg-violet-600 text-white',
-  'Contractor': 'bg-cyan-600 text-white',
-  'Employee': 'bg-sky-600 text-white',
-  // Gate types
-  'Main Gate': 'bg-slate-600 text-white',
-  'Side Gate': 'bg-slate-600 text-white',
-  'Emergency': 'bg-red-600 text-white',
-  // Entry purpose
-  'Work': 'bg-blue-600 text-white',
-  'Delivery': 'bg-amber-600 text-white',
-  'Inspection': 'bg-violet-600 text-white',
-  'Meeting': 'bg-cyan-600 text-white',
-  'Maintenance': 'bg-orange-600 text-white',
-
-  // Site Entry — Status (real values from the seeded module)
-  'On Site': 'bg-emerald-600 text-white',
-  'Exited': 'bg-slate-600 text-white',
-  'Denied': 'bg-red-600 text-white',
-
-  // Site Entry — Entry Purpose (real values)
-  'Foundation Work': 'bg-amber-600 text-white',
-  'Structural Erection': 'bg-blue-600 text-white',
-  'Electrical Work': 'bg-yellow-600 text-white',
-  'Plumbing & Drainage': 'bg-cyan-600 text-white',
-  'Interior Finishing': 'bg-violet-600 text-white',
-  'Safety Inspection': 'bg-rose-600 text-white',
-  'Material Delivery': 'bg-orange-600 text-white',
-  'Equipment Maintenance': 'bg-slate-600 text-white',
-  'Survey & Layout': 'bg-teal-600 text-white',
-  'Other': 'bg-slate-600 text-white',
-
-  // Site Entry — Entry Gate (real values)
-  'Main Gate – Gate 01': 'bg-emerald-600 text-white',
-  'East Gate – Gate 02': 'bg-sky-600 text-white',
-  'West Gate – Gate 03': 'bg-indigo-600 text-white',
-  'North Gate – Gate 04': 'bg-teal-600 text-white',
-  'South Gate – Gate 05': 'bg-purple-600 text-white',
-  'Rear Gate – Gate 06': 'bg-slate-600 text-white',
-
-  // Workers — Trade (real values)
-  'Steel Erector': 'bg-orange-600 text-white',
-  'Mason': 'bg-amber-600 text-white',
-  'Carpenter': 'bg-yellow-600 text-white',
-  'Electrician': 'bg-yellow-600 text-white',
-  'Plumber': 'bg-cyan-600 text-white',
-  'Welder': 'bg-red-600 text-white',
-  'Painter': 'bg-pink-600 text-white',
-  'Tiler': 'bg-indigo-600 text-white',
-  'Foreman': 'bg-violet-600 text-white',
-  'Crane Operator': 'bg-blue-600 text-white',
-  'General Labour': 'bg-slate-600 text-white',
-
-  // Workers — ID Proof Type
-  'Aadhaar': 'bg-blue-600 text-white',
-  'Passport': 'bg-violet-600 text-white',
-  'Driving Licence': 'bg-cyan-600 text-white',
-  'Voter ID': 'bg-amber-600 text-white',
-
-  // Workers — Medical Fitness
-  'Not Required': 'bg-slate-600 text-white',
-};
-
 // Values that represent an "attention" state — get a small pulsing dot in the Status column.
 const BADGE_ALERT_VALUES = new Set(['Denied', 'Blocked', 'Rejected', 'Expired', 'Terminated', 'Flagged']);
 // Values that represent an active/positive state — get a solid (non-pulsing) dot.
@@ -234,399 +137,110 @@ function formatDuration(entryVal: string, exitVal: string): string | null {
 // Suppress unused warning — kept for potential future display
 void formatDuration;
 
-// ─── Stats bar for site entry modules ────────────────────────────────────────
+// ─── SelectOptionsEditor ─────────────────────────────────────────────────────
 
-interface SiteEntryStatsProps {
-  records: CustomRecord[];
-  fields: CustomField[];
-}
-
-function useSiteEntryStats(records: CustomRecord[], fields: CustomField[]) {
-  const statusField = fields.find((f) => f.label.toLowerCase() === 'status' || f.label.toLowerCase().includes('status'));
-  const exitField   = fields.find((f) => f.label.toLowerCase().includes('exit time'));
-  const total    = records.length;
-  const approved = statusField ? records.filter((r) => ['Approved', 'Checked In'].includes(r.data[statusField.id] ?? '')).length : 0;
-  const pending  = statusField ? records.filter((r) => ['Pending'].includes(r.data[statusField.id] ?? '')).length : 0;
-  const exited   = exitField   ? records.filter((r) => r.data[exitField.id]?.toString().trim()).length : 0;
-  const flagged  = statusField ? records.filter((r) => r.data[statusField.id] === 'Flagged').length : 0;
-  return { total, approved, pending, exited, flagged };
-}
-
-/** Enhanced neon ring — animated glow halo, multi-segment arcs, mini progress-bar legend */
-function SiteEntryMiniRing({ records, fields }: SiteEntryStatsProps) {
-  const { total, approved, pending, exited, flagged } = useSiteEntryStats(records, fields);
-
-  // Ring geometry — slightly larger for visual impact
-  const size = 64; const cx = 32; const cy = 32;
-  const R = 26; const stroke = 5;
-  const circumference = 2 * Math.PI * R;
-
-  const allSegments = [
-    { label: 'Approved', value: approved, color: '#34d399', glow: 'rgba(52,211,153,0.8)',  hex: '#34d399' },
-    { label: 'Pending',  value: pending,  color: '#fbbf24', glow: 'rgba(251,191,36,0.8)',  hex: '#fbbf24' },
-    { label: 'Exited',   value: exited,   color: '#94a3b8', glow: 'rgba(148,163,184,0.6)', hex: '#94a3b8' },
-    ...(flagged > 0 ? [{ label: 'Flagged', value: flagged, color: '#f97316', glow: 'rgba(249,115,22,0.8)', hex: '#f97316' }] : []),
-  ];
-  const dominant = allSegments.reduce((best, s) => s.value > best.value ? s : best, allSegments[0] ?? { color: '#fb7185', glow: 'rgba(251,113,133,0.8)', value: 0, label: '', hex: '#fb7185' });
-
-  // Build arc dasharray / dashoffset
-  let offset = 0;
-  type ArcDef = { color: string; glow: string; dasharray: string; dashoffset: number; value: number };
-  const arcs: ArcDef[] = [];
-  const gap = total > 0 ? circumference * 0.03 : 0;
-  allSegments.forEach((seg) => {
-    const pct = total > 0 ? seg.value / total : 0;
-    const arcLen = Math.max(0, pct * circumference - gap);
-    arcs.push({ color: seg.color, glow: seg.glow, value: seg.value, dasharray: `${arcLen} ${circumference - arcLen}`, dashoffset: circumference * 0.25 - offset });
-    offset += pct * circumference;
-  });
-  if (total === 0) {
-    arcs.push({ color: 'rgba(51,65,85,0.4)', glow: 'none', value: 0, dasharray: `${circumference} 0`, dashoffset: circumference * 0.25 });
+function SelectOptionsEditor({ options, onChange }: { options: string[]; onChange: (opts: string[]) => void }) {
+  const [input, setInput] = useState('');
+  function add() {
+    const v = input.trim();
+    if (v && !options.includes(v)) { onChange([...options, v]); setInput(''); }
   }
-
-  // Tick mark positions (at 0°, 90°, 180°, 270°)
-  const ticks = [0, 90, 180, 270].map((deg) => {
-    const rad = (deg - 90) * (Math.PI / 180);
-    const inner = R - stroke / 2 - 2;
-    const outer = R + stroke / 2 + 2;
-    return {
-      x1: cx + inner * Math.cos(rad), y1: cy + inner * Math.sin(rad),
-      x2: cx + outer * Math.cos(rad), y2: cy + outer * Math.sin(rad),
-    };
-  });
-
+  function remove(idx: number) { onChange(options.filter((_, i) => i !== idx)); }
   return (
-    <div className="flex items-center gap-3 px-3 py-2 rounded-xl"
-      style={{
-        background: 'linear-gradient(135deg, rgba(10,14,26,0.95) 0%, rgba(15,20,40,0.9) 100%)',
-        border: '1px solid rgba(71,85,105,0.25)',
-        boxShadow: `0 0 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(71,85,105,0.1)`,
-      }}>
-
-      {/* ── Enhanced neon ring ── */}
-      <div className="relative shrink-0" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
-          <defs>
-            {/* Per-arc glow filters */}
-            {arcs.map((arc, i) => arc.glow !== 'none' && (
-              <filter key={`af-${i}`} id={`af-${i}`} x="-80%" y="-80%" width="260%" height="260%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-            ))}
-            {/* Outer halo glow */}
-            <filter id="halo" x="-80%" y="-80%" width="260%" height="260%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
-            </filter>
-            {/* Center text glow */}
-            <filter id="textglow" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
-              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-            {/* Radial gradient for dark fill center */}
-            <radialGradient id="centerFill" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="rgba(15,20,40,0.95)" />
-              <stop offset="100%" stopColor="rgba(8,12,28,0.98)" />
-            </radialGradient>
-          </defs>
-
-          {/* Spinning halo ring — animated */}
-          <circle cx={cx} cy={cy} r={R + 5} fill="none"
-            stroke={dominant.glow} strokeWidth={1} opacity={0.25}
-            strokeDasharray={`${circumference * 0.3} ${circumference * 0.7}`}
-            filter="url(#halo)">
-            <animateTransform attributeName="transform" type="rotate"
-              from={`0 ${cx} ${cy}`} to={`360 ${cx} ${cy}`} dur="6s" repeatCount="indefinite" />
-          </circle>
-
-          {/* Outer border ring (very faint) */}
-          <circle cx={cx} cy={cy} r={R + 3} fill="none" stroke="rgba(71,85,105,0.15)" strokeWidth={0.5} />
-
-          {/* Dark track groove */}
-          <circle cx={cx} cy={cy} r={R} fill="none"
-            stroke="rgba(15,23,42,1)" strokeWidth={stroke + 4} />
-          <circle cx={cx} cy={cy} r={R} fill="none"
-            stroke="rgba(51,65,85,0.4)" strokeWidth={stroke} />
-
-          {/* Tick marks at cardinal points */}
-          {ticks.map((t, i) => (
-            <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
-              stroke="rgba(71,85,105,0.5)" strokeWidth={0.75} strokeLinecap="round" />
-          ))}
-
-          {/* Segment arcs — glow layer first, then crisp arc on top */}
-          {arcs.map((arc, i) => arc.value > 0 && (
-            <React.Fragment key={i}>
-              {/* Wide soft glow */}
-              <circle cx={cx} cy={cy} r={R} fill="none"
-                stroke={arc.glow} strokeWidth={stroke + 6}
-                strokeDasharray={arc.dasharray} strokeDashoffset={arc.dashoffset}
-                strokeLinecap="round" opacity={0.35} filter={`url(#af-${i})`}
-                style={{ transition: 'stroke-dasharray 0.6s cubic-bezier(0.4,0,0.2,1)' }} />
-              {/* Medium inner glow */}
-              <circle cx={cx} cy={cy} r={R} fill="none"
-                stroke={arc.color} strokeWidth={stroke + 2}
-                strokeDasharray={arc.dasharray} strokeDashoffset={arc.dashoffset}
-                strokeLinecap="round" opacity={0.2}
-                style={{ transition: 'stroke-dasharray 0.6s cubic-bezier(0.4,0,0.2,1)' }} />
-              {/* Crisp main arc */}
-              <circle cx={cx} cy={cy} r={R} fill="none"
-                stroke={arc.color} strokeWidth={stroke}
-                strokeDasharray={arc.dasharray} strokeDashoffset={arc.dashoffset}
-                strokeLinecap="round"
-                style={{ transition: 'stroke-dasharray 0.6s cubic-bezier(0.4,0,0.2,1)' }} />
-            </React.Fragment>
-          ))}
-
-          {/* Inner circle dark fill */}
-          <circle cx={cx} cy={cy} r={R - stroke / 2 - 4} fill="url(#centerFill)" />
-
-          {/* Center text — total count */}
-          <text x={cx} y={cy - 3} textAnchor="middle" dominantBaseline="middle"
-            fill={dominant.color} filter="url(#textglow)"
-            style={{ fontSize: total >= 100 ? 13 : total >= 10 ? 16 : 18, fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.5px' }}>
-            {total}
-          </text>
-          <text x={cx} y={cy + 9} textAnchor="middle" dominantBaseline="middle"
-            fill="rgba(148,163,184,0.45)"
-            style={{ fontSize: 6.5, fontWeight: 700, fontFamily: 'inherit', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            TOTAL
-          </text>
-        </svg>
+    <div className="ml-2 mt-1 space-y-1">
+      <div className="flex flex-wrap gap-1">
+        {options.map((o, i) => (
+          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 text-[10px]">
+            {o}
+            <button type="button" onClick={() => remove(i)} className="text-slate-500 hover:text-red-400 leading-none">×</button>
+          </span>
+        ))}
       </div>
-
-      {/* ── Rich legend with mini progress bars ── */}
-      <div className="flex flex-col gap-1.5 min-w-[110px]">
-        {allSegments.map((item) => {
-          const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
-          return (
-            <div key={item.label} className="flex flex-col gap-0.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  {/* Glowing dot */}
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ background: item.color, boxShadow: `0 0 5px ${item.glow}, 0 0 10px ${item.glow}` }} />
-                  <span className="text-[9px] font-semibold uppercase tracking-wide"
-                    style={{ color: 'rgba(148,163,184,0.5)' }}>{item.label}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[11px] font-black tabular-nums"
-                    style={{ color: item.value > 0 ? item.color : 'rgba(71,85,105,0.5)',
-                      textShadow: item.value > 0 ? `0 0 8px ${item.glow}` : 'none' }}>
-                    {item.value}
-                  </span>
-                  <span className="text-[8px] tabular-nums" style={{ color: 'rgba(71,85,105,0.6)' }}>
-                    {pct > 0 ? `${pct}%` : ''}
-                  </span>
-                </div>
-              </div>
-              {/* Mini progress bar */}
-              <div className="h-[2px] rounded-full overflow-hidden" style={{ background: 'rgba(51,65,85,0.4)' }}>
-                <div className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${pct}%`,
-                    background: item.value > 0
-                      ? `linear-gradient(90deg, ${item.color}99, ${item.color})`
-                      : 'transparent',
-                    boxShadow: item.value > 0 ? `0 0 4px ${item.glow}` : 'none',
-                  }} />
-              </div>
-            </div>
-          );
-        })}
+      <div className="flex gap-1">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+          placeholder="Add option…"
+          className="flex-1 bg-[#0b0000] border border-slate-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-rose-700"
+        />
+        <button type="button" onClick={add} className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white">+</button>
       </div>
     </div>
   );
 }
 
-// ─── Styled Checkbox ─────────────────────────────────────────────────────────
+// ─── StatusBadge ─────────────────────────────────────────────────────────────
 
-function StyledCheckbox({
-  checked,
-  onChange,
-  indeterminate,
-}: {
-  checked: boolean;
-  onChange: () => void;
-  indeterminate?: boolean;
-}) {
-  const ref = React.useRef<HTMLInputElement>(null);
-
-  React.useEffect(() => {
-    if (ref.current) {
-      ref.current.indeterminate = indeterminate ?? false;
-    }
-  }, [indeterminate]);
+function StatusBadge({ value, showDot = false }: { value: string; showDot?: boolean }) {
+  if (!value) return <span className="text-slate-500 text-sm italic">—</span>;
+  const accentColor = statusAccentColor(value);
+  const isAlert = BADGE_ALERT_VALUES.has(value);
+  const isActive = BADGE_ACTIVE_VALUES.has(value);
+  const isCaution = BADGE_CAUTION_VALUES.has(value);
+  const dotColor = isAlert ? '#f87171' : isActive ? '#34d399' : isCaution ? '#fbbf24' : '#64748b';
 
   return (
-    <label
-      className="relative flex items-center justify-center cursor-pointer"
-      style={{ width: 16, height: 16 }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <input
-        ref={ref}
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        className="sr-only"
-      />
-      {/* Custom box */}
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold"
+      style={{
+        background: accentColor ? `${accentColor}18` : 'rgba(100,116,139,0.15)',
+        color: accentColor ?? '#94a3b8',
+        border: `1px solid ${accentColor ? `${accentColor}30` : 'rgba(100,116,139,0.2)'}`,
+      }}>
+      {showDot && (
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isAlert ? 'animate-pulse' : ''}`}
+          style={{ background: dotColor }} />
+      )}
+      {value}
+    </span>
+  );
+}
+
+// ─── StyledCheckbox ───────────────────────────────────────────────────────────
+
+function StyledCheckbox({ checked, onChange, indeterminate = false }: { checked: boolean; onChange: () => void; indeterminate?: boolean }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <label className="inline-flex items-center cursor-pointer">
+      <input ref={ref} type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
       <span
-        className="flex items-center justify-center rounded transition-all duration-150"
+        className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all duration-150"
         style={{
-          width: 15,
-          height: 15,
-          background: checked
-            ? 'linear-gradient(135deg, #e11d48 0%, #9f1239 100%)'
-            : indeterminate
-            ? 'linear-gradient(135deg, #be123c 0%, #881337 100%)'
-            : 'rgba(220,38,90,0.06)',
-          border: checked || indeterminate
-            ? '1.5px solid rgba(251,113,133,0.7)'
-            : '1.5px solid rgba(220,38,90,0.3)',
-          boxShadow: checked
-            ? '0 0 8px rgba(225,29,72,0.45), inset 0 1px 0 rgba(255,255,255,0.15)'
-            : indeterminate
-            ? '0 0 6px rgba(190,18,60,0.3)'
-            : 'none',
+          background: checked || indeterminate ? 'rgba(220,38,90,0.85)' : 'transparent',
+          border: checked || indeterminate ? '1.5px solid rgba(220,38,90,0.9)' : '1.5px solid rgba(100,116,139,0.5)',
+          boxShadow: checked || indeterminate ? '0 0 6px rgba(220,38,90,0.4)' : 'none',
         }}
       >
-        {checked && (
-          <svg
-            width="9"
-            height="9"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="white"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="2,6 5,9 10,3" />
-          </svg>
-        )}
-        {!checked && indeterminate && (
-          <svg
-            width="8"
-            height="2"
-            viewBox="0 0 8 2"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <line x1="1" y1="1" x2="7" y2="1" />
-          </svg>
-        )}
+        {indeterminate && !checked ? (
+          <svg width="8" height="2" viewBox="0 0 8 2" fill="none"><line x1="0" y1="1" x2="8" y2="1" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+        ) : checked ? (
+          <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><polyline points="1,3.5 3.5,6 8,1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        ) : null}
       </span>
     </label>
   );
 }
 
-function StatusBadge({ value, showDot }: { value: string; showDot?: boolean }) {
-  const color = BADGE_COLORS[value] ?? 'bg-zinc-600 text-white';
-  const isAlert = BADGE_ALERT_VALUES.has(value);
-  const isActive = BADGE_ACTIVE_VALUES.has(value);
-  return (
-    <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap', color)}>
-      {showDot && (isAlert || isActive) && (
-        <span
-          className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 bg-white', isActive && !isAlert && 'animate-pulse')}
-        />
-      )}
-      {value || '—'}
-    </span>
-  );
+// ─── NewModuleModal (alias to CreateModuleModal) ──────────────────────────────
+
+function NewModuleModal(props: CreateModuleModalProps) {
+  return <CreateModuleModal {...props} />;
 }
 
+// ─── Create Module Modal ──────────────────────────────────────────────────────
 
-// ─── Select Options Editor ───────────────────────────────────────────────────
-
-interface SelectOptionsEditorProps {
-  options: string[];
-  onChange: (opts: string[]) => void;
-}
-
-function SelectOptionsEditor({ options, onChange }: SelectOptionsEditorProps) {
-  const [inputVal, setInputVal] = useState('');
-
-  function addOption() {
-    const trimmed = inputVal.trim();
-    if (!trimmed || options.includes(trimmed)) return;
-    onChange([...options, trimmed]);
-    setInputVal('');
-  }
-
-  function removeOption(opt: string) {
-    onChange(options.filter((o) => o !== opt));
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') { e.preventDefault(); addOption(); }
-    if (e.key === 'Escape') setInputVal('');
-  }
-
-  return (
-    <div className="ml-2 pl-3 border-l-2 border-slate-700 space-y-1.5">
-      {/* existing chips */}
-      {options.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {options.map((opt) => (
-            <span
-              key={opt}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-700 text-slate-200 text-xs"
-            >
-              {opt}
-              <button
-                type="button"
-                onClick={() => removeOption(opt)}
-                className="text-slate-400 hover:text-red-400 transition-colors leading-none"
-                title="Remove"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      {/* add new option */}
-      <div className="flex items-center gap-1.5">
-        <input
-          type="text"
-          value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Add option…"
-          className="flex-1 bg-[#0a0000] border border-slate-600 rounded px-2 py-1 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-rose-700"
-        />
-        <button
-          type="button"
-          onClick={addOption}
-          disabled={!inputVal.trim()}
-          className="px-2 py-1 rounded bg-rose-900 hover:bg-rose-800 disabled:opacity-40 text-white text-xs transition-colors"
-        >
-          Add
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── New Module Modal ─────────────────────────────────────────────────────────
-
-interface NewModuleModalProps {
+interface CreateModuleModalProps {
   projectId: string;
   onClose: () => void;
   onCreated: (m: CustomModule) => void;
 }
 
-function NewModuleModal({ projectId, onClose, onCreated }: NewModuleModalProps) {
+function CreateModuleModal({ projectId, onClose, onCreated }: CreateModuleModalProps) {
   const [name, setName] = useState('');
-  const [fields, setFields] = useState<CustomField[]>([
-    { id: uuidv4(), label: 'Title', type: 'text' },
-    { id: uuidv4(), label: 'Status', type: 'select', options: ['Not Started', 'In Progress', 'Done', 'Blocked', 'Review'] },
-  ]);
+  const [fields, setFields] = useState<CustomField[]>([{ id: uuidv4(), label: 'Title', type: 'text' }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -2290,10 +1904,148 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
           >
             {records.length}
           </span>
-          {/* ── Site Entry mini ring — inline in the title row ── */}
-          {isSiteEntry && !loading && records.length > 0 && (
-            <SiteEntryMiniRing records={records} fields={module.fields} />
-          )}
+          {/* ── Site Entry ring stats ── */}
+          {isSiteEntry && !loading && records.length > 0 && (() => {
+            const statusField = module.fields.find((f) => f.label.toLowerCase().includes('status'));
+            const exitField   = module.fields.find((f) => f.label.toLowerCase().includes('exit time'));
+            const total    = records.length;
+            const approved = statusField ? records.filter((r) => ['Approved','Checked In'].includes(r.data[statusField.id] ?? '')).length : 0;
+            const pending  = statusField ? records.filter((r) => r.data[statusField.id] === 'Pending').length : 0;
+            const exited   = exitField   ? records.filter((r) => r.data[exitField.id]?.toString().trim()).length : 0;
+            const flagged  = statusField ? records.filter((r) => r.data[statusField.id] === 'Flagged').length : 0;
+
+            // Mini ring SVG component (inline) — colored dot badge sits above the ring, like a status marker
+            const MiniRing = ({ value, color, size = 46 }: { value: number; color: string; size?: number }) => {
+              const cx = size / 2, cy = size / 2, R = size / 2 - 5, sw = 3.5;
+              const circ = 2 * Math.PI * R;
+              const pct = total > 0 ? value / total : 0;
+              const arcLen = pct * circ;
+              return (
+                <div className="relative" style={{ width: size, height: size }}>
+                  <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
+                    <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(51,65,85,0.5)" strokeWidth={sw} />
+                    <circle cx={cx} cy={cy} r={R} fill="none" stroke={color} strokeWidth={sw}
+                      strokeDasharray={`${arcLen} ${circ - arcLen}`}
+                      strokeDashoffset={circ * 0.25}
+                      strokeLinecap="round"
+                      style={{ filter: `drop-shadow(0 0 4px ${color}99)` }} />
+                    <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
+                      fill="white" style={{ fontSize: 14, fontWeight: 900, fontFamily: 'inherit' }}>
+                      {value}
+                    </text>
+                  </svg>
+                  {/* Accent dot badge — top-right corner marker */}
+                  {value > 0 && (
+                    <span
+                      className="absolute rounded-full"
+                      style={{
+                        width: 7, height: 7, top: -1, right: -1,
+                        background: color,
+                        boxShadow: `0 0 6px ${color}`,
+                        border: '1.5px solid #0a0e1a',
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            };
+
+            // Big total ring
+            const BigRing = () => {
+              const size = 64, cx = 32, cy = 32, R = 26, sw = 5;
+              const circ = 2 * Math.PI * R;
+              const segs = [
+                { value: approved, color: '#34d399' },
+                { value: pending,  color: '#fbbf24' },
+                { value: exited,   color: '#94a3b8' },
+                ...(flagged > 0 ? [{ value: flagged, color: '#f97316' }] : []),
+              ].filter(s => s.value > 0);
+              let offset = 0;
+              const gap = total > 0 ? circ * 0.02 : 0;
+              const dominant = segs.reduce((best, s) => (s.value > best.value ? s : best), segs[0] ?? { color: '#fb7185', value: 0 });
+              return (
+                <div className="relative shrink-0" style={{ width: size, height: size }}>
+                  <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
+                    {/* Track ring */}
+                    <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(30,41,59,0.8)" strokeWidth={sw} />
+                    {/* Coloured segments */}
+                    {segs.map((seg, i) => {
+                      const arcLen = Math.max(0, (seg.value / total) * circ - gap);
+                      const dashoffset = circ * 0.25 - offset;
+                      offset += (seg.value / total) * circ;
+                      return (
+                        <circle key={i} cx={cx} cy={cy} r={R} fill="none"
+                          stroke={seg.color} strokeWidth={sw}
+                          strokeDasharray={`${arcLen} ${circ - arcLen}`}
+                          strokeDashoffset={dashoffset}
+                          strokeLinecap="round"
+                          style={{ filter: `drop-shadow(0 0 6px ${seg.color}cc)` }} />
+                      );
+                    })}
+                    {/* Total count — bright white with glow */}
+                    <text x={cx} y={cy - 2} textAnchor="middle" dominantBaseline="middle"
+                      fill="white"
+                      style={{ fontSize: 18, fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.5px', filter: 'drop-shadow(0 0 4px rgba(255,255,255,0.5))' }}>
+                      {total}
+                    </text>
+                    {/* TOTAL label — rose-tinted */}
+                    <text x={cx} y={cy + 10} textAnchor="middle" dominantBaseline="middle"
+                      fill="#fb7185"
+                      style={{ fontSize: 6.5, fontWeight: 800, fontFamily: 'inherit', letterSpacing: '0.08em', opacity: 0.85 }}>
+                      TOTAL
+                    </text>
+                  </svg>
+                  {/* Accent dot badge — top-left marker showing the dominant status colour */}
+                  {dominant.value > 0 && (
+                    <span
+                      className="absolute rounded-full"
+                      style={{
+                        width: 9, height: 9, top: -2, left: -2,
+                        background: dominant.color,
+                        boxShadow: `0 0 8px ${dominant.color}`,
+                        border: '2px solid #0a0e1a',
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            };
+
+            const stats = [
+              { label: 'Approved', value: approved, color: '#34d399' },
+              { label: 'Pending',  value: pending,  color: '#fbbf24' },
+              { label: 'Exited',   value: exited,   color: '#94a3b8' },
+              ...(flagged > 0 ? [{ label: 'Flagged', value: flagged, color: '#f97316' }] : []),
+            ];
+            const approvedPct = total > 0 ? Math.round((approved / total) * 100) : 0;
+
+            return (
+              <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl"
+                style={{ background: 'rgba(10,14,26,0.8)', border: '1px solid rgba(71,85,105,0.2)' }}>
+                {/* Big total ring */}
+                <BigRing />
+                {/* Title + summary line, beside the ring */}
+                <div className="flex flex-col gap-0.5 pr-1">
+                  <span className="text-white font-bold text-[13px] uppercase tracking-wide">Site Entries</span>
+                  <span className="text-[11px]" style={{ color: 'rgba(148,163,184,0.6)' }}>
+                    {total} in module · <span style={{ color: '#34d399', fontWeight: 700 }}>{approvedPct}%</span> approved
+                  </span>
+                </div>
+                {/* Divider */}
+                <div className="w-px self-stretch" style={{ background: 'rgba(71,85,105,0.3)' }} />
+                {/* Individual stat rings */}
+                <div className="flex items-center gap-5">
+                  {stats.map((s) => (
+                    <div key={s.label} className="flex flex-col items-center gap-1.5">
+                      <MiniRing value={s.value} color={s.color} />
+                      <span className="text-[9px] font-black uppercase tracking-widest"
+                        style={{ color: 'rgba(148,163,184,0.5)' }}>{s.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
           {searchQuery && (
             <span className="text-slate-500 text-xs">
               · {filteredSortedRecords.length} match{filteredSortedRecords.length !== 1 ? 'es' : ''}
