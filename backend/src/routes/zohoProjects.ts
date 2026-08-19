@@ -31,6 +31,28 @@ export const ZOHO_API_BASE = 'https://projectsapi.zoho.in/restapi';
 // Exported so other Zoho-Projects-backed routes (e.g. customModules.ts) reuse
 // the same proven request/auth pattern instead of duplicating an HTTP client.
 
+/**
+ * Zoho's REST API returns errors (rate limits, validation failures, etc.) as
+ * HTTP 200 with the real failure embedded in the JSON body, e.g.
+ * { "error": { "status_code": 400, "title": "URL_ROLLING_THROTTLES_LIMIT_EXCEEDED", ... } }.
+ * Without this check, callers that do `data.tasks || []` silently read an
+ * error payload as "zero tasks" instead of failing loudly.
+ */
+function parseZohoResponse(data: string, statusCode: number | undefined): any {
+  if (!data.trim()) return { statusCode };
+  let parsed: any;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    throw new Error(`Non-JSON (${statusCode}): ${data.slice(0, 200)}`);
+  }
+  if (parsed && parsed.error) {
+    const err = parsed.error;
+    throw new Error(`Zoho API error (${err.status_code ?? statusCode}) ${err.title ?? ''}: ${err.details?.message || 'request failed'}`);
+  }
+  return parsed;
+}
+
 export function zohoGet(token: string, path: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const url = new URL(ZOHO_API_BASE + path);
@@ -45,8 +67,8 @@ export function zohoGet(token: string, path: string): Promise<any> {
         let data = '';
         res.on('data', (c) => (data += c));
         res.on('end', () => {
-          try { resolve(JSON.parse(data)); }
-          catch { reject(new Error(`Non-JSON (${res.statusCode}): ${data.slice(0, 200)}`)); }
+          try { resolve(parseZohoResponse(data, res.statusCode)); }
+          catch (e) { reject(e); }
         });
       }
     );
@@ -74,9 +96,8 @@ export function zohoPostForm(token: string, path: string, body: Record<string, s
         let data = '';
         res.on('data', (c) => (data += c));
         res.on('end', () => {
-          if (!data.trim()) return resolve({ statusCode: res.statusCode });
-          try { resolve(JSON.parse(data)); }
-          catch { reject(new Error(`Non-JSON (${res.statusCode}): ${data.slice(0, 200)}`)); }
+          try { resolve(parseZohoResponse(data, res.statusCode)); }
+          catch (e) { reject(e); }
         });
       }
     );
@@ -105,9 +126,8 @@ export function zohoPutForm(token: string, path: string, body: Record<string, st
         let data = '';
         res.on('data', (c) => (data += c));
         res.on('end', () => {
-          if (!data.trim()) return resolve({ statusCode: res.statusCode });
-          try { resolve(JSON.parse(data)); }
-          catch { reject(new Error(`Non-JSON (${res.statusCode}): ${data.slice(0, 200)}`)); }
+          try { resolve(parseZohoResponse(data, res.statusCode)); }
+          catch (e) { reject(e); }
         });
       }
     );
@@ -132,8 +152,17 @@ export function zohoDelete(token: string, path: string): Promise<any> {
         res.on('data', (c) => (data += c));
         res.on('end', () => {
           if (!data.trim()) return resolve({ statusCode: res.statusCode, ok: true });
-          try { resolve(JSON.parse(data)); }
-          catch { resolve({ statusCode: res.statusCode, ok: true }); }
+          let parsed: any;
+          try {
+            parsed = JSON.parse(data);
+          } catch {
+            return resolve({ statusCode: res.statusCode, ok: true });
+          }
+          if (parsed && parsed.error) {
+            const err = parsed.error;
+            return reject(new Error(`Zoho API error (${err.status_code ?? res.statusCode}) ${err.title ?? ''}: ${err.details?.message || 'request failed'}`));
+          }
+          resolve(parsed);
         });
       }
     );

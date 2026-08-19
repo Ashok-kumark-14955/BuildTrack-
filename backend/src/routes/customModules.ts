@@ -2,22 +2,28 @@
  * Custom Modules routes — Workforce & Safety
  *
  * Backed by Zoho Projects instead of Catalyst Data Store:
- *   Custom Module  → Zoho Task List
+ *   Custom Module  → Zoho Task List (holds its records)
  *   Custom Record  → Zoho Task inside that list
  *
- * Zoho's Task List API does not round-trip a `description` field (confirmed
- * absent on create/get/list responses), so a module's schema (its `fields`)
- * can't live on the task list itself. Instead it lives in a hidden task named
- * META_TASK_NAME inside the list — the same workaround already proven for
- * drawings in functions/construction-api (DRAWING_META_TASK_NAME). Zoho tasks
- * *do* round-trip `description` correctly, which is also how record data is
- * stored (JSON in the task's description).
+ * Module *definitions* (name/fields/buildTrackProjectId) do NOT live on the
+ * task list itself — Zoho's Task List API never round-trips a `description`
+ * field — nor are they discovered by scanning every task list's tasks: this
+ * shared project already has 30+ pre-existing task lists from earlier seed
+ * scripts, and probing each one's tasks to find a per-module meta task blew
+ * through Zoho's rate limit (100 requests/2min) in live testing.
+ *
+ * Instead, every module definition lives as ONE entry in a JSON array stored
+ * on a single hidden "index" task (INDEX_TASK_NAME) inside one hidden "index"
+ * task list (INDEX_TASKLIST_NAME). Listing modules costs 1-2 API calls total
+ * regardless of how many other task lists exist in the project. Zoho tasks DO
+ * round-trip `description` correctly (unlike task lists), which is also how
+ * individual record data is stored.
  *
  * All modules currently live inside a single shared Zoho project
  * (ZOHO_PROJECT_ID) since BuildTrack projects don't each have their own Zoho
  * Project yet. A module is scoped to a BuildTrack project via the
- * `buildTrackProjectId` stored in its meta task — the same keying convention
- * backend/seed_workers_module.mjs already used ("projectId:<id>").
+ * `buildTrackProjectId` stored in its index entry — the same keying
+ * convention backend/seed_workers_module.mjs already used ("projectId:<id>").
  *
  * Attachments still go through Catalyst Stratus — file blobs are a separate
  * concern from record data and Stratus is already Zoho-native storage.
@@ -36,7 +42,14 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-const META_TASK_NAME = '__custom_module_meta__';
+// Per-record data (unrelated to module definitions below) still marks the
+// module a record belongs to inline; no per-module meta task is used anymore.
+const INDEX_TASKLIST_NAME = '__custom_modules_index__';
+const INDEX_TASK_NAME = '__index__';
+
+// Cached for the lifetime of this process — the index task list's id never
+// changes once created, so this avoids re-resolving it on every request.
+let cachedIndexTasklistId: string | null = null;
 
 function getZohoProjectId(): string {
   const pid = process.env.ZOHO_PROJECT_ID;
@@ -44,9 +57,25 @@ function getZohoProjectId(): string {
   return pid;
 }
 
+/**
+ * Zoho returns task `description` HTML-entity-encoded (e.g. `"` as `&quot;`),
+ * so a raw JSON.parse always fails. Decode before parsing.
+ */
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&amp;/g, '&');
+}
+
 function safeParse(raw: any): any {
   try {
-    return typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+    const str = typeof raw === 'string' ? decodeHtmlEntities(raw) : raw;
+    return typeof str === 'string' ? JSON.parse(str) : (str || {});
   } catch {
     return {};
   }
@@ -77,37 +106,56 @@ async function resolveAttachmentUrls(req: any, data: Record<string, any>): Promi
   return resolved;
 }
 
-/**
- * Fetch every task list plus every task in the shared Zoho project in one
- * shot, then pair each task list with its meta task (if any). Avoids an N+1
- * fetch per module. Mirrors getDrawingTaskLists() in construction-api.
- */
-async function getModuleTaskLists(token: string, portalId: string, zProjectId: string) {
-  const [tlData, taskData] = await Promise.all([
-    zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/`),
-    zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`),
-  ]);
-  const taskLists = tlData.tasklists || [];
-  const tasks = taskData.tasks || [];
-  const metaByListId = new Map<string, any>();
-  for (const t of tasks) {
-    if (t.name !== META_TASK_NAME) continue;
-    const listId = String(t.tasklist?.id_string || t.tasklist?.id || '');
-    if (listId) metaByListId.set(listId, t);
+/** Resolve (or create, once) the shared index task list's id. */
+async function getIndexTasklistId(token: string, portalId: string, zProjectId: string): Promise<string> {
+  if (cachedIndexTasklistId) return cachedIndexTasklistId;
+
+  const tlData = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/`);
+  const existing = (tlData.tasklists || []).find((tl: any) => tl.name === INDEX_TASKLIST_NAME);
+  if (existing) {
+    cachedIndexTasklistId = taskId(existing);
+    return cachedIndexTasklistId;
   }
-  return taskLists
-    .map((tl: any) => ({ tl, metaTask: metaByListId.get(String(tl.id_string || tl.id)) }))
-    .filter((entry: any) => entry.metaTask);
+
+  const created = await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/`, {
+    name: INDEX_TASKLIST_NAME,
+    flag: 'internal',
+  });
+  const tl = created.tasklists?.[0];
+  if (!tl) throw new Error('Failed to create the custom-modules index task list');
+  cachedIndexTasklistId = taskId(tl);
+  return cachedIndexTasklistId;
 }
 
-function parseModule(tl: any, metaTask: any) {
-  const meta = safeParse(metaTask?.description);
-  return {
-    id: taskId(tl),
-    name: tl.name,
-    fields: meta.fields || [],
-    buildTrackProjectId: meta.buildTrackProjectId || '',
-  };
+/** Read the full module index: { listId, indexTaskId, modules }. */
+async function readIndex(token: string, portalId: string, zProjectId: string) {
+  const listId = await getIndexTasklistId(token, portalId, zProjectId);
+  const taskData = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/?tasklist_id=${listId}`);
+  const indexTask = (taskData.tasks || []).find((t: any) => t.name === INDEX_TASK_NAME);
+  const meta = safeParse(indexTask?.description);
+  const modules = Array.isArray(meta.modules) ? meta.modules : [];
+  return { listId, indexTaskId: indexTask ? taskId(indexTask) : null, modules };
+}
+
+/** Write the full module index back (create the index task on first write). */
+async function writeIndex(
+  token: string,
+  portalId: string,
+  zProjectId: string,
+  listId: string,
+  indexTaskId: string | null,
+  modules: any[]
+) {
+  const description = JSON.stringify({ modules });
+  if (indexTaskId) {
+    await zohoPutForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${indexTaskId}/`, { description });
+  } else {
+    await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`, {
+      name: INDEX_TASK_NAME,
+      tasklist_id: listId,
+      description,
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -143,12 +191,10 @@ router.get('/', async (req, res) => {
     const portalId = getPortalId();
     const zProjectId = getZohoProjectId();
 
-    const entries = await getModuleTaskLists(token, portalId, zProjectId);
-    const modules = entries
-      .map(({ tl, metaTask }: any) => parseModule(tl, metaTask))
-      .filter((m: any) => !projectId || m.buildTrackProjectId === projectId);
+    const { modules } = await readIndex(token, portalId, zProjectId);
+    const filtered = modules.filter((m: any) => !projectId || m.buildTrackProjectId === projectId);
 
-    res.json(modules);
+    res.json(filtered);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -164,6 +210,7 @@ router.post('/', async (req, res) => {
     const portalId = getPortalId();
     const zProjectId = getZohoProjectId();
 
+    // Real task list — this is where the module's records will live.
     const tlData = await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/`, {
       name,
       flag: 'internal',
@@ -172,14 +219,11 @@ router.post('/', async (req, res) => {
     if (!tl) return res.status(502).json({ error: 'Zoho did not return the created task list', raw: tlData });
     const listId = taskId(tl);
 
-    const meta = { fields: fields || [], buildTrackProjectId: projectId || '' };
-    await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`, {
-      name: META_TASK_NAME,
-      tasklist_id: listId,
-      description: JSON.stringify(meta),
-    });
+    const module = { id: listId, name: tl.name, fields: fields || [], buildTrackProjectId: projectId || '' };
+    const { listId: indexListId, indexTaskId, modules } = await readIndex(token, portalId, zProjectId);
+    await writeIndex(token, portalId, zProjectId, indexListId, indexTaskId, [...modules, module]);
 
-    res.status(201).json({ id: listId, name: tl.name, fields: fields || [], buildTrackProjectId: projectId || '' });
+    res.status(201).json(module);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -198,27 +242,21 @@ router.put('/:id', async (req, res) => {
       await zohoPutForm(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/${id}/`, { name });
     }
 
-    const taskData = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/?tasklist_id=${id}`);
-    const metaTask = (taskData.tasks || []).find((t: any) => t.name === META_TASK_NAME);
-    const currentMeta = safeParse(metaTask?.description);
-    const newMeta = {
-      ...currentMeta,
-      fields: fields !== undefined ? fields : (currentMeta.fields || []),
-    };
-
-    if (metaTask) {
-      await zohoPutForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${taskId(metaTask)}/`, {
-        description: JSON.stringify(newMeta),
-      });
-    } else {
-      await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`, {
-        name: META_TASK_NAME,
-        tasklist_id: id,
-        description: JSON.stringify(newMeta),
-      });
+    const { listId, indexTaskId, modules } = await readIndex(token, portalId, zProjectId);
+    let updated: any = null;
+    const nextModules = modules.map((m: any) => {
+      if (m.id !== id) return m;
+      updated = { ...m, name: name !== undefined ? name : m.name, fields: fields !== undefined ? fields : m.fields };
+      return updated;
+    });
+    if (!updated) {
+      // Module existed as a task list but had no index entry yet (created before this route existed).
+      updated = { id, name: name || '', fields: fields || [], buildTrackProjectId: '' };
+      nextModules.push(updated);
     }
+    await writeIndex(token, portalId, zProjectId, listId, indexTaskId, nextModules);
 
-    res.json({ id, name, fields: newMeta.fields, buildTrackProjectId: newMeta.buildTrackProjectId || '' });
+    res.json(updated);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -231,7 +269,12 @@ router.delete('/:id', async (req, res) => {
     const token = await getAccessToken();
     const portalId = getPortalId();
     const zProjectId = getZohoProjectId();
+
     await zohoDelete(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/${id}/`);
+
+    const { listId, indexTaskId, modules } = await readIndex(token, portalId, zProjectId);
+    await writeIndex(token, portalId, zProjectId, listId, indexTaskId, modules.filter((m: any) => m.id !== id));
+
     res.json({ ok: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -251,7 +294,7 @@ router.get('/:id/records', async (req, res) => {
     const zProjectId = getZohoProjectId();
 
     const data = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/?tasklist_id=${id}`);
-    const tasks = (data.tasks || []).filter((t: any) => t.name !== META_TASK_NAME);
+    const tasks = data.tasks || [];
 
     const records = await Promise.all(
       tasks.map(async (t: any) => {
