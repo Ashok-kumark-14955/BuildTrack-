@@ -1921,8 +1921,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                     <circle cx={cx} cy={cy} r={R} fill="none" stroke={color} strokeWidth={sw}
                       strokeDasharray={`${arcLen} ${circ - arcLen}`}
                       strokeDashoffset={circ * 0.25}
-                      strokeLinecap="round"
-                      style={{ filter: `drop-shadow(0 0 5px ${color}) drop-shadow(0 0 2px ${color})` }} />
+                      strokeLinecap="round" />
                     <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
                       fill="white" style={{ fontSize: 9, fontWeight: 900, fontFamily: 'inherit' }}>
                       {value}
@@ -1985,8 +1984,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                           stroke={seg.color} strokeWidth={sw}
                           strokeDasharray={`${arcLen} ${circ - arcLen}`}
                           strokeDashoffset={dashoffset}
-                          strokeLinecap="round"
-                          style={{ filter: `drop-shadow(0 0 6px ${seg.color}) drop-shadow(0 0 3px ${seg.color})` }} />
+                          strokeLinecap="round" />
                       );
                     })}
                     {/* Total count — bright white with glow */}
