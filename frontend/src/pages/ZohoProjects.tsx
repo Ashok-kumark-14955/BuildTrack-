@@ -1928,7 +1928,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                       strokeDasharray={`${arcLen} ${circ - arcLen}`}
                       strokeDashoffset={circ * 0.25}
                       strokeLinecap="round"
-                      style={{ filter: `drop-shadow(0 0 3px ${color}99)` }} />
+                      style={{ filter: `drop-shadow(0 0 5px ${color}) drop-shadow(0 0 2px ${color})` }} />
                     <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
                       fill="white" style={{ fontSize: 9, fontWeight: 900, fontFamily: 'inherit' }}>
                       {value}
@@ -1957,7 +1957,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               const segs = [
                 { value: approved, color: '#34d399' },
                 { value: pending,  color: '#fbbf24' },
-                { value: exited,   color: '#94a3b8' },
+                { value: exited,   color: '#22d3ee' },
                 ...(flagged > 0 ? [{ value: flagged, color: '#f97316' }] : []),
               ].filter(s => s.value > 0);
               let offset = 0;
@@ -1979,7 +1979,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                           strokeDasharray={`${arcLen} ${circ - arcLen}`}
                           strokeDashoffset={dashoffset}
                           strokeLinecap="round"
-                          style={{ filter: `drop-shadow(0 0 4px ${seg.color}cc)` }} />
+                          style={{ filter: `drop-shadow(0 0 6px ${seg.color}) drop-shadow(0 0 3px ${seg.color})` }} />
                       );
                     })}
                     {/* Total count — bright white with glow */}
@@ -2014,8 +2014,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
             const approvedPct = total > 0 ? Math.round((approved / total) * 100) : 0;
 
             return (
-              <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg"
-                style={{ background: 'rgba(10,14,26,0.8)', border: '1px solid rgba(71,85,105,0.2)' }}>
+              <div className="flex items-center gap-2.5 px-1 py-1">
                 {/* Big total ring */}
                 <BigRing />
                 {/* Summary line, beside the ring */}
@@ -2023,14 +2022,14 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                   <span style={{ color: '#34d399', fontWeight: 700 }}>{approvedPct}%</span> approved
                 </span>
                 {/* Divider */}
-                <div className="w-px h-5" style={{ background: 'rgba(71,85,105,0.3)' }} />
+                <div className="w-px h-6" style={{ background: 'rgba(71,85,105,0.3)' }} />
                 {/* Individual stat rings */}
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   {stats.map((s) => (
-                    <div key={s.label} className="flex items-center gap-1" title={s.label}>
+                    <div key={s.label} className="flex flex-col items-center gap-1">
                       <MiniRing value={s.value} color={s.color} />
-                      <span className="text-[8px] font-bold uppercase tracking-wide"
-                        style={{ color: 'rgba(148,163,184,0.5)' }}>{s.label.slice(0, 3)}</span>
+                      <span className="text-[8px] font-bold uppercase tracking-wide whitespace-nowrap"
+                        style={{ color: 'rgba(148,163,184,0.6)' }}>{s.label}</span>
                     </div>
                   ))}
                 </div>
