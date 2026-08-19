@@ -150,6 +150,74 @@ app.post('/api/migrate/add-beam-columns', async (req, res) => {
   }
 });
 
+// Migration endpoint: add the sortOrder column to the drawings table.
+// The reorder endpoint's runtime `ALTER TABLE ... ADD COLUMN` (drawings.ts) only
+// works against local SQLite — Catalyst DataStore ignores that DDL entirely, so
+// without this the column never actually exists and every reorder write silently
+// no-ops, which is why drag-reordering drawings didn't survive a page refresh.
+app.post('/api/migrate/add-sortorder-column', async (req, res) => {
+  try {
+    console.log('🚀 [Migration] Adding sortOrder column to drawings table...');
+
+    if (!process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
+      return res.json({ ok: true, message: 'Local dev — column already exists in SQLite', results: [] });
+    }
+
+    const { accessToken: sdkToken, catalystRequest } = makeCatalystManagementApi(req);
+    const zohoProjectsToken = await getZohoAccessToken();
+
+    // The Catalyst Management API needs a Catalyst-scoped token, not the Zoho
+    // Projects API token (add-beam-columns hits the same OAUTH_SCOPE_MISMATCH
+    // with that one) — try every plausible source until one actually works.
+    const candidates = [process.env.CATALYST_AUTH_TOKEN, sdkToken, zohoProjectsToken].filter(Boolean) as string[];
+
+    let freshToken: string | null = null;
+    let tablesRaw: any[] = [];
+    let lastRaw: any = null;
+    for (const candidate of candidates) {
+      const tableListRaw = await catalystRequest('GET', '/table', undefined, candidate);
+      lastRaw = tableListRaw;
+      const asArray: any[] = Array.isArray(tableListRaw) ? tableListRaw : (Array.isArray(tableListRaw?.data) ? tableListRaw.data : []);
+      if (asArray.length > 0) {
+        freshToken = candidate;
+        tablesRaw = asArray;
+        break;
+      }
+    }
+
+    if (!freshToken) {
+      return res.status(500).json({
+        ok: false,
+        error: 'No token source could list Catalyst tables (all candidates hit scope/auth errors)',
+        candidatesTried: candidates.length,
+        lastRaw,
+      });
+    }
+
+    const drawingsTableInfo = tablesRaw.find((t: any) => (t.table_name || '').toLowerCase() === 'drawings');
+    if (!drawingsTableInfo) {
+      return res.json({ ok: false, error: 'drawings table not found', tablesFound: tablesRaw.map((t: any) => t.table_name) });
+    }
+    const tableId = String(drawingsTableInfo.table_id);
+
+    const colListRaw = await catalystRequest('GET', `/table/${tableId}/column`, undefined, freshToken);
+    const existingCols: string[] = (Array.isArray(colListRaw?.data) ? colListRaw.data : [])
+      .map((c: any) => (c.column_name || '').toLowerCase());
+
+    if (existingCols.includes('sortorder')) {
+      return res.json({ ok: true, tableId, results: [{ column: 'sortOrder', status: 'exists' }] });
+    }
+
+    const colResp = await catalystRequest('POST', `/table/${tableId}/column`, [{ column_name: 'sortOrder', data_type: 'bigint' }], freshToken);
+    const status = colResp?.status === 'success' ? 'added' : 'unexpected';
+    console.log('[Migration] sortOrder column response:', JSON.stringify(colResp));
+    res.json({ ok: true, tableId, results: [{ column: 'sortOrder', status, response: status === 'unexpected' ? colResp : undefined }] });
+  } catch (error: any) {
+    console.error('[Migration] ❌ sortOrder migration failed:', error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // ---------------------------------------------------------------------------

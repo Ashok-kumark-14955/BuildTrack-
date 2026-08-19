@@ -137,16 +137,19 @@ function ProgressRing({ pct, size = 52 }: { pct: number; size?: number }) {
 function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[]) {
   const storageKey = `drawingOrder:${projectId ?? 'all'}`;
 
-  // Initialise from localStorage as a fast cache; will be overwritten by the
-  // server-sorted order coming in through sourceDrawings on first render.
-  const [orderedIds, setOrderedIds] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Deliberately NOT seeded from localStorage here: `projectId` is often still
+  // undefined on the very first render (the projects list hasn't loaded yet),
+  // so `storageKey` at mount time is frequently the wrong ("drawingOrder:all")
+  // key. The sync effect below re-reads localStorage on every run using
+  // whatever `storageKey` currently is — by the time `sourceDrawings` is
+  // non-empty, `projectId` is guaranteed correct (sourceDrawings is filtered
+  // by it), so that read is always against the right key. Carrying forward
+  // in-memory `orderedIds` as the "cached order" instead (as a previous
+  // version of this hook did) breaks under React 18 StrictMode's dev-only
+  // double-invocation of effects/updaters, which can interleave a run keyed
+  // off the wrong storageKey with one keyed off the right one and leave
+  // `orderedIds` holding the wrong-key result.
+  const [orderedIds, setOrderedIds] = useState<string[]>([]);
 
   // Sync whenever sourceDrawings changes (project switch or data refresh).
   // Server sortOrder is ALWAYS the authoritative source of truth — it is set
@@ -159,25 +162,31 @@ function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[
       (a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999)
     );
     const serverIds = byServer.map((d) => d.id);
+    const anyHaveServerOrder = sourceDrawings.some((d) => (d.sortOrder ?? 9999) !== 9999);
 
-    setOrderedIds((prev) => {
-      // Check whether any drawing has an explicit server-persisted sortOrder.
-      const anyHaveServerOrder = sourceDrawings.some((d) => (d.sortOrder ?? 9999) !== 9999);
-
-      if (anyHaveServerOrder) {
-        // Server has persisted order data — always use server order.
-        // Append any truly-new IDs (just uploaded) at the end.
+    if (anyHaveServerOrder) {
+      // Server has persisted order data — always use server order.
+      setOrderedIds((prev) => {
         const newIds = serverIds.filter((id) => !prev.includes(id));
-        const serverFirst = [...serverIds, ...newIds.filter((id) => !serverIds.includes(id))];
-        return serverFirst;
-      }
+        return [...serverIds, ...newIds.filter((id) => !serverIds.includes(id))];
+      });
+      return;
+    }
 
-      // No server order yet — preserve cached local order and append new IDs.
-      const stillValid = prev.filter((id) => serverIds.includes(id));
-      const newIds = serverIds.filter((id) => !stillValid.includes(id));
-      return [...stillValid, ...newIds];
-    });
-  }, [sourceDrawings]); // eslint-disable-line react-hooks/exhaustive-deps
+    // No server order yet — localStorage for the CURRENT storageKey is the
+    // source of truth. Always read it fresh rather than reusing in-memory
+    // `orderedIds`; see the note above for why that matters.
+    let base: string[] = [];
+    try {
+      const stored = localStorage.getItem(storageKey);
+      base = stored ? JSON.parse(stored) : [];
+    } catch {
+      base = [];
+    }
+    const stillValid = base.filter((id) => serverIds.includes(id));
+    const newIds = serverIds.filter((id) => !stillValid.includes(id));
+    setOrderedIds([...stillValid, ...newIds]);
+  }, [sourceDrawings, storageKey]);
 
   // Mirror to localStorage as a fast cache for future page loads on same device.
   useEffect(() => {

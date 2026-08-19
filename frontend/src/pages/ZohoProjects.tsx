@@ -253,17 +253,22 @@ function SiteEntryStatsBar({ records, fields }: SiteEntryStatsProps) {
   ];
 
   return (
-    <div className="flex items-stretch gap-3 mb-4 flex-wrap">
+    <div className="flex items-stretch gap-2 mb-3 flex-wrap">
       {stats.map((s) => (
         <div
           key={s.label}
-          className="flex items-center gap-3 px-4 py-2.5 rounded-xl flex-1 min-w-[120px]"
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg flex-1 min-w-[96px] transition-colors duration-150 hover:brightness-125"
           style={{ background: s.bg, border: `1px solid ${s.border}` }}
         >
-          <span style={{ color: s.color, opacity: 0.8 }}>{s.icon}</span>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: s.color, opacity: 0.65 }}>{s.label}</span>
-            <span className="text-xl font-black tabular-nums leading-tight" style={{ color: s.color }}>{s.value}</span>
+          <span
+            className="flex items-center justify-center w-6 h-6 rounded-md shrink-0"
+            style={{ color: s.color, background: `${s.color}1f` }}
+          >
+            {React.cloneElement(s.icon, { width: 12, height: 12 })}
+          </span>
+          <div className="flex flex-col leading-none min-w-0">
+            <span className="text-[9px] font-semibold uppercase tracking-wide truncate" style={{ color: s.color, opacity: 0.65 }}>{s.label}</span>
+            <span className="text-base font-extrabold tabular-nums leading-tight" style={{ color: s.color }}>{s.value}</span>
           </div>
         </div>
       ))}
