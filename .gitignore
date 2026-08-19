@@ -19,6 +19,7 @@ out/
 .env.local
 .env.*.local
 *.env
+.mcp.json
 
 # ── SQLite database files ─────────────────────
 *.db

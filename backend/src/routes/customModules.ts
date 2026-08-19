@@ -129,8 +129,18 @@ async function getIndexTasklistId(token: string, portalId: string, zProjectId: s
 
 /** Read the full module index: { listId, indexTaskId, modules }. */
 async function readIndex(token: string, portalId: string, zProjectId: string) {
-  const listId = await getIndexTasklistId(token, portalId, zProjectId);
-  const taskData = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/?tasklist_id=${listId}`);
+  let listId = await getIndexTasklistId(token, portalId, zProjectId);
+  let taskData: any;
+  try {
+    taskData = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/?tasklist_id=${listId}`);
+  } catch (err: any) {
+    // The cached index task list id is stale — e.g. it was deleted outside
+    // the app. Drop the cache and re-resolve (or recreate) once.
+    if (!String(err?.message || '').includes('(404)')) throw err;
+    cachedIndexTasklistId = null;
+    listId = await getIndexTasklistId(token, portalId, zProjectId);
+    taskData = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/?tasklist_id=${listId}`);
+  }
   const indexTask = (taskData.tasks || []).find((t: any) => t.name === INDEX_TASK_NAME);
   const meta = safeParse(indexTask?.description);
   const modules = Array.isArray(meta.modules) ? meta.modules : [];

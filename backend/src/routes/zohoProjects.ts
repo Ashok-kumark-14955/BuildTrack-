@@ -48,7 +48,8 @@ function parseZohoResponse(data: string, statusCode: number | undefined): any {
   }
   if (parsed && parsed.error) {
     const err = parsed.error;
-    throw new Error(`Zoho API error (${err.status_code ?? statusCode}) ${err.title ?? ''}: ${err.details?.message || 'request failed'}`);
+    const detail = err.details?.message || (typeof err.details === 'string' ? err.details : '') || JSON.stringify(err);
+    throw new Error(`Zoho API error (${err.status_code ?? statusCode}) ${err.title ?? ''}: ${detail}`);
   }
   return parsed;
 }

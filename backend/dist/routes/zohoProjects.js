@@ -55,16 +55,48 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.ZOHO_API_BASE = void 0;
+exports.zohoGet = zohoGet;
+exports.zohoPostForm = zohoPostForm;
+exports.zohoPutForm = zohoPutForm;
+exports.zohoDelete = zohoDelete;
+exports.getPortalId = getPortalId;
 const express_1 = require("express");
 const https_1 = __importDefault(require("https"));
 const zohoAuth_1 = require("../zohoAuth");
 const db = __importStar(require("../db"));
 const router = (0, express_1.Router)();
-const ZOHO_API_BASE = 'https://projectsapi.zoho.in/restapi';
+exports.ZOHO_API_BASE = 'https://projectsapi.zoho.in/restapi';
 // ─── HTTP helpers ──────────────────────────────────────────────────────────────
+// Exported so other Zoho-Projects-backed routes (e.g. customModules.ts) reuse
+// the same proven request/auth pattern instead of duplicating an HTTP client.
+/**
+ * Zoho's REST API returns errors (rate limits, validation failures, etc.) as
+ * HTTP 200 with the real failure embedded in the JSON body, e.g.
+ * { "error": { "status_code": 400, "title": "URL_ROLLING_THROTTLES_LIMIT_EXCEEDED", ... } }.
+ * Without this check, callers that do `data.tasks || []` silently read an
+ * error payload as "zero tasks" instead of failing loudly.
+ */
+function parseZohoResponse(data, statusCode) {
+    if (!data.trim())
+        return { statusCode };
+    let parsed;
+    try {
+        parsed = JSON.parse(data);
+    }
+    catch {
+        throw new Error(`Non-JSON (${statusCode}): ${data.slice(0, 200)}`);
+    }
+    if (parsed && parsed.error) {
+        const err = parsed.error;
+        const detail = err.details?.message || (typeof err.details === 'string' ? err.details : '') || JSON.stringify(err);
+        throw new Error(`Zoho API error (${err.status_code ?? statusCode}) ${err.title ?? ''}: ${detail}`);
+    }
+    return parsed;
+}
 function zohoGet(token, path) {
     return new Promise((resolve, reject) => {
-        const url = new URL(ZOHO_API_BASE + path);
+        const url = new URL(exports.ZOHO_API_BASE + path);
         const req = https_1.default.request({
             hostname: url.hostname,
             path: url.pathname + url.search,
@@ -75,10 +107,10 @@ function zohoGet(token, path) {
             res.on('data', (c) => (data += c));
             res.on('end', () => {
                 try {
-                    resolve(JSON.parse(data));
+                    resolve(parseZohoResponse(data, res.statusCode));
                 }
-                catch {
-                    reject(new Error(`Non-JSON (${res.statusCode}): ${data.slice(0, 200)}`));
+                catch (e) {
+                    reject(e);
                 }
             });
         });
@@ -89,7 +121,7 @@ function zohoGet(token, path) {
 function zohoPostForm(token, path, body) {
     return new Promise((resolve, reject) => {
         const payload = new URLSearchParams(body).toString();
-        const url = new URL(ZOHO_API_BASE + path);
+        const url = new URL(exports.ZOHO_API_BASE + path);
         const req = https_1.default.request({
             hostname: url.hostname,
             path: url.pathname + url.search,
@@ -103,13 +135,11 @@ function zohoPostForm(token, path, body) {
             let data = '';
             res.on('data', (c) => (data += c));
             res.on('end', () => {
-                if (!data.trim())
-                    return resolve({ statusCode: res.statusCode });
                 try {
-                    resolve(JSON.parse(data));
+                    resolve(parseZohoResponse(data, res.statusCode));
                 }
-                catch {
-                    reject(new Error(`Non-JSON (${res.statusCode}): ${data.slice(0, 200)}`));
+                catch (e) {
+                    reject(e);
                 }
             });
         });
@@ -121,7 +151,7 @@ function zohoPostForm(token, path, body) {
 function zohoPutForm(token, path, body) {
     return new Promise((resolve, reject) => {
         const payload = new URLSearchParams(body).toString();
-        const url = new URL(ZOHO_API_BASE + path);
+        const url = new URL(exports.ZOHO_API_BASE + path);
         const req = https_1.default.request({
             hostname: url.hostname,
             path: url.pathname + url.search,
@@ -135,13 +165,11 @@ function zohoPutForm(token, path, body) {
             let data = '';
             res.on('data', (c) => (data += c));
             res.on('end', () => {
-                if (!data.trim())
-                    return resolve({ statusCode: res.statusCode });
                 try {
-                    resolve(JSON.parse(data));
+                    resolve(parseZohoResponse(data, res.statusCode));
                 }
-                catch {
-                    reject(new Error(`Non-JSON (${res.statusCode}): ${data.slice(0, 200)}`));
+                catch (e) {
+                    reject(e);
                 }
             });
         });
@@ -152,7 +180,7 @@ function zohoPutForm(token, path, body) {
 }
 function zohoDelete(token, path) {
     return new Promise((resolve, reject) => {
-        const url = new URL(ZOHO_API_BASE + path);
+        const url = new URL(exports.ZOHO_API_BASE + path);
         const req = https_1.default.request({
             hostname: url.hostname,
             path: url.pathname + url.search,
@@ -164,12 +192,18 @@ function zohoDelete(token, path) {
             res.on('end', () => {
                 if (!data.trim())
                     return resolve({ statusCode: res.statusCode, ok: true });
+                let parsed;
                 try {
-                    resolve(JSON.parse(data));
+                    parsed = JSON.parse(data);
                 }
                 catch {
-                    resolve({ statusCode: res.statusCode, ok: true });
+                    return resolve({ statusCode: res.statusCode, ok: true });
                 }
+                if (parsed && parsed.error) {
+                    const err = parsed.error;
+                    return reject(new Error(`Zoho API error (${err.status_code ?? res.statusCode}) ${err.title ?? ''}: ${err.details?.message || 'request failed'}`));
+                }
+                resolve(parsed);
             });
         });
         req.on('error', reject);
