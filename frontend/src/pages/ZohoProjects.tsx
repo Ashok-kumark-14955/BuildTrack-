@@ -252,61 +252,188 @@ function useSiteEntryStats(records: CustomRecord[], fields: CustomField[]) {
   return { total, approved, pending, exited, flagged };
 }
 
-/** Compact inline donut ring that sits inside the module header bar */
+/** Enhanced neon ring — animated glow halo, multi-segment arcs, mini progress-bar legend */
 function SiteEntryMiniRing({ records, fields }: SiteEntryStatsProps) {
   const { total, approved, pending, exited, flagged } = useSiteEntryStats(records, fields);
 
-  const R = 14; const cx = 18; const cy = 18; const stroke = 5;
+  // Ring geometry — slightly larger for visual impact
+  const size = 64; const cx = 32; const cy = 32;
+  const R = 26; const stroke = 5;
   const circumference = 2 * Math.PI * R;
-  const segments = [
-    { label: 'Approved', value: approved, color: '#34d399' },
-    { label: 'Pending',  value: pending,  color: '#fbbf24' },
-    { label: 'Exited',   value: exited,   color: '#94a3b8' },
-    ...(flagged > 0 ? [{ label: 'Flagged', value: flagged, color: '#f97316' }] : []),
-  ];
 
+  const allSegments = [
+    { label: 'Approved', value: approved, color: '#34d399', glow: 'rgba(52,211,153,0.8)',  hex: '#34d399' },
+    { label: 'Pending',  value: pending,  color: '#fbbf24', glow: 'rgba(251,191,36,0.8)',  hex: '#fbbf24' },
+    { label: 'Exited',   value: exited,   color: '#94a3b8', glow: 'rgba(148,163,184,0.6)', hex: '#94a3b8' },
+    ...(flagged > 0 ? [{ label: 'Flagged', value: flagged, color: '#f97316', glow: 'rgba(249,115,22,0.8)', hex: '#f97316' }] : []),
+  ];
+  const dominant = allSegments.reduce((best, s) => s.value > best.value ? s : best, allSegments[0] ?? { color: '#fb7185', glow: 'rgba(251,113,133,0.8)', value: 0, label: '', hex: '#fb7185' });
+
+  // Build arc dasharray / dashoffset
   let offset = 0;
-  const arcs: { color: string; dasharray: string; dashoffset: number }[] = [];
-  const gap = total > 0 ? circumference * 0.02 : 0;
-  segments.forEach((seg) => {
+  type ArcDef = { color: string; glow: string; dasharray: string; dashoffset: number; value: number };
+  const arcs: ArcDef[] = [];
+  const gap = total > 0 ? circumference * 0.03 : 0;
+  allSegments.forEach((seg) => {
     const pct = total > 0 ? seg.value / total : 0;
     const arcLen = Math.max(0, pct * circumference - gap);
-    arcs.push({ color: seg.color, dasharray: `${arcLen} ${circumference - arcLen}`, dashoffset: circumference * 0.25 - offset });
+    arcs.push({ color: seg.color, glow: seg.glow, value: seg.value, dasharray: `${arcLen} ${circumference - arcLen}`, dashoffset: circumference * 0.25 - offset });
     offset += pct * circumference;
   });
   if (total === 0) {
-    arcs.push({ color: 'rgba(71,85,105,0.3)', dasharray: `${circumference} 0`, dashoffset: circumference * 0.25 });
+    arcs.push({ color: 'rgba(51,65,85,0.4)', glow: 'none', value: 0, dasharray: `${circumference} 0`, dashoffset: circumference * 0.25 });
   }
 
-  const legend = [
-    { label: 'Approved', value: approved, color: '#34d399' },
-    { label: 'Pending',  value: pending,  color: '#fbbf24' },
-    { label: 'Exited',   value: exited,   color: '#94a3b8' },
-    ...(flagged > 0 ? [{ label: 'Flagged', value: flagged, color: '#f97316' }] : []),
-  ];
+  // Tick mark positions (at 0°, 90°, 180°, 270°)
+  const ticks = [0, 90, 180, 270].map((deg) => {
+    const rad = (deg - 90) * (Math.PI / 180);
+    const inner = R - stroke / 2 - 2;
+    const outer = R + stroke / 2 + 2;
+    return {
+      x1: cx + inner * Math.cos(rad), y1: cy + inner * Math.sin(rad),
+      x2: cx + outer * Math.cos(rad), y2: cy + outer * Math.sin(rad),
+    };
+  });
 
   return (
-    <div className="flex items-center gap-2.5 px-2.5 py-1 rounded-lg" style={{ background: 'rgba(15,23,42,0.5)', border: '1px solid rgba(71,85,105,0.25)' }}>
-      {/* Mini donut */}
-      <div className="relative shrink-0">
-        <svg width={36} height={36} viewBox="0 0 36 36">
-          <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(71,85,105,0.2)" strokeWidth={stroke} />
-          {arcs.map((arc, i) => (
-            <circle key={i} cx={cx} cy={cy} r={R} fill="none" stroke={arc.color}
-              strokeWidth={stroke} strokeDasharray={arc.dasharray} strokeDashoffset={arc.dashoffset}
-              strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.4s ease' }} />
+    <div className="flex items-center gap-3 px-3 py-2 rounded-xl"
+      style={{
+        background: 'linear-gradient(135deg, rgba(10,14,26,0.95) 0%, rgba(15,20,40,0.9) 100%)',
+        border: '1px solid rgba(71,85,105,0.25)',
+        boxShadow: `0 0 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(71,85,105,0.1)`,
+      }}>
+
+      {/* ── Enhanced neon ring ── */}
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
+          <defs>
+            {/* Per-arc glow filters */}
+            {arcs.map((arc, i) => arc.glow !== 'none' && (
+              <filter key={`af-${i}`} id={`af-${i}`} x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            ))}
+            {/* Outer halo glow */}
+            <filter id="halo" x="-80%" y="-80%" width="260%" height="260%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
+            </filter>
+            {/* Center text glow */}
+            <filter id="textglow" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+            {/* Radial gradient for dark fill center */}
+            <radialGradient id="centerFill" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="rgba(15,20,40,0.95)" />
+              <stop offset="100%" stopColor="rgba(8,12,28,0.98)" />
+            </radialGradient>
+          </defs>
+
+          {/* Spinning halo ring — animated */}
+          <circle cx={cx} cy={cy} r={R + 5} fill="none"
+            stroke={dominant.glow} strokeWidth={1} opacity={0.25}
+            strokeDasharray={`${circumference * 0.3} ${circumference * 0.7}`}
+            filter="url(#halo)">
+            <animateTransform attributeName="transform" type="rotate"
+              from={`0 ${cx} ${cy}`} to={`360 ${cx} ${cy}`} dur="6s" repeatCount="indefinite" />
+          </circle>
+
+          {/* Outer border ring (very faint) */}
+          <circle cx={cx} cy={cy} r={R + 3} fill="none" stroke="rgba(71,85,105,0.15)" strokeWidth={0.5} />
+
+          {/* Dark track groove */}
+          <circle cx={cx} cy={cy} r={R} fill="none"
+            stroke="rgba(15,23,42,1)" strokeWidth={stroke + 4} />
+          <circle cx={cx} cy={cy} r={R} fill="none"
+            stroke="rgba(51,65,85,0.4)" strokeWidth={stroke} />
+
+          {/* Tick marks at cardinal points */}
+          {ticks.map((t, i) => (
+            <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+              stroke="rgba(71,85,105,0.5)" strokeWidth={0.75} strokeLinecap="round" />
           ))}
+
+          {/* Segment arcs — glow layer first, then crisp arc on top */}
+          {arcs.map((arc, i) => arc.value > 0 && (
+            <React.Fragment key={i}>
+              {/* Wide soft glow */}
+              <circle cx={cx} cy={cy} r={R} fill="none"
+                stroke={arc.glow} strokeWidth={stroke + 6}
+                strokeDasharray={arc.dasharray} strokeDashoffset={arc.dashoffset}
+                strokeLinecap="round" opacity={0.35} filter={`url(#af-${i})`}
+                style={{ transition: 'stroke-dasharray 0.6s cubic-bezier(0.4,0,0.2,1)' }} />
+              {/* Medium inner glow */}
+              <circle cx={cx} cy={cy} r={R} fill="none"
+                stroke={arc.color} strokeWidth={stroke + 2}
+                strokeDasharray={arc.dasharray} strokeDashoffset={arc.dashoffset}
+                strokeLinecap="round" opacity={0.2}
+                style={{ transition: 'stroke-dasharray 0.6s cubic-bezier(0.4,0,0.2,1)' }} />
+              {/* Crisp main arc */}
+              <circle cx={cx} cy={cy} r={R} fill="none"
+                stroke={arc.color} strokeWidth={stroke}
+                strokeDasharray={arc.dasharray} strokeDashoffset={arc.dashoffset}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dasharray 0.6s cubic-bezier(0.4,0,0.2,1)' }} />
+            </React.Fragment>
+          ))}
+
+          {/* Inner circle dark fill */}
+          <circle cx={cx} cy={cy} r={R - stroke / 2 - 4} fill="url(#centerFill)" />
+
+          {/* Center text — total count */}
+          <text x={cx} y={cy - 3} textAnchor="middle" dominantBaseline="middle"
+            fill={dominant.color} filter="url(#textglow)"
+            style={{ fontSize: total >= 100 ? 13 : total >= 10 ? 16 : 18, fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.5px' }}>
+            {total}
+          </text>
+          <text x={cx} y={cy + 9} textAnchor="middle" dominantBaseline="middle"
+            fill="rgba(148,163,184,0.45)"
+            style={{ fontSize: 6.5, fontWeight: 700, fontFamily: 'inherit', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            TOTAL
+          </text>
         </svg>
       </div>
-      {/* Compact legend pills */}
-      <div className="flex items-center gap-2.5">
-        {legend.map((item) => (
-          <div key={item.label} className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: item.color }} />
-            <span className="text-[10px] font-bold tabular-nums leading-none" style={{ color: item.color }}>{item.value}</span>
-            <span className="text-[9px] font-medium leading-none" style={{ color: 'rgba(148,163,184,0.5)' }}>{item.label}</span>
-          </div>
-        ))}
+
+      {/* ── Rich legend with mini progress bars ── */}
+      <div className="flex flex-col gap-1.5 min-w-[110px]">
+        {allSegments.map((item) => {
+          const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+          return (
+            <div key={item.label} className="flex flex-col gap-0.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  {/* Glowing dot */}
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ background: item.color, boxShadow: `0 0 5px ${item.glow}, 0 0 10px ${item.glow}` }} />
+                  <span className="text-[9px] font-semibold uppercase tracking-wide"
+                    style={{ color: 'rgba(148,163,184,0.5)' }}>{item.label}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] font-black tabular-nums"
+                    style={{ color: item.value > 0 ? item.color : 'rgba(71,85,105,0.5)',
+                      textShadow: item.value > 0 ? `0 0 8px ${item.glow}` : 'none' }}>
+                    {item.value}
+                  </span>
+                  <span className="text-[8px] tabular-nums" style={{ color: 'rgba(71,85,105,0.6)' }}>
+                    {pct > 0 ? `${pct}%` : ''}
+                  </span>
+                </div>
+              </div>
+              {/* Mini progress bar */}
+              <div className="h-[2px] rounded-full overflow-hidden" style={{ background: 'rgba(51,65,85,0.4)' }}>
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${pct}%`,
+                    background: item.value > 0
+                      ? `linear-gradient(90deg, ${item.color}99, ${item.color})`
+                      : 'transparent',
+                    boxShadow: item.value > 0 ? `0 0 4px ${item.glow}` : 'none',
+                  }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -402,7 +529,7 @@ function StatusBadge({ value, showDot }: { value: string; showDot?: boolean }) {
   const isAlert = BADGE_ALERT_VALUES.has(value);
   const isActive = BADGE_ACTIVE_VALUES.has(value);
   return (
-    <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold', color)}>
+    <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap', color)}>
       {showDot && (isAlert || isActive) && (
         <span
           className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 bg-white', isActive && !isAlert && 'animate-pulse')}
@@ -1451,9 +1578,19 @@ const FIELD_DEFAULT_WIDTH: Record<FieldType, number> = {
 
 /** Compute a sensible default width for a field */
 function defaultColWidth(field: CustomField): number {
-  // If label is very long, widen a bit
   const base = FIELD_DEFAULT_WIDTH[field.type] ?? 160;
   const labelBonus = Math.max(0, field.label.length - 10) * 5;
+
+  // Select fields render as pills that must never wrap — size the column to
+  // fit the longest option text (plus the pill's own padding/dot), not just
+  // the label, or long option values like "Main Gate – Gate 01" wrap onto a
+  // second line inside the pill.
+  if (field.type === 'select' && field.options?.length) {
+    const longestOption = Math.max(...field.options.map((o) => o.length));
+    const optionWidth = longestOption * 7.2 + 48; // ~char width at text-xs + pill padding/dot
+    return Math.min(Math.max(base + labelBonus, optionWidth), 320);
+  }
+
   return Math.min(base + labelBonus, 280);
 }
 
