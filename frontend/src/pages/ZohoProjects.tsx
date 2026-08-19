@@ -1915,8 +1915,8 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
             const flagged  = statusField ? records.filter((r) => r.data[statusField.id] === 'Flagged').length : 0;
 
             // Mini ring SVG component (inline) — colored dot badge sits above the ring, like a status marker
-            const MiniRing = ({ value, color, size = 46 }: { value: number; color: string; size?: number }) => {
-              const cx = size / 2, cy = size / 2, R = size / 2 - 5, sw = 3.5;
+            const MiniRing = ({ value, color, size = 28 }: { value: number; color: string; size?: number }) => {
+              const cx = size / 2, cy = size / 2, R = size / 2 - 3.5, sw = 2.5;
               const circ = 2 * Math.PI * R;
               const pct = total > 0 ? value / total : 0;
               const arcLen = pct * circ;
@@ -1928,9 +1928,9 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                       strokeDasharray={`${arcLen} ${circ - arcLen}`}
                       strokeDashoffset={circ * 0.25}
                       strokeLinecap="round"
-                      style={{ filter: `drop-shadow(0 0 4px ${color}99)` }} />
+                      style={{ filter: `drop-shadow(0 0 3px ${color}99)` }} />
                     <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
-                      fill="white" style={{ fontSize: 14, fontWeight: 900, fontFamily: 'inherit' }}>
+                      fill="white" style={{ fontSize: 9, fontWeight: 900, fontFamily: 'inherit' }}>
                       {value}
                     </text>
                   </svg>
@@ -1939,10 +1939,10 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                     <span
                       className="absolute rounded-full"
                       style={{
-                        width: 7, height: 7, top: -1, right: -1,
+                        width: 5, height: 5, top: -1, right: -1,
                         background: color,
-                        boxShadow: `0 0 6px ${color}`,
-                        border: '1.5px solid #0a0e1a',
+                        boxShadow: `0 0 4px ${color}`,
+                        border: '1px solid #0a0e1a',
                       }}
                     />
                   )}
@@ -1952,7 +1952,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
             // Big total ring
             const BigRing = () => {
-              const size = 64, cx = 32, cy = 32, R = 26, sw = 5;
+              const size = 36, cx = 18, cy = 18, R = 14, sw = 3;
               const circ = 2 * Math.PI * R;
               const segs = [
                 { value: approved, color: '#34d399' },
@@ -1979,20 +1979,14 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                           strokeDasharray={`${arcLen} ${circ - arcLen}`}
                           strokeDashoffset={dashoffset}
                           strokeLinecap="round"
-                          style={{ filter: `drop-shadow(0 0 6px ${seg.color}cc)` }} />
+                          style={{ filter: `drop-shadow(0 0 4px ${seg.color}cc)` }} />
                       );
                     })}
                     {/* Total count — bright white with glow */}
-                    <text x={cx} y={cy - 2} textAnchor="middle" dominantBaseline="middle"
+                    <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
                       fill="white"
-                      style={{ fontSize: 18, fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.5px', filter: 'drop-shadow(0 0 4px rgba(255,255,255,0.5))' }}>
+                      style={{ fontSize: 11, fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.3px', filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.5))' }}>
                       {total}
-                    </text>
-                    {/* TOTAL label — rose-tinted */}
-                    <text x={cx} y={cy + 10} textAnchor="middle" dominantBaseline="middle"
-                      fill="#fb7185"
-                      style={{ fontSize: 6.5, fontWeight: 800, fontFamily: 'inherit', letterSpacing: '0.08em', opacity: 0.85 }}>
-                      TOTAL
                     </text>
                   </svg>
                   {/* Accent dot badge — top-left marker showing the dominant status colour */}
@@ -2000,10 +1994,10 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                     <span
                       className="absolute rounded-full"
                       style={{
-                        width: 9, height: 9, top: -2, left: -2,
+                        width: 6, height: 6, top: -1, left: -1,
                         background: dominant.color,
-                        boxShadow: `0 0 8px ${dominant.color}`,
-                        border: '2px solid #0a0e1a',
+                        boxShadow: `0 0 5px ${dominant.color}`,
+                        border: '1.5px solid #0a0e1a',
                       }}
                     />
                   )}
@@ -2020,26 +2014,23 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
             const approvedPct = total > 0 ? Math.round((approved / total) * 100) : 0;
 
             return (
-              <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl"
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg"
                 style={{ background: 'rgba(10,14,26,0.8)', border: '1px solid rgba(71,85,105,0.2)' }}>
                 {/* Big total ring */}
                 <BigRing />
-                {/* Title + summary line, beside the ring */}
-                <div className="flex flex-col gap-0.5 pr-1">
-                  <span className="text-white font-bold text-[13px] uppercase tracking-wide">Site Entries</span>
-                  <span className="text-[11px]" style={{ color: 'rgba(148,163,184,0.6)' }}>
-                    {total} in module · <span style={{ color: '#34d399', fontWeight: 700 }}>{approvedPct}%</span> approved
-                  </span>
-                </div>
+                {/* Summary line, beside the ring */}
+                <span className="text-[10px] whitespace-nowrap" style={{ color: 'rgba(148,163,184,0.6)' }}>
+                  <span style={{ color: '#34d399', fontWeight: 700 }}>{approvedPct}%</span> approved
+                </span>
                 {/* Divider */}
-                <div className="w-px self-stretch" style={{ background: 'rgba(71,85,105,0.3)' }} />
+                <div className="w-px h-5" style={{ background: 'rgba(71,85,105,0.3)' }} />
                 {/* Individual stat rings */}
-                <div className="flex items-center gap-5">
+                <div className="flex items-center gap-2.5">
                   {stats.map((s) => (
-                    <div key={s.label} className="flex flex-col items-center gap-1.5">
+                    <div key={s.label} className="flex items-center gap-1" title={s.label}>
                       <MiniRing value={s.value} color={s.color} />
-                      <span className="text-[9px] font-black uppercase tracking-widest"
-                        style={{ color: 'rgba(148,163,184,0.5)' }}>{s.label}</span>
+                      <span className="text-[8px] font-bold uppercase tracking-wide"
+                        style={{ color: 'rgba(148,163,184,0.5)' }}>{s.label.slice(0, 3)}</span>
                     </div>
                   ))}
                 </div>
