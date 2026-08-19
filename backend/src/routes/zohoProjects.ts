@@ -25,11 +25,13 @@ import * as db from '../db';
 
 const router = Router();
 
-const ZOHO_API_BASE = 'https://projectsapi.zoho.in/restapi';
+export const ZOHO_API_BASE = 'https://projectsapi.zoho.in/restapi';
 
 // ─── HTTP helpers ──────────────────────────────────────────────────────────────
+// Exported so other Zoho-Projects-backed routes (e.g. customModules.ts) reuse
+// the same proven request/auth pattern instead of duplicating an HTTP client.
 
-function zohoGet(token: string, path: string): Promise<any> {
+export function zohoGet(token: string, path: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const url = new URL(ZOHO_API_BASE + path);
     const req = https.request(
@@ -53,7 +55,7 @@ function zohoGet(token: string, path: string): Promise<any> {
   });
 }
 
-function zohoPostForm(token: string, path: string, body: Record<string, string>): Promise<any> {
+export function zohoPostForm(token: string, path: string, body: Record<string, string>): Promise<any> {
   return new Promise((resolve, reject) => {
     const payload = new URLSearchParams(body).toString();
     const url = new URL(ZOHO_API_BASE + path);
@@ -84,7 +86,7 @@ function zohoPostForm(token: string, path: string, body: Record<string, string>)
   });
 }
 
-function zohoPutForm(token: string, path: string, body: Record<string, string>): Promise<any> {
+export function zohoPutForm(token: string, path: string, body: Record<string, string>): Promise<any> {
   return new Promise((resolve, reject) => {
     const payload = new URLSearchParams(body).toString();
     const url = new URL(ZOHO_API_BASE + path);
@@ -115,7 +117,7 @@ function zohoPutForm(token: string, path: string, body: Record<string, string>):
   });
 }
 
-function zohoDelete(token: string, path: string): Promise<any> {
+export function zohoDelete(token: string, path: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const url = new URL(ZOHO_API_BASE + path);
     const req = https.request(
@@ -147,7 +149,7 @@ const handle = (fn: (req: Request, res: Response, next: NextFunction) => Promise
 
 // ─── Helper: get default portal ID ────────────────────────────────────────────
 
-function getPortalId(): string {
+export function getPortalId(): string {
   const pid = process.env.ZOHO_PORTAL_ID;
   if (!pid) throw new Error('ZOHO_PORTAL_ID env var is required');
   return pid;

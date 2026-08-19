@@ -1,49 +1,64 @@
 /**
- * Custom Modules routes
+ * Custom Modules routes — Workforce & Safety
  *
- * Provides a self-contained "custom module builder" — no Zoho Projects integration.
+ * Backed by Zoho Projects instead of Catalyst Data Store:
+ *   Custom Module  → Zoho Task List
+ *   Custom Record  → Zoho Task inside that list
  *
- * Module definitions:   custom_modules   (name, fields JSON, createdAt, updatedAt)
- * Module records:       custom_records   (moduleId, data JSON, createdAt, updatedAt)
+ * Zoho's Task List API does not round-trip a `description` field (confirmed
+ * absent on create/get/list responses), so a module's schema (its `fields`)
+ * can't live on the task list itself. Instead it lives in a hidden task named
+ * META_TASK_NAME inside the list — the same workaround already proven for
+ * drawings in functions/construction-api (DRAWING_META_TASK_NAME). Zoho tasks
+ * *do* round-trip `description` correctly, which is also how record data is
+ * stored (JSON in the task's description).
  *
- * NOTE: Catalyst DataStore auto-manages ROWID as the primary key.
- * We do NOT store a separate `id` column — we use ROWID as the record id and
- * expose it as "id" in all API responses (via the ROWID alias in SELECT * queries
- * or by mapping the row after fetch).
+ * All modules currently live inside a single shared Zoho project
+ * (ZOHO_PROJECT_ID) since BuildTrack projects don't each have their own Zoho
+ * Project yet. A module is scoped to a BuildTrack project via the
+ * `buildTrackProjectId` stored in its meta task — the same keying convention
+ * backend/seed_workers_module.mjs already used ("projectId:<id>").
  *
- * Attachment images are uploaded to Catalyst Stratus (same bucket as drawings).
- * In the record data we store { name, url: "stratus://<key>", type, size }.
- * Before returning records to the frontend, we resolve all stratus:// attachment
- * URLs to 7-day signed GET URLs so the browser can load them directly.
+ * Attachments still go through Catalyst Stratus — file blobs are a separate
+ * concern from record data and Stratus is already Zoho-native storage.
  */
 
 import { Router } from 'express';
 import multer from 'multer';
-import * as db from '../db';
+import { getAccessToken } from '../zohoAuth';
+import { zohoGet, zohoPostForm, zohoPutForm, zohoDelete, getPortalId } from './zohoProjects';
 import { uploadFile, getSignedUrl, isStratusEnabled } from '../db/stratus';
 
 const router = Router();
 
-// multer for attachment uploads (memory storage, 10 MB max)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-/**
- * Normalise a raw DataStore row so it always has an "id" field.
- * DataStore returns ROWID in the row object; we expose it as "id".
- */
-function normalizeRow(row: any): any {
-  if (!row) return row;
-  // ZCQL returns ROWID; also accept lowercase rowid
-  const rid = row.ROWID ?? row.rowid ?? row.id;
-  return { id: String(rid), ...row };
+const META_TASK_NAME = '__custom_module_meta__';
+
+function getZohoProjectId(): string {
+  const pid = process.env.ZOHO_PROJECT_ID;
+  if (!pid) throw new Error('ZOHO_PROJECT_ID env var is required (the Zoho project that hosts custom modules)');
+  return pid;
+}
+
+function safeParse(raw: any): any {
+  try {
+    return typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+  } catch {
+    return {};
+  }
+}
+
+function taskId(t: any): string {
+  return String(t.id_string || t.id);
 }
 
 /**
- * Walk through a parsed record data object and resolve any attachment fields
- * whose url starts with "stratus://" to a fresh signed URL.
+ * Walk a record's data object and resolve any attachment fields whose url
+ * starts with "stratus://" to a fresh signed URL.
  */
 async function resolveAttachmentUrls(req: any, data: Record<string, any>): Promise<Record<string, any>> {
   const resolved = { ...data };
@@ -56,7 +71,6 @@ async function resolveAttachmentUrls(req: any, data: Record<string, any>): Promi
         resolved[key] = { ...val, url: signedUrl };
       } catch (err: any) {
         console.error('[customModules] Failed to sign stratus URL:', val.url, err?.message);
-        // Leave as stratus:// — frontend will show broken image rather than crash
       }
     }
   }
@@ -64,31 +78,42 @@ async function resolveAttachmentUrls(req: any, data: Record<string, any>): Promi
 }
 
 /**
- * Parse and resolve a custom_records row: parse the data JSON, then resolve
- * any stratus:// attachment URLs inside it.
+ * Fetch every task list plus every task in the shared Zoho project in one
+ * shot, then pair each task list with its meta task (if any). Avoids an N+1
+ * fetch per module. Mirrors getDrawingTaskLists() in construction-api.
  */
-async function resolveRecord(req: any, row: any): Promise<any> {
-  const norm = normalizeRow(row);
-  let data: Record<string, any> = {};
-  try {
-    data = typeof norm.data === 'string' ? JSON.parse(norm.data) : (norm.data ?? {});
-  } catch {
-    data = {};
+async function getModuleTaskLists(token: string, portalId: string, zProjectId: string) {
+  const [tlData, taskData] = await Promise.all([
+    zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/`),
+    zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`),
+  ]);
+  const taskLists = tlData.tasklists || [];
+  const tasks = taskData.tasks || [];
+  const metaByListId = new Map<string, any>();
+  for (const t of tasks) {
+    if (t.name !== META_TASK_NAME) continue;
+    const listId = String(t.tasklist?.id_string || t.tasklist?.id || '');
+    if (listId) metaByListId.set(listId, t);
   }
-  data = await resolveAttachmentUrls(req, data);
-  return { ...norm, data };
+  return taskLists
+    .map((tl: any) => ({ tl, metaTask: metaByListId.get(String(tl.id_string || tl.id)) }))
+    .filter((entry: any) => entry.metaTask);
+}
+
+function parseModule(tl: any, metaTask: any) {
+  const meta = safeParse(metaTask?.description);
+  return {
+    id: taskId(tl),
+    name: tl.name,
+    fields: meta.fields || [],
+    buildTrackProjectId: meta.buildTrackProjectId || '',
+  };
 }
 
 // ---------------------------------------------------------------------------
-// Attachment upload endpoint
+// Attachment upload endpoint (unchanged — Stratus, not Zoho)
 // ---------------------------------------------------------------------------
 
-/**
- * POST /api/custom-modules/upload-attachment
- * Accepts multipart/form-data with a "file" field.
- * Uploads to Stratus (production) or returns a data: URL (local dev).
- * Returns: { url: "stratus://<key>" | "data:...", name, type, size }
- */
 router.post('/upload-attachment', upload.single('file'), async (req: any, res: any) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'file is required' });
@@ -97,7 +122,6 @@ router.post('/upload-attachment', upload.single('file'), async (req: any, res: a
       const key = await uploadFile(req, req.file.buffer, req.file.mimetype, 'attachments');
       url = `stratus://${key}`;
     } else {
-      // Local dev: store as data URL
       url = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     }
     res.json({ url, name: req.file.originalname, type: req.file.mimetype, size: req.file.size });
@@ -108,88 +132,106 @@ router.post('/upload-attachment', upload.single('file'), async (req: any, res: a
 });
 
 // ---------------------------------------------------------------------------
-// Module Definitions
+// Module Definitions (= Zoho Task Lists)
 // ---------------------------------------------------------------------------
 
-/** GET /api/custom-modules  — list all module definitions */
+/** GET /api/custom-modules?projectId=  — list module definitions for a BuildTrack project */
 router.get('/', async (req, res) => {
   try {
-    const rows = await db.all(req, `SELECT * FROM custom_modules ORDER BY createdAt ASC`);
-    res.json(rows.map(normalizeRow));
+    const projectId = String(req.query.projectId || '');
+    const token = await getAccessToken();
+    const portalId = getPortalId();
+    const zProjectId = getZohoProjectId();
+
+    const entries = await getModuleTaskLists(token, portalId, zProjectId);
+    const modules = entries
+      .map(({ tl, metaTask }: any) => parseModule(tl, metaTask))
+      .filter((m: any) => !projectId || m.buildTrackProjectId === projectId);
+
+    res.json(modules);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/** POST /api/custom-modules  — create a new module */
+/** POST /api/custom-modules  — create a new module ({ projectId, name, fields }) */
 router.post('/', async (req, res) => {
   try {
-    const { name, fields } = req.body as { name: string; fields: any[] };
+    const { projectId, name, fields } = req.body as { projectId?: string; name: string; fields?: any[] };
     if (!name) return res.status(400).json({ error: 'name is required' });
 
-    const now = Date.now();
-    const fieldsJson = JSON.stringify(fields || []);
+    const token = await getAccessToken();
+    const portalId = getPortalId();
+    const zProjectId = getZohoProjectId();
 
-    await db.run(
-      req,
-      `INSERT INTO custom_modules (name, fields, createdAt, updatedAt) VALUES (?, ?, ?, ?)`,
-      [name, fieldsJson, now, now]
-    );
+    const tlData = await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/`, {
+      name,
+      flag: 'internal',
+    });
+    const tl = tlData.tasklists?.[0];
+    if (!tl) return res.status(502).json({ error: 'Zoho did not return the created task list', raw: tlData });
+    const listId = taskId(tl);
 
-    // Fetch the just-inserted row by matching name + createdAt
-    const row = await db.get(
-      req,
-      `SELECT * FROM custom_modules WHERE name = ? AND createdAt = ? ORDER BY ROWID DESC`,
-      [name, now]
-    );
+    const meta = { fields: fields || [], buildTrackProjectId: projectId || '' };
+    await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`, {
+      name: META_TASK_NAME,
+      tasklist_id: listId,
+      description: JSON.stringify(meta),
+    });
 
-    res.status(201).json(normalizeRow(row));
+    res.status(201).json({ id: listId, name: tl.name, fields: fields || [], buildTrackProjectId: projectId || '' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/** GET /api/custom-modules/:id  — get a single module definition */
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const row = await db.get(req, `SELECT * FROM custom_modules WHERE ROWID = ?`, [id]);
-    if (!row) return res.status(404).json({ error: 'Module not found' });
-    res.json(normalizeRow(row));
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/** PUT /api/custom-modules/:id  — update module name / fields */
+/** PUT /api/custom-modules/:id  — update module name and/or fields */
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, fields } = req.body as { name?: string; fields?: any[] };
-    const now = Date.now();
+    const token = await getAccessToken();
+    const portalId = getPortalId();
+    const zProjectId = getZohoProjectId();
 
     if (name !== undefined) {
-      await db.run(req, `UPDATE custom_modules SET name = ?, updatedAt = ? WHERE ROWID = ?`, [name, now, id]);
-    }
-    if (fields !== undefined) {
-      await db.run(req, `UPDATE custom_modules SET fields = ?, updatedAt = ? WHERE ROWID = ?`, [JSON.stringify(fields), now, id]);
+      await zohoPutForm(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/${id}/`, { name });
     }
 
-    const row = await db.get(req, `SELECT * FROM custom_modules WHERE ROWID = ?`, [id]);
-    if (!row) return res.status(404).json({ error: 'Module not found' });
-    res.json(normalizeRow(row));
+    const taskData = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/?tasklist_id=${id}`);
+    const metaTask = (taskData.tasks || []).find((t: any) => t.name === META_TASK_NAME);
+    const currentMeta = safeParse(metaTask?.description);
+    const newMeta = {
+      ...currentMeta,
+      fields: fields !== undefined ? fields : (currentMeta.fields || []),
+    };
+
+    if (metaTask) {
+      await zohoPutForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${taskId(metaTask)}/`, {
+        description: JSON.stringify(newMeta),
+      });
+    } else {
+      await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`, {
+        name: META_TASK_NAME,
+        tasklist_id: id,
+        description: JSON.stringify(newMeta),
+      });
+    }
+
+    res.json({ id, name, fields: newMeta.fields, buildTrackProjectId: newMeta.buildTrackProjectId || '' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/** DELETE /api/custom-modules/:id  — delete module + all its records */
+/** DELETE /api/custom-modules/:id  — delete module + all its records (Zoho cascades tasks) */
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    // Delete records first (no CASCADE in DataStore)
-    await db.run(req, `DELETE FROM custom_records WHERE moduleId = ?`, [id]);
-    await db.run(req, `DELETE FROM custom_modules WHERE ROWID = ?`, [id]);
+    const token = await getAccessToken();
+    const portalId = getPortalId();
+    const zProjectId = getZohoProjectId();
+    await zohoDelete(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/${id}/`);
     res.json({ ok: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -197,67 +239,81 @@ router.delete('/:id', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Module Records
+// Module Records (= Zoho Tasks inside the module's Task List)
 // ---------------------------------------------------------------------------
 
 /** GET /api/custom-modules/:id/records  — list all records for a module */
 router.get('/:id/records', async (req, res) => {
   try {
     const { id } = req.params;
-    const rows = await db.all(
-      req,
-      `SELECT * FROM custom_records WHERE moduleId = ? ORDER BY createdAt ASC`,
-      [id]
+    const token = await getAccessToken();
+    const portalId = getPortalId();
+    const zProjectId = getZohoProjectId();
+
+    const data = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/?tasklist_id=${id}`);
+    const tasks = (data.tasks || []).filter((t: any) => t.name !== META_TASK_NAME);
+
+    const records = await Promise.all(
+      tasks.map(async (t: any) => {
+        const meta = safeParse(t.description);
+        const resolvedData = await resolveAttachmentUrls(req, meta._data || {});
+        return { id: taskId(t), moduleId: id, data: resolvedData };
+      })
     );
-    const resolved = await Promise.all(rows.map((r) => resolveRecord(req, r)));
-    res.json(resolved);
+
+    res.json(records);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/** POST /api/custom-modules/:id/records  — create a new record */
+/** POST /api/custom-modules/:id/records  — create a new record ({ projectId, data }) */
 router.post('/:id/records', async (req, res) => {
   try {
     const { id: moduleId } = req.params;
-    const data = req.body as Record<string, any>;
-    const now = Date.now();
+    const { data } = req.body as { data?: Record<string, any> };
+    const token = await getAccessToken();
+    const portalId = getPortalId();
+    const zProjectId = getZohoProjectId();
 
-    await db.run(
-      req,
-      `INSERT INTO custom_records (moduleId, data, createdAt, updatedAt) VALUES (?, ?, ?, ?)`,
-      [moduleId, JSON.stringify(data), now, now]
-    );
+    const recordData = data || {};
+    const name = String(Object.values(recordData)[0] ?? `Record-${Date.now()}`).slice(0, 100) || `Record-${Date.now()}`;
+    const meta = { _moduleId: moduleId, _data: recordData };
 
-    // Fetch the just-inserted record by moduleId + createdAt
-    const row = await db.get(
-      req,
-      `SELECT * FROM custom_records WHERE moduleId = ? AND createdAt = ? ORDER BY ROWID DESC`,
-      [moduleId, now]
-    );
+    const created = await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`, {
+      name,
+      tasklist_id: moduleId,
+      description: JSON.stringify(meta),
+    });
+    const t = created.tasks?.[0];
+    if (!t) return res.status(502).json({ error: 'Zoho did not return the created record', raw: created });
 
-    res.status(201).json(await resolveRecord(req, row));
+    res.status(201).json({ id: taskId(t), moduleId, data: recordData });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/** PUT /api/custom-modules/:id/records/:recordId  — update a record */
+/** PUT /api/custom-modules/:id/records/:recordId  — replace a record's data ({ projectId, data }) */
 router.put('/:id/records/:recordId', async (req, res) => {
   try {
-    const { recordId } = req.params;
-    const data = req.body as Record<string, any>;
-    const now = Date.now();
+    const { id: moduleId, recordId } = req.params;
+    const { data } = req.body as { data?: Record<string, any> };
+    const token = await getAccessToken();
+    const portalId = getPortalId();
+    const zProjectId = getZohoProjectId();
 
-    await db.run(
-      req,
-      `UPDATE custom_records SET data = ?, updatedAt = ? WHERE ROWID = ?`,
-      [JSON.stringify(data), now, recordId]
-    );
+    const recordData = data || {};
+    const name = String(Object.values(recordData)[0] ?? `Record-${recordId}`).slice(0, 100) || `Record-${recordId}`;
+    const meta = { _moduleId: moduleId, _data: recordData };
 
-    const row = await db.get(req, `SELECT * FROM custom_records WHERE ROWID = ?`, [recordId]);
-    if (!row) return res.status(404).json({ error: 'Record not found' });
-    res.json(await resolveRecord(req, row));
+    await zohoPutForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${recordId}/`, {
+      name,
+      description: JSON.stringify(meta),
+    });
+
+    const resolvedData = await resolveAttachmentUrls(req, recordData);
+    res.json({ id: recordId, moduleId, data: resolvedData });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -267,7 +323,10 @@ router.put('/:id/records/:recordId', async (req, res) => {
 router.delete('/:id/records/:recordId', async (req, res) => {
   try {
     const { recordId } = req.params;
-    await db.run(req, `DELETE FROM custom_records WHERE ROWID = ?`, [recordId]);
+    const token = await getAccessToken();
+    const portalId = getPortalId();
+    const zProjectId = getZohoProjectId();
+    await zohoDelete(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${recordId}/`);
     res.json({ ok: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
