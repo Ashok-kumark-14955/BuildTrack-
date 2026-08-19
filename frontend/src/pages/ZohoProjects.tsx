@@ -81,96 +81,96 @@ const FIELD_TYPE_LABELS: Record<FieldType, string> = {
 // Maps specific values to tailwind colour classes
 const BADGE_COLORS: Record<string, string> = {
   // Status
-  'Not Started':   'bg-slate-700/80 text-slate-300 border border-slate-600',
-  'In Progress':   'bg-pink-900/50 text-[#ec4899] border border-pink-700/40',
-  'Done':          'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60',
-  'Blocked':       'bg-red-900/60 text-red-300 border border-red-700/60',
-  'Review':        'bg-amber-900/60 text-amber-300 border border-amber-700/60',
-  'Active':        'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60',
-  'Inactive':      'bg-slate-700/80 text-slate-400 border border-slate-600',
-  'On Leave':      'bg-amber-900/60 text-amber-300 border border-amber-700/60',
-  'Terminated':    'bg-red-900/60 text-red-400 border border-red-700/60',
+  'Not Started': 'bg-slate-600 text-white',
+  'In Progress': 'bg-pink-600 text-white',
+  'Done': 'bg-emerald-600 text-white',
+  'Blocked': 'bg-red-600 text-white',
+  'Review': 'bg-amber-600 text-white',
+  'Active': 'bg-emerald-600 text-white',
+  'Inactive': 'bg-slate-600 text-white',
+  'On Leave': 'bg-amber-600 text-white',
+  'Terminated': 'bg-red-600 text-white',
   // Skill
-  'Unskilled':     'bg-slate-700/80 text-slate-400 border border-slate-600',
-  'Semi-Skilled':  'bg-sky-900/60 text-sky-300 border border-sky-700/60',
-  'Skilled':       'bg-blue-900/60 text-blue-300 border border-blue-700/60',
-  'Highly Skilled':'bg-violet-900/60 text-violet-300 border border-violet-700/60',
+  'Unskilled': 'bg-slate-600 text-white',
+  'Semi-Skilled': 'bg-sky-600 text-white',
+  'Skilled': 'bg-blue-600 text-white',
+  'Highly Skilled': 'bg-violet-600 text-white',
   // Worker type
-  'Labour':         'bg-orange-900/60 text-orange-300 border border-orange-700/60',
-  'Skilled Worker': 'bg-blue-900/60 text-blue-300 border border-blue-700/60',
-  'Supervisor':     'bg-violet-900/60 text-violet-300 border border-violet-700/60',
-  'Engineer':       'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
-  'Contractor Staff':'bg-rose-900/60 text-rose-300 border border-rose-700/60',
+  'Labour': 'bg-orange-600 text-white',
+  'Skilled Worker': 'bg-blue-600 text-white',
+  'Supervisor': 'bg-violet-600 text-white',
+  'Engineer': 'bg-cyan-600 text-white',
+  'Contractor Staff': 'bg-rose-600 text-white',
   // Medical
-  'Valid':    'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60',
-  'Expired':  'bg-red-900/60 text-red-300 border border-red-700/60',
-  'Pending':  'bg-amber-900/60 text-amber-300 border border-amber-700/60',
+  'Valid': 'bg-emerald-600 text-white',
+  'Expired': 'bg-red-600 text-white',
+  'Pending': 'bg-amber-600 text-white',
   // Site Entry statuses
-  'Approved':   'bg-emerald-900/70 text-emerald-300 border border-emerald-700/60',
-  'Rejected':   'bg-red-900/70 text-red-300 border border-red-700/60',
-  'Checked In': 'bg-blue-900/70 text-blue-300 border border-blue-700/60',
-  'Checked Out':'bg-slate-700/80 text-slate-300 border border-slate-500',
-  'Flagged':    'bg-orange-900/70 text-orange-300 border border-orange-700/60',
-  'Visitor':    'bg-violet-900/60 text-violet-300 border border-violet-700/60',
-  'Contractor': 'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
-  'Employee':   'bg-sky-900/60 text-sky-300 border border-sky-700/60',
+  'Approved': 'bg-emerald-600 text-white',
+  'Rejected': 'bg-red-600 text-white',
+  'Checked In': 'bg-blue-600 text-white',
+  'Checked Out': 'bg-slate-600 text-white',
+  'Flagged': 'bg-orange-600 text-white',
+  'Visitor': 'bg-violet-600 text-white',
+  'Contractor': 'bg-cyan-600 text-white',
+  'Employee': 'bg-sky-600 text-white',
   // Gate types
-  'Main Gate':  'bg-slate-700/80 text-slate-200 border border-slate-500',
-  'Side Gate':  'bg-slate-700/60 text-slate-400 border border-slate-600',
-  'Emergency':  'bg-red-900/60 text-red-300 border border-red-700/60',
+  'Main Gate': 'bg-slate-600 text-white',
+  'Side Gate': 'bg-slate-600 text-white',
+  'Emergency': 'bg-red-600 text-white',
   // Entry purpose
-  'Work':        'bg-blue-900/60 text-blue-300 border border-blue-700/60',
-  'Delivery':    'bg-amber-900/60 text-amber-300 border border-amber-700/60',
-  'Inspection':  'bg-violet-900/60 text-violet-300 border border-violet-700/60',
-  'Meeting':     'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
-  'Maintenance': 'bg-orange-900/60 text-orange-300 border border-orange-700/60',
+  'Work': 'bg-blue-600 text-white',
+  'Delivery': 'bg-amber-600 text-white',
+  'Inspection': 'bg-violet-600 text-white',
+  'Meeting': 'bg-cyan-600 text-white',
+  'Maintenance': 'bg-orange-600 text-white',
 
   // Site Entry — Status (real values from the seeded module)
-  'On Site':  'bg-emerald-900/60 text-emerald-300 border border-emerald-700/60',
-  'Exited':   'bg-slate-700/70 text-sky-300 border border-slate-500/60',
-  'Denied':   'bg-red-900/60 text-red-300 border border-red-700/60',
+  'On Site': 'bg-emerald-600 text-white',
+  'Exited': 'bg-slate-600 text-white',
+  'Denied': 'bg-red-600 text-white',
 
   // Site Entry — Entry Purpose (real values)
-  'Foundation Work':       'bg-amber-900/60 text-amber-300 border border-amber-700/60',
-  'Structural Erection':   'bg-blue-900/60 text-blue-300 border border-blue-700/60',
-  'Electrical Work':       'bg-yellow-900/60 text-yellow-300 border border-yellow-700/60',
-  'Plumbing & Drainage':   'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
-  'Interior Finishing':    'bg-violet-900/60 text-violet-300 border border-violet-700/60',
-  'Safety Inspection':     'bg-rose-900/60 text-rose-300 border border-rose-700/60',
-  'Material Delivery':     'bg-orange-900/60 text-orange-300 border border-orange-700/60',
-  'Equipment Maintenance': 'bg-slate-700/70 text-slate-300 border border-slate-600',
-  'Survey & Layout':       'bg-teal-900/60 text-teal-300 border border-teal-700/60',
-  'Other':                 'bg-slate-700/60 text-slate-400 border border-slate-600',
+  'Foundation Work': 'bg-amber-600 text-white',
+  'Structural Erection': 'bg-blue-600 text-white',
+  'Electrical Work': 'bg-yellow-600 text-white',
+  'Plumbing & Drainage': 'bg-cyan-600 text-white',
+  'Interior Finishing': 'bg-violet-600 text-white',
+  'Safety Inspection': 'bg-rose-600 text-white',
+  'Material Delivery': 'bg-orange-600 text-white',
+  'Equipment Maintenance': 'bg-slate-600 text-white',
+  'Survey & Layout': 'bg-teal-600 text-white',
+  'Other': 'bg-slate-600 text-white',
 
   // Site Entry — Entry Gate (real values)
-  'Main Gate – Gate 01':  'bg-emerald-900/50 text-emerald-300 border border-emerald-700/50',
-  'East Gate – Gate 02':  'bg-sky-900/50 text-sky-300 border border-sky-700/50',
-  'West Gate – Gate 03':  'bg-indigo-900/50 text-indigo-300 border border-indigo-700/50',
-  'North Gate – Gate 04': 'bg-teal-900/50 text-teal-300 border border-teal-700/50',
-  'South Gate – Gate 05': 'bg-purple-900/50 text-purple-300 border border-purple-700/50',
-  'Rear Gate – Gate 06':  'bg-slate-700/60 text-slate-400 border border-slate-600',
+  'Main Gate – Gate 01': 'bg-emerald-600 text-white',
+  'East Gate – Gate 02': 'bg-sky-600 text-white',
+  'West Gate – Gate 03': 'bg-indigo-600 text-white',
+  'North Gate – Gate 04': 'bg-teal-600 text-white',
+  'South Gate – Gate 05': 'bg-purple-600 text-white',
+  'Rear Gate – Gate 06': 'bg-slate-600 text-white',
 
   // Workers — Trade (real values)
-  'Steel Erector':  'bg-orange-900/60 text-orange-300 border border-orange-700/60',
-  'Mason':          'bg-amber-900/60 text-amber-300 border border-amber-700/60',
-  'Carpenter':      'bg-yellow-900/50 text-yellow-300 border border-yellow-700/50',
-  'Electrician':    'bg-yellow-900/60 text-yellow-300 border border-yellow-700/60',
-  'Plumber':        'bg-cyan-900/60 text-cyan-300 border border-cyan-700/60',
-  'Welder':         'bg-red-900/50 text-red-300 border border-red-700/50',
-  'Painter':        'bg-pink-900/50 text-pink-300 border border-pink-700/50',
-  'Tiler':          'bg-indigo-900/50 text-indigo-300 border border-indigo-700/50',
-  'Foreman':        'bg-violet-900/60 text-violet-300 border border-violet-700/60',
-  'Crane Operator': 'bg-blue-900/50 text-blue-300 border border-blue-700/50',
-  'General Labour': 'bg-slate-700/60 text-slate-400 border border-slate-600',
+  'Steel Erector': 'bg-orange-600 text-white',
+  'Mason': 'bg-amber-600 text-white',
+  'Carpenter': 'bg-yellow-600 text-white',
+  'Electrician': 'bg-yellow-600 text-white',
+  'Plumber': 'bg-cyan-600 text-white',
+  'Welder': 'bg-red-600 text-white',
+  'Painter': 'bg-pink-600 text-white',
+  'Tiler': 'bg-indigo-600 text-white',
+  'Foreman': 'bg-violet-600 text-white',
+  'Crane Operator': 'bg-blue-600 text-white',
+  'General Labour': 'bg-slate-600 text-white',
 
   // Workers — ID Proof Type
-  'Aadhaar':         'bg-blue-900/50 text-blue-300 border border-blue-700/50',
-  'Passport':        'bg-violet-900/50 text-violet-300 border border-violet-700/50',
-  'Driving Licence': 'bg-cyan-900/50 text-cyan-300 border border-cyan-700/50',
-  'Voter ID':        'bg-amber-900/50 text-amber-300 border border-amber-700/50',
+  'Aadhaar': 'bg-blue-600 text-white',
+  'Passport': 'bg-violet-600 text-white',
+  'Driving Licence': 'bg-cyan-600 text-white',
+  'Voter ID': 'bg-amber-600 text-white',
 
   // Workers — Medical Fitness
-  'Not Required': 'bg-slate-700/60 text-slate-400 border border-slate-600',
+  'Not Required': 'bg-slate-600 text-white',
 };
 
 // Values that represent an "attention" state — get a small pulsing dot in the Status column.
@@ -241,100 +241,73 @@ interface SiteEntryStatsProps {
   fields: CustomField[];
 }
 
-function SiteEntryStatsBar({ records, fields }: SiteEntryStatsProps) {
+function useSiteEntryStats(records: CustomRecord[], fields: CustomField[]) {
   const statusField = fields.find((f) => f.label.toLowerCase() === 'status' || f.label.toLowerCase().includes('status'));
   const exitField   = fields.find((f) => f.label.toLowerCase().includes('exit time'));
+  const total    = records.length;
+  const approved = statusField ? records.filter((r) => ['Approved', 'Checked In'].includes(r.data[statusField.id] ?? '')).length : 0;
+  const pending  = statusField ? records.filter((r) => ['Pending'].includes(r.data[statusField.id] ?? '')).length : 0;
+  const exited   = exitField   ? records.filter((r) => r.data[exitField.id]?.toString().trim()).length : 0;
+  const flagged  = statusField ? records.filter((r) => r.data[statusField.id] === 'Flagged').length : 0;
+  return { total, approved, pending, exited, flagged };
+}
 
-  const total       = records.length;
-  const approved    = statusField ? records.filter((r) => ['Approved', 'Checked In'].includes(r.data[statusField.id] ?? '')).length : 0;
-  const pending     = statusField ? records.filter((r) => ['Pending'].includes(r.data[statusField.id] ?? '')).length : 0;
-  const exited      = exitField   ? records.filter((r) => r.data[exitField.id]?.toString().trim()).length : 0;
-  const flagged     = statusField ? records.filter((r) => r.data[statusField.id] === 'Flagged').length : 0;
+/** Compact inline donut ring that sits inside the module header bar */
+function SiteEntryMiniRing({ records, fields }: SiteEntryStatsProps) {
+  const { total, approved, pending, exited, flagged } = useSiteEntryStats(records, fields);
 
-  const stats = [
-    {
-      label: 'Total Entries',
-      value: total,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      ),
-      color: 'rgba(148,163,184,0.8)',
-      bg: 'rgba(30,41,59,0.5)',
-      border: 'rgba(71,85,105,0.4)',
-    },
-    {
-      label: 'Approved',
-      value: approved,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-      ),
-      color: '#34d399',
-      bg: 'rgba(6,78,59,0.3)',
-      border: 'rgba(16,185,129,0.25)',
-    },
-    {
-      label: 'Pending',
-      value: pending,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-        </svg>
-      ),
-      color: '#fbbf24',
-      bg: 'rgba(78,52,6,0.3)',
-      border: 'rgba(245,158,11,0.25)',
-    },
-    {
-      label: 'Exited',
-      value: exited,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-      ),
-      color: '#94a3b8',
-      bg: 'rgba(15,23,42,0.5)',
-      border: 'rgba(71,85,105,0.3)',
-    },
-    ...(flagged > 0 ? [{
-      label: 'Flagged',
-      value: flagged,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
-        </svg>
-      ),
-      color: '#f97316',
-      bg: 'rgba(78,35,6,0.4)',
-      border: 'rgba(249,115,22,0.3)',
-    }] : []),
+  const R = 14; const cx = 18; const cy = 18; const stroke = 5;
+  const circumference = 2 * Math.PI * R;
+  const segments = [
+    { label: 'Approved', value: approved, color: '#34d399' },
+    { label: 'Pending',  value: pending,  color: '#fbbf24' },
+    { label: 'Exited',   value: exited,   color: '#94a3b8' },
+    ...(flagged > 0 ? [{ label: 'Flagged', value: flagged, color: '#f97316' }] : []),
+  ];
+
+  let offset = 0;
+  const arcs: { color: string; dasharray: string; dashoffset: number }[] = [];
+  const gap = total > 0 ? circumference * 0.02 : 0;
+  segments.forEach((seg) => {
+    const pct = total > 0 ? seg.value / total : 0;
+    const arcLen = Math.max(0, pct * circumference - gap);
+    arcs.push({ color: seg.color, dasharray: `${arcLen} ${circumference - arcLen}`, dashoffset: circumference * 0.25 - offset });
+    offset += pct * circumference;
+  });
+  if (total === 0) {
+    arcs.push({ color: 'rgba(71,85,105,0.3)', dasharray: `${circumference} 0`, dashoffset: circumference * 0.25 });
+  }
+
+  const legend = [
+    { label: 'Approved', value: approved, color: '#34d399' },
+    { label: 'Pending',  value: pending,  color: '#fbbf24' },
+    { label: 'Exited',   value: exited,   color: '#94a3b8' },
+    ...(flagged > 0 ? [{ label: 'Flagged', value: flagged, color: '#f97316' }] : []),
   ];
 
   return (
-    <div className="flex items-stretch gap-2 mb-3 flex-wrap">
-      {stats.map((s) => (
-        <div
-          key={s.label}
-          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg flex-1 min-w-[96px] transition-colors duration-150 hover:brightness-125"
-          style={{ background: s.bg, border: `1px solid ${s.border}` }}
-        >
-          <span
-            className="flex items-center justify-center w-6 h-6 rounded-md shrink-0"
-            style={{ color: s.color, background: `${s.color}1f` }}
-          >
-            {React.cloneElement(s.icon, { width: 12, height: 12 })}
-          </span>
-          <div className="flex flex-col leading-none min-w-0">
-            <span className="text-[9px] font-semibold uppercase tracking-wide truncate" style={{ color: s.color, opacity: 0.65 }}>{s.label}</span>
-            <span className="text-base font-extrabold tabular-nums leading-tight" style={{ color: s.color }}>{s.value}</span>
+    <div className="flex items-center gap-2.5 px-2.5 py-1 rounded-lg" style={{ background: 'rgba(15,23,42,0.5)', border: '1px solid rgba(71,85,105,0.25)' }}>
+      {/* Mini donut */}
+      <div className="relative shrink-0">
+        <svg width={36} height={36} viewBox="0 0 36 36">
+          <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(71,85,105,0.2)" strokeWidth={stroke} />
+          {arcs.map((arc, i) => (
+            <circle key={i} cx={cx} cy={cy} r={R} fill="none" stroke={arc.color}
+              strokeWidth={stroke} strokeDasharray={arc.dasharray} strokeDashoffset={arc.dashoffset}
+              strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.4s ease' }} />
+          ))}
+        </svg>
+      </div>
+      {/* Compact legend pills */}
+      <div className="flex items-center gap-2.5">
+        {legend.map((item) => (
+          <div key={item.label} className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: item.color }} />
+            <span className="text-[10px] font-bold tabular-nums leading-none" style={{ color: item.color }}>{item.value}</span>
+            <span className="text-[9px] font-medium leading-none" style={{ color: 'rgba(148,163,184,0.5)' }}>{item.label}</span>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -425,19 +398,14 @@ function StyledCheckbox({
 }
 
 function StatusBadge({ value, showDot }: { value: string; showDot?: boolean }) {
-  const color = BADGE_COLORS[value] ?? 'bg-slate-700/80 text-slate-300 border border-slate-600';
+  const color = BADGE_COLORS[value] ?? 'bg-zinc-600 text-white';
   const isAlert = BADGE_ALERT_VALUES.has(value);
   const isActive = BADGE_ACTIVE_VALUES.has(value);
-  const accent = showDot ? statusAccentColor(value) : null;
   return (
-    <span
-      className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium transition-shadow duration-150', color)}
-      style={accent ? { boxShadow: `0 0 10px -3px ${accent}` } : undefined}
-    >
+    <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold', color)}>
       {showDot && (isAlert || isActive) && (
         <span
-          className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', isActive && !isAlert && 'animate-pulse')}
-          style={{ background: 'currentColor' }}
+          className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 bg-white', isActive && !isAlert && 'animate-pulse')}
         />
       )}
       {value || '—'}
@@ -1673,18 +1641,15 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
 
   return (
     <th
-      style={{ width, minWidth: width, maxWidth: width, background: 'linear-gradient(180deg, #1a0005 0%, #130003 100%)' }}
+      style={{ width, minWidth: width, maxWidth: width, background: '#242426' }}
       className="relative px-0 py-0 text-left select-none group/th"
     >
-      {/* Top accent line — sort/menu feedback overrides the column's resting identity color */}
+      {/* Top accent line — persistent type-color identity; sort/menu feedback overrides it */}
       <div className="absolute top-0 left-0 right-0 h-[2px] z-20 transition-all duration-200"
-        style={{ background: showMenu || sortDir ? 'linear-gradient(90deg, transparent, #fb7185 30%, #e11d48 70%, transparent)' : `${accentColor}4d` }}
-      />
-      <div className="absolute top-0 left-0 right-0 h-[2px] z-20 opacity-0 group-hover/th:opacity-100 transition-opacity duration-150"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(251,113,133,0.6) 30%, rgba(225,29,72,0.8) 70%, transparent)' }}
+        style={{ background: showMenu || sortDir ? '#fb7185' : `${accentColor}4d` }}
       />
       <div className="absolute inset-0 opacity-0 group-hover/th:opacity-100 transition-opacity duration-150 pointer-events-none"
-        style={{ background: 'linear-gradient(180deg, rgba(220,38,90,0.08) 0%, rgba(100,10,30,0.04) 100%)' }}
+        style={{ background: 'rgba(255,255,255,0.04)' }}
       />
 
       {/* Header content — click label to sort */}
@@ -1702,8 +1667,7 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
           <FieldTypeIcon type={field.type} />
         </span>
 
-        <span className="text-[11px] font-semibold text-slate-300 group-hover/th:text-white uppercase tracking-wide truncate flex-1 transition-colors duration-150"
-          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+        <span className="text-[12.5px] font-medium text-zinc-400 group-hover/th:text-zinc-100 truncate flex-1 transition-colors duration-150">
           {field.label}
         </span>
 
@@ -1713,7 +1677,7 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
             {sortDir === 'asc' ? '↑' : '↓'}
           </span>
         ) : (
-          <span className="flex-shrink-0 text-slate-700 text-[10px] opacity-0 group-hover/th:opacity-100 transition-opacity">↕</span>
+          <span className="flex-shrink-0 text-zinc-600 text-[10px] opacity-0 group-hover/th:opacity-100 transition-opacity">↕</span>
         )}
 
         {/* Context menu trigger — stop click from triggering sort */}
@@ -1724,9 +1688,9 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
             'flex-shrink-0 w-5 h-5 flex items-center justify-center rounded transition-all duration-150',
             showMenu
               ? 'opacity-100 text-rose-200'
-              : 'opacity-0 group-hover/th:opacity-100 text-slate-400 hover:text-white',
+              : 'opacity-0 group-hover/th:opacity-100 text-zinc-500 hover:text-white',
           )}
-          style={showMenu ? { background: 'rgba(225,29,72,0.4)', boxShadow: '0 0 6px rgba(251,113,133,0.3)' } : undefined}
+          style={showMenu ? { background: 'rgba(225,29,72,0.4)' } : undefined}
           title="Column options"
         >
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -1737,7 +1701,7 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
 
       {/* Right divider */}
       <div className="absolute top-[20%] right-0 bottom-[20%] w-px pointer-events-none"
-        style={{ background: 'linear-gradient(180deg, transparent, rgba(220,38,90,0.2) 40%, rgba(220,38,90,0.2) 60%, transparent)' }}
+        style={{ background: 'rgba(255,255,255,0.08)' }}
       />
 
       {/* Context menu */}
@@ -1746,27 +1710,27 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
           ref={menuRef}
           className="absolute top-full left-0 z-50 mt-1 w-52 rounded-lg shadow-2xl overflow-hidden"
           style={{
-            background: 'linear-gradient(145deg, #1e0008, #160005)',
-            border: '1px solid rgba(220,38,90,0.35)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(220,38,90,0.1)',
+            background: '#242426',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
           }}
         >
-          <div className="px-3 py-2 border-b border-rose-900/40" style={{ background: 'rgba(220,38,90,0.08)' }}>
-            <p className="text-[10px] font-bold text-rose-300/70 uppercase tracking-widest truncate">{field.label}</p>
+          <div className="px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+            <p className="text-[11px] font-semibold text-zinc-300 truncate">{field.label}</p>
           </div>
           <div className="py-1">
             <button
-              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5"
+              className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2.5"
               onMouseDown={(e) => { e.preventDefault(); onSort(); setShowMenu(false); }}
             >
-              <span className="w-4 h-4 flex items-center justify-center text-slate-500 flex-shrink-0 text-sm">↑↓</span>
+              <span className="w-4 h-4 flex items-center justify-center text-zinc-500 flex-shrink-0 text-sm">↑↓</span>
               Sort {sortDir === 'asc' ? 'Descending' : 'Ascending'}
             </button>
             <button
-              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5"
+              className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2.5"
               onMouseDown={(e) => { e.preventDefault(); onFitToContent(); setShowMenu(false); }}
             >
-              <span className="w-4 h-4 flex items-center justify-center text-slate-500 flex-shrink-0">
+              <span className="w-4 h-4 flex items-center justify-center text-zinc-500 flex-shrink-0">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
                 </svg>
@@ -1774,22 +1738,22 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
               Fit to Content
             </button>
             <button
-              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-rose-900/30 hover:text-white transition-colors flex items-center gap-2.5"
+              className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2.5"
               onMouseDown={(e) => { e.preventDefault(); onResetWidth(); setShowMenu(false); }}
             >
-              <span className="w-4 h-4 flex items-center justify-center text-slate-500 flex-shrink-0">
+              <span className="w-4 h-4 flex items-center justify-center text-zinc-500 flex-shrink-0">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 12h18M3 6h18M3 18h18"/>
                 </svg>
               </span>
               Reset Width
             </button>
-            <div className="mx-3 my-1 border-t border-rose-900/30" />
+            <div className="mx-3 my-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
             <div className="px-3 py-1.5 flex items-center gap-2">
               <span className={cn('w-4 h-4 inline-flex items-center justify-center rounded flex-shrink-0', pillColor)}>
                 <FieldTypeIcon type={field.type} />
               </span>
-              <span className="text-[10px] text-slate-500 capitalize">{field.type} field</span>
+              <span className="text-[10px] text-zinc-500 capitalize">{field.type} field</span>
             </div>
           </div>
         </div>
@@ -1857,10 +1821,10 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
 
   const isEven = rowIndex % 2 === 0;
   const rowBg = selected
-    ? 'linear-gradient(135deg, rgba(220,38,90,0.18) 0%, rgba(120,5,30,0.25) 100%)'
+    ? 'rgba(251,113,133,0.12)'
     : isEven
-      ? 'linear-gradient(135deg, rgba(20,0,5,0.96) 0%, rgba(9,0,2,0.99) 100%)'
-      : 'linear-gradient(135deg, rgba(32,1,9,0.97) 0%, rgba(18,0,5,0.99) 100%)';
+      ? '#1c1c1e'
+      : '#212123';
 
   // Persistent left rail colored by this row's Status field, so state reads
   // at a glance without needing to scroll to the Status column or hover.
@@ -1874,28 +1838,25 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
       className="group transition-all duration-150"
       style={{
         background: rowBg,
-        borderBottom: '1px solid rgba(80,5,25,0.4)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
         boxShadow: restBoxShadow,
       }}
       onMouseEnter={(e) => {
         if (!selected) {
-          (e.currentTarget as HTMLElement).style.background =
-            'linear-gradient(135deg, rgba(220,38,90,0.13) 0%, rgba(40,3,12,0.97) 50%, rgba(20,0,5,0.95) 100%)';
+          (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.045)';
         }
-        (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(220,38,90,0.5)';
         (e.currentTarget as HTMLElement).style.boxShadow =
-          `inset 3px 0 0 ${railColor ?? 'rgba(220,38,90,0.6)'}, 0 1px 12px rgba(220,38,90,0.08)`;
+          `inset 3px 0 0 ${railColor ?? 'rgba(255,255,255,0.15)'}`;
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.background = rowBg;
-        (e.currentTarget as HTMLElement).style.borderBottomColor = 'rgba(80,5,25,0.4)';
         (e.currentTarget as HTMLElement).style.boxShadow = restBoxShadow;
       }}
     >
       {/* Checkbox */}
       <td
         className="px-0 py-0 w-9 text-center select-none"
-        style={{ borderRight: '1px solid rgba(80,5,25,0.5)' }}
+        style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
         onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
       >
         <span className="flex items-center justify-center py-3">
@@ -1906,11 +1867,11 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
       {/* Row number */}
       <td
         className="px-0 py-0 w-10 text-center select-none tabular-nums"
-        style={{ borderRight: '1px solid rgba(80,5,25,0.5)' }}
+        style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
       >
         <span
-          className="flex items-center justify-center h-full py-3 text-[10px] font-mono font-black tracking-wider"
-          style={{ color: 'rgba(220,38,90,0.45)', textShadow: '0 0 10px rgba(220,38,90,0.3)' }}
+          className="flex items-center justify-center h-full py-3 text-[10px] font-mono font-medium"
+          style={{ color: '#6b6b70' }}
         >
           {String(rowIndex + 1).padStart(2, '0')}
         </span>
@@ -1920,12 +1881,12 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         <td
           key={field.id}
           className="group/cell px-0 py-0 cursor-pointer relative overflow-hidden"
-          style={{ borderRight: fIdx < fields.length - 1 ? '1px solid rgba(60,5,20,0.5)' : 'none' }}
+          style={{ borderRight: fIdx < fields.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
           onClick={() => setEditingCell(field.id)}
         >
           {editingCell === field.id && (
             <div className="absolute inset-0 pointer-events-none"
-              style={{ background: 'rgba(220,38,90,0.1)', boxShadow: 'inset 0 0 0 2px rgba(220,38,90,0.5)' }}
+              style={{ background: 'rgba(251,113,133,0.08)', boxShadow: 'inset 0 0 0 2px rgba(251,113,133,0.5)' }}
             />
           )}
           <div className="relative px-3 py-3 pr-6">
@@ -1939,8 +1900,8 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
             ) : renderCellValue(field)}
             {editingCell !== field.id && (
               <svg
-                className="absolute top-1/2 right-2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-60 transition-opacity duration-150 pointer-events-none"
-                width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(251,113,133,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                className="absolute top-1/2 right-2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-50 transition-opacity duration-150 pointer-events-none"
+                width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               >
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -1951,7 +1912,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
       ))}
 
       {/* View detail (site entry) + Delete */}
-      <td className="px-2 py-0 w-8" style={{ borderLeft: '1px solid rgba(60,5,20,0.5)' }}>
+      <td className="px-2 py-0 w-8" style={{ borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex flex-col items-center gap-1 py-2">
         {onRowClick && (
           <button
@@ -1970,9 +1931,9 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all duration-150"
-          style={{ color: 'rgba(150,80,100,0.6)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#fca5a5'; e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; e.currentTarget.style.boxShadow = '0 0 8px rgba(239,68,68,0.2)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(150,80,100,0.6)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.boxShadow = 'none'; }}
+          style={{ color: 'rgba(161,161,170,0.7)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#fca5a5'; e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(161,161,170,0.7)'; e.currentTarget.style.background = 'transparent'; }}
           title="Delete record"
         >
           <TrashIcon />
@@ -2181,11 +2142,6 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
   return (
     <>
-      {/* ── Site Entry stats bar ── */}
-      {isSiteEntry && !loading && records.length > 0 && (
-        <SiteEntryStatsBar records={records} fields={module.fields} />
-      )}
-
       {/* Module header */}
       <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
         <div className="flex items-center gap-3">
@@ -2197,6 +2153,10 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
           >
             {records.length}
           </span>
+          {/* ── Site Entry mini ring — inline in the title row ── */}
+          {isSiteEntry && !loading && records.length > 0 && (
+            <SiteEntryMiniRing records={records} fields={module.fields} />
+          )}
           {searchQuery && (
             <span className="text-slate-500 text-xs">
               · {filteredSortedRecords.length} match{filteredSortedRecords.length !== 1 ? 'es' : ''}
@@ -2220,11 +2180,11 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               placeholder='Search… ( / )'
               className="pl-7 pr-7 py-1.5 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none transition-all w-44 focus:w-56"
               style={{
-                background: 'rgba(220,38,90,0.06)',
-                border: '1px solid rgba(220,38,90,0.2)',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.09)',
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(220,38,90,0.5)'; e.currentTarget.style.background = 'rgba(220,38,90,0.1)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(220,38,90,0.2)'; e.currentTarget.style.background = 'rgba(220,38,90,0.06)'; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(251,113,133,0.5)'; e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
             />
             {searchQuery && (
               <button
@@ -2302,10 +2262,9 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
       <div
         className="rounded-2xl overflow-auto max-h-[calc(100vh-230px)]"
         style={{
-          border: '1px solid rgba(140,10,40,0.4)',
-          background: 'linear-gradient(160deg, #0d0002 0%, #080001 100%)',
-          boxShadow:
-            '0 8px 48px rgba(0,0,0,0.7), 0 2px 0 rgba(220,38,90,0.06), inset 0 1px 0 rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#19191b',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.02)',
         }}
       >
         <table style={{ width: totalWidth, minWidth: '100%', tableLayout: 'fixed' }}>
@@ -2323,17 +2282,17 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
           <thead className="sticky top-0 z-10">
             <tr
               style={{
-                background: 'linear-gradient(180deg, #200008 0%, #160004 50%, #0f0002 100%)',
-                borderBottom: '1px solid rgba(220,38,90,0.3)',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.6), 0 1px 0 rgba(220,38,90,0.15)',
+                background: '#242426',
+                borderBottom: '1px solid rgba(255,255,255,0.09)',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.03)',
               }}
             >
               {/* Checkbox header */}
               <th
                 className="px-0 py-0 text-center select-none"
                 style={{
-                  background: 'linear-gradient(180deg, #200008 0%, #160004 100%)',
-                  borderRight: '1px solid rgba(60,5,18,0.5)',
+                  background: '#242426',
+                  borderRight: '1px solid rgba(255,255,255,0.07)',
                   width: 36, minWidth: 36,
                 }}
               >
@@ -2349,15 +2308,15 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               <th
                 className="px-0 py-0 text-center select-none"
                 style={{
-                  background: 'linear-gradient(180deg, #200008 0%, #160004 100%)',
-                  borderRight: '1px solid rgba(60,5,18,0.5)',
+                  background: '#242426',
+                  borderRight: '1px solid rgba(255,255,255,0.07)',
                   width: 40,
                   minWidth: 40,
                 }}
               >
                 <span
-                  className="flex items-center justify-center py-3 text-[9px] font-black uppercase tracking-[0.25em]"
-                  style={{ color: 'rgba(220,38,90,0.4)', textShadow: '0 0 10px rgba(220,38,90,0.2)' }}
+                  className="flex items-center justify-center py-3 text-[10px] font-semibold"
+                  style={{ color: '#6b6b70' }}
                 >
                   #
                 </span>
@@ -2374,7 +2333,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                   onSort={() => handleSortClick(field.id)}
                 />
               ))}
-              <th style={{ background: 'linear-gradient(180deg, #200008 0%, #160004 100%)', width: 40, minWidth: 40 }} />
+              <th style={{ background: '#242426', width: 40, minWidth: 40 }} />
             </tr>
           </thead>
           <tbody>
