@@ -1896,14 +1896,6 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
       {/* Module header */}
       <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-rose-700 flex-shrink-0" />
-          <h2 className="text-white font-semibold text-base">{module.name}</h2>
-          <span
-            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(220,38,90,0.15)', color: '#fb7185', border: '1px solid rgba(220,38,90,0.25)' }}
-          >
-            {records.length}
-          </span>
           {/* ── Site Entry ring stats ── */}
           {isSiteEntry && !loading && records.length > 0 && (() => {
             const statusField = module.fields.find((f) => f.label.toLowerCase().includes('status'));
@@ -1952,7 +1944,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
             // Big total ring
             const BigRing = () => {
-              const size = 36, cx = 18, cy = 18, R = 14, sw = 3;
+              const size = 52, cx = 26, cy = 26, R = 20, sw = 4.5;
               const circ = 2 * Math.PI * R;
               const segs = [
                 { value: approved, color: '#34d399' },
@@ -1963,11 +1955,29 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               let offset = 0;
               const gap = total > 0 ? circ * 0.02 : 0;
               const dominant = segs.reduce((best, s) => (s.value > best.value ? s : best), segs[0] ?? { color: '#fb7185', value: 0 });
+              // Tick marks around the ring, like a dial
+              const ticks = Array.from({ length: 8 }, (_, i) => {
+                const deg = i * 45;
+                const rad = (deg - 90) * (Math.PI / 180);
+                const inner = R + sw / 2 + 1.5;
+                const outer = R + sw / 2 + 4;
+                return {
+                  x1: cx + inner * Math.cos(rad), y1: cy + inner * Math.sin(rad),
+                  x2: cx + outer * Math.cos(rad), y2: cy + outer * Math.sin(rad),
+                };
+              });
               return (
                 <div className="relative shrink-0" style={{ width: size, height: size }}>
                   <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
+                    {/* Dark badge fill behind the ring */}
+                    <circle cx={cx} cy={cy} r={R - sw / 2 - 1} fill="#0c1220" />
+                    {/* Tick marks */}
+                    {ticks.map((t, i) => (
+                      <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+                        stroke="rgba(100,116,139,0.4)" strokeWidth={1} strokeLinecap="round" />
+                    ))}
                     {/* Track ring */}
-                    <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(30,41,59,0.8)" strokeWidth={sw} />
+                    <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(30,41,59,0.9)" strokeWidth={sw} />
                     {/* Coloured segments */}
                     {segs.map((seg, i) => {
                       const arcLen = Math.max(0, (seg.value / total) * circ - gap);
@@ -1985,19 +1995,19 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                     {/* Total count — bright white with glow */}
                     <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
                       fill="white"
-                      style={{ fontSize: 11, fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.3px', filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.5))' }}>
+                      style={{ fontSize: 15, fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.3px', filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.5))' }}>
                       {total}
                     </text>
                   </svg>
-                  {/* Accent dot badge — top-left marker showing the dominant status colour */}
+                  {/* Accent dot badge — top marker showing the dominant status colour */}
                   {dominant.value > 0 && (
                     <span
                       className="absolute rounded-full"
                       style={{
-                        width: 6, height: 6, top: -1, left: -1,
+                        width: 8, height: 8, top: -2, left: '50%', transform: 'translateX(-50%)',
                         background: dominant.color,
-                        boxShadow: `0 0 5px ${dominant.color}`,
-                        border: '1.5px solid #0a0e1a',
+                        boxShadow: `0 0 6px ${dominant.color}`,
+                        border: '2px solid #0a0e1a',
                       }}
                     />
                   )}
@@ -2008,21 +2018,31 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
             const stats = [
               { label: 'Approved', value: approved, color: '#34d399' },
               { label: 'Pending',  value: pending,  color: '#fbbf24' },
-              { label: 'Exited',   value: exited,   color: '#94a3b8' },
+              { label: 'Exited',   value: exited,   color: '#22d3ee' },
               ...(flagged > 0 ? [{ label: 'Flagged', value: flagged, color: '#f97316' }] : []),
             ];
             const approvedPct = total > 0 ? Math.round((approved / total) * 100) : 0;
 
             return (
-              <div className="flex items-center gap-2.5 px-1 py-1">
+              <div className="flex items-center gap-3 px-1 py-1">
                 {/* Big total ring */}
                 <BigRing />
-                {/* Summary line, beside the ring */}
-                <span className="text-[10px] whitespace-nowrap" style={{ color: 'rgba(148,163,184,0.6)' }}>
-                  <span style={{ color: '#34d399', fontWeight: 700 }}>{approvedPct}%</span> approved
-                </span>
+                {/* Module title + summary, beside the ring */}
+                <div className="flex flex-col gap-0.5 pr-1">
+                  <span className="text-white font-extrabold text-[13px] uppercase tracking-wider leading-none">
+                    {module.name}
+                  </span>
+                  <span className="text-[11px] leading-none" style={{ color: 'rgba(148,163,184,0.65)' }}>
+                    <span className="text-white font-bold">{total}</span> in module
+                    <span style={{ color: 'rgba(100,116,139,0.6)' }}> · </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full inline-block" style={{ background: '#34d399' }} />
+                      <span style={{ color: '#34d399', fontWeight: 700 }}>{approvedPct}%</span>
+                    </span>
+                  </span>
+                </div>
                 {/* Divider */}
-                <div className="w-px h-6" style={{ background: 'rgba(71,85,105,0.3)' }} />
+                <div className="w-px h-8" style={{ background: 'rgba(71,85,105,0.3)' }} />
                 {/* Individual stat rings */}
                 <div className="flex items-center gap-3">
                   {stats.map((s) => (
