@@ -32,7 +32,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { getAccessToken } from '../zohoAuth';
-import { zohoGet, zohoPostForm, zohoPutForm, zohoDelete, getPortalId } from './zohoProjects';
+import { zohoGet, zohoPostForm, zohoDelete, getPortalId } from './zohoProjects';
 import { uploadFile, getSignedUrl, isStratusEnabled } from '../db/stratus';
 
 const router = Router();
@@ -147,7 +147,17 @@ async function readIndex(token: string, portalId: string, zProjectId: string) {
   return { listId, indexTaskId: indexTask ? taskId(indexTask) : null, modules };
 }
 
-/** Write the full module index back (create the index task on first write). */
+/**
+ * Write the full module index back.
+ *
+ * Zoho's task-update endpoint (PUT /tasks/:id/) fails with a generic
+ * "General Error" (code 6500) for every task in this account/project —
+ * confirmed via direct testing, and independent of payload shape. Create and
+ * delete both work fine, so an update is done as create-new + delete-old
+ * instead of PUT (in that order, so a failed create never loses the existing
+ * index). The index task's own id therefore changes on every write; that's
+ * fine since it's always looked up by name (INDEX_TASK_NAME), never cached.
+ */
 async function writeIndex(
   token: string,
   portalId: string,
@@ -157,14 +167,13 @@ async function writeIndex(
   modules: any[]
 ) {
   const description = JSON.stringify({ modules });
+  await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`, {
+    name: INDEX_TASK_NAME,
+    tasklist_id: listId,
+    description,
+  });
   if (indexTaskId) {
-    await zohoPutForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${indexTaskId}/`, { description });
-  } else {
-    await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`, {
-      name: INDEX_TASK_NAME,
-      tasklist_id: listId,
-      description,
-    });
+    await zohoDelete(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${indexTaskId}/`);
   }
 }
 
@@ -239,7 +248,17 @@ router.post('/', async (req, res) => {
   }
 });
 
-/** PUT /api/custom-modules/:id  — update module name and/or fields */
+/**
+ * PUT /api/custom-modules/:id  — update module name and/or fields
+ *
+ * Only the index entry is updated — the real Zoho task list's own `name`
+ * attribute is left as-is. GET / always reads `name` from the index (never
+ * from the task list), and renaming the task list itself would need the same
+ * broken task-update-style PUT (tasklist rename wasn't directly confirmed
+ * broken, but the sibling MCP tool for it implies the same old-REST-API gap
+ * as tasks) — recreating the task list to work around that would destroy all
+ * of its records, which is worse than a cosmetic mismatch in the raw Zoho UI.
+ */
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -247,10 +266,6 @@ router.put('/:id', async (req, res) => {
     const token = await getAccessToken();
     const portalId = getPortalId();
     const zProjectId = getZohoProjectId();
-
-    if (name !== undefined) {
-      await zohoPutForm(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/${id}/`, { name });
-    }
 
     const { listId, indexTaskId, modules } = await readIndex(token, portalId, zProjectId);
     let updated: any = null;
@@ -347,7 +362,14 @@ router.post('/:id/records', async (req, res) => {
   }
 });
 
-/** PUT /api/custom-modules/:id/records/:recordId  — replace a record's data ({ projectId, data }) */
+/**
+ * PUT /api/custom-modules/:id/records/:recordId  — replace a record's data ({ projectId, data })
+ *
+ * Implemented as create-new + delete-old (see writeIndex's comment for why:
+ * Zoho's task PUT is broken here). The record's Zoho task id therefore
+ * changes on every edit — the frontend always applies the id from this
+ * response, so that's transparent to the UI.
+ */
 router.put('/:id/records/:recordId', async (req, res) => {
   try {
     const { id: moduleId, recordId } = req.params;
@@ -360,13 +382,17 @@ router.put('/:id/records/:recordId', async (req, res) => {
     const name = String(Object.values(recordData)[0] ?? `Record-${recordId}`).slice(0, 100) || `Record-${recordId}`;
     const meta = { _moduleId: moduleId, _data: recordData };
 
-    await zohoPutForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${recordId}/`, {
+    const created = await zohoPostForm(token, `/portal/${portalId}/projects/${zProjectId}/tasks/`, {
       name,
+      tasklist_id: moduleId,
       description: JSON.stringify(meta),
     });
+    const t = created.tasks?.[0];
+    if (!t) return res.status(502).json({ error: 'Zoho did not return the updated record', raw: created });
+    await zohoDelete(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${recordId}/`);
 
     const resolvedData = await resolveAttachmentUrls(req, recordData);
-    res.json({ id: recordId, moduleId, data: resolvedData });
+    res.json({ id: taskId(t), moduleId, data: resolvedData });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
