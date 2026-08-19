@@ -139,32 +139,88 @@ void formatDuration;
 
 // ─── SelectOptionsEditor ─────────────────────────────────────────────────────
 
+// Colour palette for dropdown option chips (cycles through for variety)
+const OPTION_CHIP_COLORS = [
+  { bg: 'rgba(99,102,241,0.18)', text: '#a5b4fc', border: 'rgba(99,102,241,0.35)' },
+  { bg: 'rgba(245,158,11,0.18)', text: '#fcd34d', border: 'rgba(245,158,11,0.35)' },
+  { bg: 'rgba(16,185,129,0.18)', text: '#6ee7b7', border: 'rgba(16,185,129,0.35)' },
+  { bg: 'rgba(239,68,68,0.18)',  text: '#fca5a5', border: 'rgba(239,68,68,0.35)' },
+  { bg: 'rgba(59,130,246,0.18)', text: '#93c5fd', border: 'rgba(59,130,246,0.35)' },
+  { bg: 'rgba(168,85,247,0.18)', text: '#d8b4fe', border: 'rgba(168,85,247,0.35)' },
+  { bg: 'rgba(20,184,166,0.18)', text: '#5eead4', border: 'rgba(20,184,166,0.35)' },
+  { bg: 'rgba(249,115,22,0.18)', text: '#fdba74', border: 'rgba(249,115,22,0.35)' },
+];
+
 function SelectOptionsEditor({ options, onChange }: { options: string[]; onChange: (opts: string[]) => void }) {
   const [input, setInput] = useState('');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
   function add() {
     const v = input.trim();
-    if (v && !options.includes(v)) { onChange([...options, v]); setInput(''); }
+    if (v && !options.includes(v)) { onChange([...options, v]); setInput(''); inputRef.current?.focus(); }
   }
   function remove(idx: number) { onChange(options.filter((_, i) => i !== idx)); }
+
   return (
-    <div className="ml-2 mt-1 space-y-1">
-      <div className="flex flex-wrap gap-1">
-        {options.map((o, i) => (
-          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 text-[10px]">
-            {o}
-            <button type="button" onClick={() => remove(i)} className="text-slate-500 hover:text-red-400 leading-none">×</button>
+    <div className="mt-3 rounded-xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(220,38,90,0.12)' }}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: options.length > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-rose-400/50">Dropdown Options</span>
+        {options.length > 0 && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(220,38,90,0.15)', color: '#fb7185' }}>
+            {options.length}
           </span>
-        ))}
+        )}
       </div>
-      <div className="flex gap-1">
+
+      {/* Options grid */}
+      {options.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-3 py-2.5">
+          {options.map((o, i) => {
+            const color = OPTION_CHIP_COLORS[i % OPTION_CHIP_COLORS.length];
+            return (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all group"
+                style={{ background: color.bg, color: color.text, border: `1px solid ${color.border}` }}
+              >
+                {o}
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity leading-none hover:text-red-400 ml-0.5"
+                  style={{ color: color.text }}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add option input */}
+      <div className="flex gap-0 px-3 py-2.5" style={{ borderTop: options.length > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
         <input
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-          placeholder="Add option…"
-          className="flex-1 bg-[#0b0000] border border-slate-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-rose-700"
+          placeholder="Type an option and press Enter…"
+          className="flex-1 bg-transparent text-white text-xs focus:outline-none placeholder-slate-600"
+          style={{ padding: '4px 0' }}
         />
-        <button type="button" onClick={add} className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white">+</button>
+        <button
+          type="button"
+          onClick={add}
+          disabled={!input.trim()}
+          className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all disabled:opacity-30"
+          style={{ background: 'rgba(220,38,90,0.2)', color: '#fb7185', border: '1px solid rgba(220,38,90,0.3)' }}
+          onMouseEnter={(e) => { if (input.trim()) e.currentTarget.style.background = 'rgba(220,38,90,0.35)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(220,38,90,0.2)'; }}
+        >
+          + Add
+        </button>
       </div>
     </div>
   );
@@ -569,99 +625,205 @@ function EditModuleModal({ projectId, module, onClose, onSaved }: EditModuleModa
           )}
 
           {activeTab === 'fields' && (
-            <div className="space-y-1">
-              {fields.map((field, idx) => (
-                <div
-                  key={field.id}
-                  draggable
-                  onDragStart={() => { dragIndexRef.current = idx; }}
-                  onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
-                  onDragLeave={() => setDragOverIndex(null)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (dragIndexRef.current !== null) {
-                      reorderFields(dragIndexRef.current, idx);
-                      dragIndexRef.current = null;
-                    }
-                    setDragOverIndex(null);
-                  }}
-                  onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }}
-                  className="flex flex-col gap-1.5 rounded-xl px-3 py-2 transition-all duration-150"
-                  style={dragOverIndex === idx
-                    ? { background: 'rgba(220,38,90,0.12)', border: '1px solid rgba(220,38,90,0.4)' }
-                    : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }
-                  }
-                >
-                  <div className="flex gap-2 items-center">
-                    {/* Drag handle */}
-                    <div className="flex flex-col gap-[3px] cursor-grab active:cursor-grabbing text-slate-600 hover:text-rose-500 flex-shrink-0 transition-colors">
-                      <div className="w-3 h-0.5 bg-current rounded-full" />
-                      <div className="w-3 h-0.5 bg-current rounded-full" />
-                      <div className="w-3 h-0.5 bg-current rounded-full" />
-                    </div>
-                    {/* Index badge */}
-                    <span
-                      className="text-[9px] font-black w-5 h-5 flex items-center justify-center rounded flex-shrink-0"
-                      style={{ background: 'rgba(220,38,90,0.15)', color: 'rgba(251,113,133,0.7)' }}
-                    >
-                      {idx + 1}
-                    </span>
-                    <input
-                      value={field.label}
-                      onChange={(e) => updateField(idx, { label: e.target.value })}
-                      placeholder="Field label"
-                      className="flex-1 rounded-lg px-3 py-1.5 text-white placeholder-slate-600 text-sm focus:outline-none transition-all"
-                      style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(100,30,50,0.4)' }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(220,38,90,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(220,38,90,0.08)'; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(100,30,50,0.4)'; e.currentTarget.style.boxShadow = 'none'; }}
-                    />
-                    <select
-                      value={field.type}
-                      onChange={(e) => {
-                        const newType = e.target.value as FieldType;
-                        updateField(idx, {
-                          type: newType,
-                          options: newType === 'select' ? (field.options ?? []) : undefined,
-                        });
-                      }}
-                      className="rounded-lg px-2 py-1.5 text-white text-sm focus:outline-none w-36"
-                      style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(100,30,50,0.4)' }}
-                    >
-                      {(Object.keys(FIELD_TYPE_LABELS) as FieldType[]).map((t) => (
-                        <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => removeField(idx)}
-                      disabled={fields.length <= 1}
-                      className="p-1.5 text-slate-600 hover:text-red-400 disabled:opacity-30 transition-colors flex-shrink-0 rounded-lg"
-                      style={{ border: '1px solid transparent' }}
-                      onMouseEnter={(e) => { if (fields.length > 1) e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                      title="Remove field"
-                    >
-                      <TrashIcon />
-                    </button>
-                  </div>
-                  {field.type === 'select' && (
-                    <div className="pl-10">
-                      <SelectOptionsEditor
-                        options={field.options ?? []}
-                        onChange={(opts) => updateField(idx, { options: opts })}
-                      />
-                    </div>
-                  )}
+            <div className="space-y-2">
+              {/* Fields list header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-400/60">
+                    {fields.length} {fields.length === 1 ? 'Field' : 'Fields'} Defined
+                  </span>
+                  <span className="text-[9px] text-slate-600">· drag to reorder</span>
                 </div>
-              ))}
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(
+                    fields.reduce<Record<string, number>>((acc, f) => { acc[f.type] = (acc[f.type] ?? 0) + 1; return acc; }, {})
+                  ).map(([type, count]) => (
+                    <span
+                      key={type}
+                      className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold', TYPE_PILL_COLOR[type as FieldType] ?? 'bg-slate-700/50 text-slate-400')}
+                    >
+                      <FieldTypeIcon type={type as FieldType} />
+                      {count}
+                    </span>
+                  ))}
+                </div>
+              </div>
 
+              {fields.map((field, idx) => {
+                const accentColor = (() => {
+                  switch (field.type) {
+                    case 'name':       return '#34d399';
+                    case 'text':       return '#94a3b8';
+                    case 'number':     return '#60a5fa';
+                    case 'date':       return '#a78bfa';
+                    case 'select':     return '#fbbf24';
+                    case 'multiuser':  return '#22d3ee';
+                    case 'attachment': return '#fb7185';
+                    default:           return '#64748b';
+                  }
+                })();
+                const isDragging = dragOverIndex === idx;
+                return (
+                  <div
+                    key={field.id}
+                    draggable
+                    onDragStart={() => { dragIndexRef.current = idx; }}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
+                    onDragLeave={() => setDragOverIndex(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragIndexRef.current !== null) {
+                        reorderFields(dragIndexRef.current, idx);
+                        dragIndexRef.current = null;
+                      }
+                      setDragOverIndex(null);
+                    }}
+                    onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }}
+                    className="rounded-xl transition-all duration-150 overflow-hidden"
+                    style={isDragging
+                      ? { background: 'rgba(220,38,90,0.1)', border: '1px solid rgba(220,38,90,0.5)', boxShadow: '0 0 0 2px rgba(220,38,90,0.15)' }
+                      : { background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }
+                    }
+                  >
+                    {/* Coloured top rail indicating field type */}
+                    <div className="h-[2px] w-full" style={{ background: `linear-gradient(90deg, ${accentColor}60, ${accentColor}20)` }} />
+
+                    <div className="px-3 py-2.5">
+                      {/* Row 1: drag handle + type icon + label input + type selector + delete */}
+                      <div className="flex gap-2 items-center">
+                        {/* Drag handle */}
+                        <div
+                          className="flex flex-col gap-[3px] cursor-grab active:cursor-grabbing flex-shrink-0 transition-colors"
+                          style={{ color: isDragging ? accentColor : 'rgba(100,116,139,0.5)' }}
+                          title="Drag to reorder"
+                        >
+                          <div className="w-3.5 h-0.5 bg-current rounded-full" />
+                          <div className="w-3.5 h-0.5 bg-current rounded-full" />
+                          <div className="w-3.5 h-0.5 bg-current rounded-full" />
+                        </div>
+
+                        {/* Type icon badge */}
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
+                          style={{
+                            background: `${accentColor}18`,
+                            border: `1px solid ${accentColor}35`,
+                            color: accentColor,
+                          }}
+                          title={FIELD_TYPE_LABELS[field.type]}
+                        >
+                          <FieldTypeIcon type={field.type} />
+                        </div>
+
+                        {/* Field label input */}
+                        <input
+                          value={field.label}
+                          onChange={(e) => updateField(idx, { label: e.target.value })}
+                          placeholder="Field label…"
+                          className="flex-1 rounded-lg px-3 py-1.5 text-white placeholder-slate-600 text-sm font-medium focus:outline-none transition-all"
+                          style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(100,30,50,0.35)' }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = `${accentColor}70`;
+                            e.currentTarget.style.boxShadow = `0 0 0 2px ${accentColor}15`;
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = 'rgba(100,30,50,0.35)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        />
+
+                        {/* Type selector — styled pill */}
+                        <div
+                          className="relative flex-shrink-0"
+                          style={{ minWidth: '8rem' }}
+                        >
+                          <select
+                            value={field.type}
+                            onChange={(e) => {
+                              const newType = e.target.value as FieldType;
+                              updateField(idx, {
+                                type: newType,
+                                options: newType === 'select' ? (field.options ?? []) : undefined,
+                              });
+                            }}
+                            className="w-full appearance-none rounded-lg pl-2.5 pr-7 py-1.5 text-xs font-semibold focus:outline-none transition-all cursor-pointer"
+                            style={{
+                              background: `${accentColor}18`,
+                              border: `1px solid ${accentColor}35`,
+                              color: accentColor,
+                            }}
+                          >
+                            {(Object.keys(FIELD_TYPE_LABELS) as FieldType[]).map((t) => (
+                              <option key={t} value={t} style={{ background: '#1a0006', color: '#e2e8f0' }}>
+                                {FIELD_TYPE_LABELS[t]}
+                              </option>
+                            ))}
+                          </select>
+                          {/* Dropdown chevron */}
+                          <svg
+                            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2"
+                            width="10" height="10" viewBox="0 0 24 24" fill="none"
+                            stroke={accentColor} strokeWidth="2.5" strokeLinecap="round"
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </div>
+
+                        {/* Delete button */}
+                        <button
+                          onClick={() => removeField(idx)}
+                          disabled={fields.length <= 1}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:text-red-400 disabled:opacity-20 transition-all flex-shrink-0"
+                          style={{ border: '1px solid transparent' }}
+                          onMouseEnter={(e) => { if (fields.length > 1) { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; } }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
+                          title="Remove field"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+
+                      {/* Row 2: index indicator + optional notes */}
+                      <div className="flex items-center gap-2 mt-1.5 pl-[4.5rem]">
+                        <span className="text-[9px] font-black" style={{ color: `${accentColor}60` }}>
+                          f{idx + 1}
+                        </span>
+                        <span className="text-[9px] text-slate-700">
+                          {field.type === 'select' && field.options && field.options.length > 0
+                            ? `${field.options.length} option${field.options.length !== 1 ? 's' : ''}`
+                            : field.type === 'select'
+                            ? 'No options yet'
+                            : FIELD_TYPE_LABELS[field.type]
+                          }
+                        </span>
+                      </div>
+
+                      {/* Select options editor */}
+                      {field.type === 'select' && (
+                        <div className="mt-2 pl-9">
+                          <SelectOptionsEditor
+                            options={field.options ?? []}
+                            onChange={(opts) => updateField(idx, { options: opts })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add Field button */}
               <button
                 onClick={addField}
-                className="flex items-center gap-2 text-xs font-semibold w-full mt-3 px-3 py-2.5 rounded-xl transition-all duration-150"
-                style={{ color: '#fb7185', border: '1px dashed rgba(220,38,90,0.3)', background: 'rgba(220,38,90,0.04)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(220,38,90,0.1)'; e.currentTarget.style.borderColor = 'rgba(220,38,90,0.5)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(220,38,90,0.04)'; e.currentTarget.style.borderColor = 'rgba(220,38,90,0.3)'; }}
+                className="flex items-center justify-center gap-2 text-xs font-semibold w-full mt-2 px-3 py-3 rounded-xl transition-all duration-150"
+                style={{ color: '#fb7185', border: '1px dashed rgba(220,38,90,0.25)', background: 'rgba(220,38,90,0.03)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(220,38,90,0.08)'; e.currentTarget.style.borderColor = 'rgba(220,38,90,0.45)'; e.currentTarget.style.boxShadow = '0 0 12px rgba(220,38,90,0.1)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(220,38,90,0.03)'; e.currentTarget.style.borderColor = 'rgba(220,38,90,0.25)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
-                <PlusIcon /> Add new field
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add new field
               </button>
             </div>
           )}
