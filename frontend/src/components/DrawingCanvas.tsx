@@ -1039,22 +1039,6 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [calibrating, selectedElementId, handleReposition, currentDrawing, deleteDrawingNode, setSelectedElementId]);
 
-  // ── Delete key: remove a selected beam — custom or auto-derived (works outside calibration mode too) ──
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.key !== 'Delete' && e.key !== 'Backspace') || e.ctrlKey || e.metaKey) return;
-      if (selectedCustomBeam) {
-        e.preventDefault();
-        handleDeleteSelectedCustomBeam();
-      } else if (selectedElementId?.startsWith('Beam_')) {
-        e.preventDefault();
-        handleDeleteSelectedBeam();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedCustomBeam, handleDeleteSelectedCustomBeam, selectedElementId, handleDeleteSelectedBeam]);
-
   // ── Grid segment handles: per-cell-edge draggable lines ──────────────────────
   // One handle per CELL EDGE:
   //   axis='h': the vertical boundary between col and col+1 in the same row.
@@ -1839,25 +1823,23 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
           {selectedCustomBeam && (
             <button
               onClick={handleDeleteSelectedCustomBeam}
-              title="Remove this joined beam (Delete key also works)"
+              title="Remove this joined beam"
               className="mt-2 w-full flex items-center justify-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
               style={{ background: 'rgba(239,68,68,0.14)', borderColor: 'rgba(239,68,68,0.45)', color: 'rgba(252,165,165,0.95)' }}
             >
               <Trash2 size={10} />
               Delete beam
-              <span className="ml-auto text-[9px] opacity-60">Del</span>
             </button>
           )}
           {selectedElementId?.startsWith('Beam_') && (
             <button
               onClick={handleDeleteSelectedBeam}
-              title="Remove this structural beam (Delete key also works)"
+              title="Remove this structural beam"
               className="mt-2 w-full flex items-center justify-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
               style={{ background: 'rgba(239,68,68,0.14)', borderColor: 'rgba(239,68,68,0.45)', color: 'rgba(252,165,165,0.95)' }}
             >
               <Trash2 size={10} />
               Delete beam
-              <span className="ml-auto text-[9px] opacity-60">Del</span>
             </button>
           )}
         </div>
