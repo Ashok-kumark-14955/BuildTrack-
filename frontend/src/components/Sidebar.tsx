@@ -22,7 +22,6 @@ import {
   Package,
   Settings,
   GripVertical,
-  Crosshair,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -151,6 +150,17 @@ function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[
   // `orderedIds` holding the wrong-key result.
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
 
+  // Tracks the storageKey the sync effect below has actually derived orderedIds
+  // for. The mirror effect must not persist anything until this matches the
+  // current storageKey — otherwise, on a render where storageKey has just
+  // switched from 'drawingOrder:all' to the real project-keyed value but
+  // sourceDrawings hasn't loaded yet (the sync effect below bails out via its
+  // `sourceDrawings.length === 0` guard), the mirror effect would still fire
+  // unconditionally and stomp the real persisted order with the still-initial
+  // `orderedIds` ([]) — permanently erasing it once the sync effect later reads
+  // back that now-empty value and falls back to arrival order.
+  const syncedKeyRef = useRef<string | null>(null);
+
   // Sync whenever sourceDrawings changes (project switch or data refresh).
   // Server sortOrder is ALWAYS the authoritative source of truth — it is set
   // by the backend whenever the user drags to reorder and must win on refresh.
@@ -166,6 +176,7 @@ function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[
 
     if (anyHaveServerOrder) {
       // Server has persisted order data — always use server order.
+      syncedKeyRef.current = storageKey;
       setOrderedIds((prev) => {
         const newIds = serverIds.filter((id) => !prev.includes(id));
         return [...serverIds, ...newIds.filter((id) => !serverIds.includes(id))];
@@ -185,11 +196,15 @@ function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[
     }
     const stillValid = base.filter((id) => serverIds.includes(id));
     const newIds = serverIds.filter((id) => !stillValid.includes(id));
+    syncedKeyRef.current = storageKey;
     setOrderedIds([...stillValid, ...newIds]);
   }, [sourceDrawings, storageKey]);
 
   // Mirror to localStorage as a fast cache for future page loads on same device.
+  // Skipped until the sync effect above has actually run for this exact
+  // storageKey — see syncedKeyRef's comment for why that guard matters.
   useEffect(() => {
+    if (syncedKeyRef.current !== storageKey) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(orderedIds));
     } catch {}
@@ -230,7 +245,7 @@ function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[
 }
 
 export default function Sidebar() {
-  const { tasks, drawings, projects, milestones, refreshProjects, currentDrawingId, setCurrentDrawingId, deleteDrawing, activeProjectId, setCalibrating } = useApp();
+  const { tasks, drawings, projects, milestones, refreshProjects, currentDrawingId, setCurrentDrawingId, deleteDrawing, activeProjectId } = useApp();
   const navigate = useNavigate();
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1');
@@ -739,22 +754,6 @@ export default function Sidebar() {
 
                     {/* Action buttons — top-right on hover */}
                     <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all duration-150">
-                      {/* Calibrate button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentDrawingId(d.id);
-                          setCalibrating(true);
-                          navigate('/');
-                        }}
-                        title="Calibrate grid"
-                        className="w-5 h-5 flex items-center justify-center rounded-md transition-all duration-150"
-                        style={{ background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(96,165,250,0.35)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(96,165,250,0.15)')}
-                      >
-                        <Crosshair size={9} className="text-blue-400" />
-                      </button>
                       {/* Delete button */}
                       <button
                         onClick={async (e) => {

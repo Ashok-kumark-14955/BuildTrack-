@@ -1287,6 +1287,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
         style={{
           position: 'absolute',
           inset: 0,
+          filter: highContrast ? 'invert(1) hue-rotate(180deg)' : undefined,
+          transition: 'filter 0.25s ease',
         }}
       >
       {/* Konva's shadow-caching path draws into an internal canvas sized off the
