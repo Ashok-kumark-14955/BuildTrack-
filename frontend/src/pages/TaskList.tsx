@@ -424,6 +424,11 @@ export default function TaskList() {
                   <span className="font-bold text-white text-[15px] block leading-tight">
                     {milestone ? milestone.name : '— Unassigned Drawings —'}
                   </span>
+                  {milestone && (
+                    <span className="text-[10px] font-semibold text-rose-400/70 block leading-tight mt-0.5">
+                      Milestone
+                    </span>
+                  )}
                 </span>
                 {milestone && msStyle && (
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${msStyle.bg} ${msStyle.text} flex items-center gap-1`}>

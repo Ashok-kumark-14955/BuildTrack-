@@ -1899,11 +1899,14 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
           {/* ── Site Entry ring stats ── */}
           {isSiteEntry && !loading && records.length > 0 && (() => {
             const statusField = module.fields.find((f) => f.label.toLowerCase().includes('status'));
-            const total   = records.length;
-            const onSite  = statusField ? records.filter((r) => r.data[statusField.id] === 'On Site').length : 0;
-            const pending = statusField ? records.filter((r) => r.data[statusField.id] === 'Pending').length : 0;
-            const exited  = statusField ? records.filter((r) => r.data[statusField.id] === 'Exited').length : 0;
-            const denied  = statusField ? records.filter((r) => r.data[statusField.id] === 'Denied').length : 0;
+            const total = records.length;
+            // Palette cycles so any option added later in Fields settings still gets its own colour.
+            const STATUS_PALETTE = ['#34d399', '#fbbf24', '#22d3ee', '#f43f5e', '#a78bfa', '#38bdf8', '#facc15', '#fb923c', '#4ade80', '#f472b6'];
+            const statusCounts = (statusField?.options ?? []).map((opt, i) => ({
+              label: opt,
+              value: statusField ? records.filter((r) => r.data[statusField.id] === opt).length : 0,
+              color: STATUS_PALETTE[i % STATUS_PALETTE.length],
+            }));
 
             // Mini ring SVG component (inline) — colored dot badge sits above the ring, like a status marker
             const MiniRing = ({ value, color, size = 28 }: { value: number; color: string; size?: number }) => {
@@ -1945,15 +1948,10 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
             const BigRing = () => {
               const size = 52, cx = 26, cy = 26, R = 20, sw = 4.5;
               const circ = 2 * Math.PI * R;
-              const segs = [
-                { value: onSite,  color: '#34d399' },
-                { value: pending, color: '#fbbf24' },
-                { value: exited,  color: '#22d3ee' },
-                { value: denied,  color: '#f43f5e' },
-              ].filter(s => s.value > 0);
+              const segs = statusCounts.filter((s) => s.value > 0);
               let offset = 0;
               const gap = total > 0 ? circ * 0.02 : 0;
-              const dominant = segs.reduce((best, s) => (s.value > best.value ? s : best), segs[0] ?? { color: '#fb7185', value: 0 });
+              const dominant = segs.reduce((best, s) => (s.value > best.value ? s : best), segs[0] ?? { color: '#fb7185', value: 0, label: '' });
               // Tick marks around the ring, like a dial
               const ticks = Array.from({ length: 8 }, (_, i) => {
                 const deg = i * 45;
@@ -2014,13 +2012,11 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               );
             };
 
-            const stats = [
-              { label: 'On Site', value: onSite,  color: '#34d399' },
-              { label: 'Pending', value: pending, color: '#fbbf24' },
-              { label: 'Exited',  value: exited,  color: '#22d3ee' },
-              { label: 'Denied',  value: denied,  color: '#f43f5e' },
-            ];
-            const onSitePct = total > 0 ? Math.round((onSite / total) * 100) : 0;
+            const topStatus = statusCounts.reduce(
+              (best, s) => (s.value > best.value ? s : best),
+              statusCounts[0] ?? { label: '', value: 0, color: '#fb7185' }
+            );
+            const topPct = total > 0 ? Math.round((topStatus.value / total) * 100) : 0;
 
             return (
               <div className="flex items-center gap-3 px-1 py-1">
@@ -2031,20 +2027,24 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                   <span className="text-white font-extrabold text-[13px] uppercase tracking-wider leading-none">
                     {module.name}
                   </span>
-                  <span className="text-[11px] leading-none" style={{ color: 'rgba(148,163,184,0.65)' }}>
+                  <span className="text-[11px] leading-none whitespace-nowrap" style={{ color: 'rgba(148,163,184,0.65)' }}>
                     <span className="text-white font-bold">{total}</span> in module
-                    <span style={{ color: 'rgba(100,116,139,0.6)' }}> · </span>
-                    <span className="inline-flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full inline-block" style={{ background: '#34d399' }} />
-                      <span style={{ color: '#34d399', fontWeight: 700 }}>{onSitePct}%</span> on site
-                    </span>
+                    {topStatus.value > 0 && (
+                      <>
+                        <span style={{ color: 'rgba(100,116,139,0.6)' }}> · </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-1 h-1 rounded-full inline-block" style={{ background: topStatus.color }} />
+                          <span style={{ color: topStatus.color, fontWeight: 700 }}>{topPct}%</span> {topStatus.label.toLowerCase()}
+                        </span>
+                      </>
+                    )}
                   </span>
                 </div>
                 {/* Divider */}
                 <div className="w-px h-8" style={{ background: 'rgba(71,85,105,0.3)' }} />
-                {/* Individual stat rings */}
+                {/* Individual stat rings — one per Status option, so a newly added option shows up too */}
                 <div className="flex items-center gap-3">
-                  {stats.map((s) => (
+                  {statusCounts.map((s) => (
                     <div key={s.label} className="flex flex-col items-center gap-1">
                       <MiniRing value={s.value} color={s.color} />
                       <span className="text-[8px] font-bold uppercase tracking-wide whitespace-nowrap"
