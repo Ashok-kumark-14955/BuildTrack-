@@ -1895,19 +1895,28 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
   return (
     <>
-      {/* Module header */}
-      <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
+      {/* Module header — sticky sub-bar, visually part of the top nav */}
+      <div
+        className="flex items-center justify-between sticky top-0 z-20 px-4 py-2 flex-wrap gap-2"
+        style={{
+          background: 'linear-gradient(180deg, #110204 0%, #0d0101 100%)',
+          borderBottom: '1px solid rgba(220,38,90,0.15)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+          marginLeft: '-24px',
+          marginRight: '-24px',
+          marginBottom: '12px',
+        }}
+      >
         <div className="flex items-center gap-3">
           {/* ── Status ring stats — any module with a Status field gets this ── */}
           {moduleStatusField && !loading && records.length > 0 && (() => {
             const statusField = moduleStatusField;
             const total = records.length;
-            // Palette cycles so any option added later in Fields settings still gets its own colour.
-            const STATUS_PALETTE = ['#34d399', '#fbbf24', '#22d3ee', '#f43f5e', '#a78bfa', '#38bdf8', '#facc15', '#fb923c', '#4ade80', '#f472b6'];
-            const statusCounts = (statusField?.options ?? []).map((opt, i) => ({
+            // Same colour function the table's StatusBadge/row-rail use, so ring colours always match the badges.
+            const statusCounts = (statusField?.options ?? []).map((opt) => ({
               label: opt,
               value: statusField ? records.filter((r) => r.data[statusField.id] === opt).length : 0,
-              color: STATUS_PALETTE[i % STATUS_PALETTE.length],
+              color: statusAccentColor(opt) ?? '#64748b',
             }));
 
             // Mini ring SVG component (inline) — colored dot badge sits above the ring, like a status marker
@@ -2544,7 +2553,7 @@ export default function CustomModulesPage() {
       </div>
 
       {/* ── Main content area ── */}
-      <main className="flex-1 overflow-auto p-6">
+      <main className="flex-1 overflow-auto px-6 pb-6 pt-0">
         {loading ? (
           <div className="flex items-center justify-center h-full text-slate-500">Loading modules…</div>
         ) : modules.length === 0 ? (
