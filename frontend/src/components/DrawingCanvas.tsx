@@ -1360,8 +1360,17 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               const cbId = `CustomBeam_${cb.from}_${cb.to}`;
               const isSelected = selectedElementId === cbId;
               const cbStatus = statusByElement[cbId] ?? 'No Task';
-              const cbStatusColor = cbStatus === 'No Task' ? '#334155' : (STATUS_COLORS[cbStatus] ?? STATUS_COLORS['No Task']);
+              const cbHasTask = cbStatus !== 'No Task';
+              const cbStatusColor = cbHasTask ? (STATUS_COLORS[cbStatus] ?? STATUS_COLORS['No Task']) : '#475569';
               const cbColor = cbStatusColor;
+
+              // Thickness: thicker when tasks exist, thin "done" line when no tasks
+              const cbStrokeWidth = isSelected
+                ? beamThickness * 5.5          // thickest when selected
+                : cbHasTask
+                  ? beamThickness * 3.8        // thick solid line when task assigned
+                  : beamThickness * 0.55;      // thin dashed "done" line when no tasks
+
               return (
                 <Group key={cbId} listening={calibrating ? false : true}
                   onClick={(e) => { e.cancelBubble = true; setSelectedElementId(cbId); }}
@@ -1379,33 +1388,42 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
                   {isSelected && (
                     <Line
                       points={[pA.x, pA.y, pB.x, pB.y]}
-                      stroke="#f87171"
-                      strokeWidth={(beamThickness + 7) / scale}
-                      opacity={0.45}
+                      stroke={cbColor}
+                      strokeWidth={cbStrokeWidth + 8}
+                      opacity={0.25}
                       lineCap="round"
                       listening={false}
                     />
                   )}
-                  {/* Glow backdrop — tinted by task status, same as auto-derived beams */}
+                  {/* Glow backdrop — only shown when task exists */}
+                  {cbHasTask && (
+                    <Line
+                      points={[pA.x, pA.y, pB.x, pB.y]}
+                      stroke={cbColor}
+                      strokeWidth={cbStrokeWidth + 4}
+                      opacity={0.22}
+                      lineCap="round"
+                      listening={false}
+                    />
+                  )}
+                  {/* Main custom beam line:
+                      - No task  → thin dashed line (subtle, "done/pending" style)
+                      - Has task → thick solid highlight coloured by status */}
                   <Line
                     points={[pA.x, pA.y, pB.x, pB.y]}
                     stroke={cbColor}
-                    strokeWidth={(beamThickness + 4) / scale}
-                    opacity={0.25}
+                    strokeWidth={cbStrokeWidth}
+                    opacity={
+                      isSelected ? 1
+                      : cbHasTask ? 0.88
+                      : 0.4            // faint when no task
+                    }
+                    dash={cbHasTask ? undefined : [6, 6]}   // dashed when no task
                     lineCap="round"
-                    listening={false}
-                  />
-                  {/* Main custom beam line */}
-                  <Line
-                    points={[pA.x, pA.y, pB.x, pB.y]}
-                    stroke={cbColor}
-                    strokeWidth={(beamThickness + 1) / scale * scale}
-                    opacity={0.9}
-                    lineCap="round"
-                    shadowColor={cbColor}
-                    shadowBlur={8}
-                    shadowOpacity={0.5}
-                    hitStrokeWidth={Math.max(18, (beamThickness + 1) / scale * 4)}
+                    shadowColor={cbHasTask ? cbColor : undefined}
+                    shadowBlur={isSelected ? 10 : cbHasTask ? 6 : 0}
+                    shadowOpacity={isSelected ? 0.5 : 0.28}
+                    hitStrokeWidth={Math.max(18, cbStrokeWidth * 4)}
                   />
                   {/* Midpoint label */}
                   <Text
@@ -1415,6 +1433,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
                     fontSize={9 / scale}
                     fill={isSelected ? '#fecaca' : cbColor}
                     fontStyle="bold"
+                    opacity={cbHasTask ? 1 : 0.5}
                     listening={false}
                   />
                 </Group>

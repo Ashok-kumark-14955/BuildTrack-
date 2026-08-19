@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, ArrowUp, ArrowDown, FolderKanban, Archive, ArchiveRestore,
   User, Layers, Calendar, TrendingUp, CheckCircle2, Clock, AlertCircle,
-  Filter, ChevronRight, Building2, Trash2,
+  Filter, ChevronRight, Building2, Trash2, Hash, CalendarDays, BarChart2,
+  Edit3,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProjectsAPI, ZohoBackboneAPI } from '../api';
@@ -429,33 +430,92 @@ export default function Projects() {
           </div>
         ) : (
           // Table view
-          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(14,4,8,0.95)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(14,4,8,0.97)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
             <table className="w-full text-sm">
-              <thead style={{ background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <thead style={{ background: 'linear-gradient(135deg, rgba(190,24,93,0.1) 0%, rgba(14,4,8,0.98) 100%)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-[10px] uppercase tracking-widest text-white/35">Code</th>
+                  {/* Code */}
+                  <th className="text-left px-4 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/6 border border-white/10">
+                        <Hash size={8} className="text-rose-400/70" />
+                      </span>
+                      Code
+                    </span>
+                  </th>
+                  {/* Name (sortable) */}
                   {(['name'] as SortKey[]).map((key) => (
-                    <th key={key} onClick={() => toggleSort(key)}
-                      className="text-left px-4 py-3 font-semibold text-[10px] uppercase tracking-widest text-white/35 cursor-pointer select-none hover:text-white/60 transition-colors">
-                      <span className="inline-flex items-center gap-1">
-                        Name {sortKey === key && (sortAsc ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+                    <th key={key} onClick={() => toggleSort(key)} className="text-left px-4 py-3.5 cursor-pointer select-none group/th">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40 group-hover/th:text-white/70 transition-colors">
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/6 border border-white/10">
+                          <FolderKanban size={8} className="text-rose-400/70" />
+                        </span>
+                        Name
+                        {sortKey === key
+                          ? (sortAsc ? <ArrowUp size={9} className="text-rose-400" /> : <ArrowDown size={9} className="text-rose-400" />)
+                          : <ArrowDown size={9} className="opacity-0 group-hover/th:opacity-40 transition-opacity" />}
                       </span>
                     </th>
                   ))}
-                  <th className="text-left px-4 py-3 font-semibold text-[10px] uppercase tracking-widest text-white/35">Status</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[10px] uppercase tracking-widest text-white/35">Manager</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[10px] uppercase tracking-widest text-white/35">Dates</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[10px] uppercase tracking-widest text-white/35">Progress</th>
+                  {/* Status */}
+                  <th className="text-left px-4 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/6 border border-white/10">
+                        <CheckCircle2 size={8} className="text-emerald-400/70" />
+                      </span>
+                      Status
+                    </span>
+                  </th>
+                  {/* Manager */}
+                  <th className="text-left px-4 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/6 border border-white/10">
+                        <User size={8} className="text-amber-400/70" />
+                      </span>
+                      Manager
+                    </span>
+                  </th>
+                  {/* Dates */}
+                  <th className="text-left px-4 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/6 border border-white/10">
+                        <CalendarDays size={8} className="text-sky-400/70" />
+                      </span>
+                      Dates
+                    </span>
+                  </th>
+                  {/* Progress */}
+                  <th className="text-left px-4 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/6 border border-white/10">
+                        <BarChart2 size={8} className="text-violet-400/70" />
+                      </span>
+                      Progress
+                    </span>
+                  </th>
+                  {/* Created / Updated (sortable) */}
                   {(['createdAt', 'updatedAt'] as SortKey[]).map((key) => (
-                    <th key={key} onClick={() => toggleSort(key)}
-                      className="text-left px-4 py-3 font-semibold text-[10px] uppercase tracking-widest text-white/35 cursor-pointer select-none hover:text-white/60 transition-colors whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1">
+                    <th key={key} onClick={() => toggleSort(key)} className="text-left px-4 py-3.5 cursor-pointer select-none whitespace-nowrap group/th">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40 group-hover/th:text-white/70 transition-colors">
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/6 border border-white/10">
+                          <Calendar size={8} className="text-teal-400/70" />
+                        </span>
                         {key === 'createdAt' ? 'Created' : 'Updated'}
-                        {sortKey === key && (sortAsc ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+                        {sortKey === key
+                          ? (sortAsc ? <ArrowUp size={9} className="text-rose-400" /> : <ArrowDown size={9} className="text-rose-400" />)
+                          : <ArrowDown size={9} className="opacity-0 group-hover/th:opacity-40 transition-opacity" />}
                       </span>
                     </th>
                   ))}
-                  <th className="text-left px-4 py-3 font-semibold text-[10px] uppercase tracking-widest text-white/35">Actions</th>
+                  {/* Actions */}
+                  <th className="text-left px-4 py-3.5">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-white/6 border border-white/10">
+                        <Edit3 size={8} className="text-rose-400/70" />
+                      </span>
+                      Actions
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -469,85 +529,140 @@ export default function Projects() {
                     </td>
                   </tr>
                 )}
-                {!loading && projects.map((p) => (
-                  <tr
-                    key={p.id}
-                    onClick={() => selectProject(p)}
-                    className={`cursor-pointer transition-colors ${p.archived ? 'opacity-55' : ''}`}
-                    style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
-                  >
-                    <td className="px-4 py-3 font-mono text-[11px] text-white/40">{p.code || '—'}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-white/90 text-sm">{p.name}</div>
-                      {p.description && <div className="text-[10px] text-white/35 mt-0.5 truncate max-w-[200px]">{p.description}</div>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full"
-                        style={{ backgroundColor: `${PROJECT_STATUS_COLORS[p.status]}18`, color: PROJECT_STATUS_COLORS[p.status], border: `1px solid ${PROJECT_STATUS_COLORS[p.status]}30` }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: PROJECT_STATUS_COLORS[p.status] }} />
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-white/60 text-xs">
-                      {p.managerName ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0"
-                            style={{ background: `${PROJECT_STATUS_COLORS[p.status]}25`, color: PROJECT_STATUS_COLORS[p.status] }}>
-                            {p.managerName.charAt(0).toUpperCase()}
+                {!loading && projects.map((p) => {
+                  const sc = PROJECT_STATUS_COLORS[p.status];
+                  const prog = p.stats?.progress ?? 0;
+                  const StatusIcon = STATUS_ICONS[p.status] ?? Clock;
+                  return (
+                    <tr
+                      key={p.id}
+                      onClick={() => selectProject(p)}
+                      className={`cursor-pointer group/row ${p.archived ? 'opacity-50' : ''}`}
+                      style={{ borderTop: '1px solid rgba(255,255,255,0.045)' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `rgba(190,24,93,0.055)`; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
+                    >
+                      {/* Code */}
+                      <td className="px-4 py-3.5">
+                        {p.code
+                          ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-[10px] font-bold"
+                              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                              {p.code}
+                            </span>
+                          : <span className="text-white/20 text-[11px]">—</span>}
+                      </td>
+                      {/* Name */}
+                      <td className="px-4 py-3.5 max-w-[220px]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: `linear-gradient(135deg, ${sc}30, ${sc}15)`, border: `1px solid ${sc}40` }}>
+                            <FolderKanban size={12} style={{ color: sc }} />
                           </div>
-                          {p.managerName}
-                        </span>
-                      ) : <span className="text-white/20">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-white/35 text-[11px] tabular-nums">
-                      {p.startDate || '—'} → {p.endDate || '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                          <div className="h-full rounded-full transition-all"
-                            style={{ width: `${p.stats?.progress ?? 0}%`, background: p.stats?.progress === 100 ? '#4ade80' : `linear-gradient(90deg, ${PROJECT_STATUS_COLORS[p.status]}aa, ${PROJECT_STATUS_COLORS[p.status]})` }} />
+                          <div className="min-w-0">
+                            <div className="font-bold text-white/90 text-[13px] group-hover/row:text-rose-200 transition-colors truncate">{p.name}</div>
+                            {p.description && <div className="text-[10px] text-white/30 mt-0.5 truncate">{p.description}</div>}
+                          </div>
                         </div>
-                        <span className="text-[10px] font-bold tabular-nums" style={{ color: PROJECT_STATUS_COLORS[p.status] }}>
-                          {p.stats?.progress ?? 0}%
+                      </td>
+                      {/* Status */}
+                      <td className="px-4 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full"
+                          style={{ background: `${sc}18`, color: sc, border: `1px solid ${sc}35`, boxShadow: `0 0 8px ${sc}20` }}>
+                          <StatusIcon size={9} />
+                          {p.status}
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-white/30 text-[11px] tabular-nums">{new Date(p.createdAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-white/30 text-[11px] tabular-nums">{new Date(p.updatedAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={(e) => openEdit(p, e)}
-                          className="text-[10px] font-semibold px-2 py-1 rounded-lg transition-colors text-white/50 hover:text-white hover:bg-white/10">
-                          Edit
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setFieldsProject(p); }}
-                          className="w-6 h-6 flex items-center justify-center rounded-lg transition-colors text-white/40 hover:text-white hover:bg-white/10"
-                          title="Custom fields">
-                          <Layers size={11} />
-                        </button>
-                        <button
-                          onClick={(e) => toggleArchive(p, e)}
-                          className="w-6 h-6 flex items-center justify-center rounded-lg transition-colors text-white/40 hover:text-white hover:bg-white/10"
-                          title={p.archived ? 'Unarchive' : 'Archive'}>
-                          {p.archived ? <ArchiveRestore size={12} /> : <Archive size={12} />}
-                        </button>
-                        <button
-                          onClick={(e) => confirmDelete(p, e)}
-                          className="w-6 h-6 flex items-center justify-center rounded-lg transition-colors text-red-500/50 hover:text-red-400 hover:bg-red-500/10"
-                          title="Delete project">
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      {/* Manager */}
+                      <td className="px-4 py-3.5">
+                        {p.managerName
+                          ? <span className="inline-flex items-center gap-1.5 text-[11px] text-white/60">
+                              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-extrabold shrink-0"
+                                style={{ background: `linear-gradient(135deg, ${sc}40, ${sc}20)`, color: sc, border: `1px solid ${sc}40` }}>
+                                {p.managerName.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="truncate max-w-[110px]">{p.managerName}</span>
+                            </span>
+                          : <span className="text-white/20 text-[11px]">—</span>}
+                      </td>
+                      {/* Dates */}
+                      <td className="px-4 py-3.5">
+                        <div className="inline-flex items-center gap-1.5 text-[10px] tabular-nums"
+                          style={{ color: 'rgba(255,255,255,0.35)' }}>
+                          <Calendar size={9} className="text-sky-400/50 shrink-0" />
+                          <span>{p.startDate || '—'}</span>
+                          <span className="text-white/20">→</span>
+                          <span>{p.endDate || '—'}</span>
+                        </div>
+                      </td>
+                      {/* Progress */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                            <div className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${prog}%`, background: prog >= 100 ? '#4ade80' : `linear-gradient(90deg, ${sc}88, ${sc})` }} />
+                          </div>
+                          <span className="text-[10px] font-extrabold tabular-nums w-7 text-right"
+                            style={{ color: prog >= 100 ? '#4ade80' : sc }}>
+                            {prog}%
+                          </span>
+                        </div>
+                      </td>
+                      {/* Created */}
+                      <td className="px-4 py-3.5 text-white/30 text-[11px] tabular-nums whitespace-nowrap">
+                        {new Date(p.createdAt).toLocaleDateString()}
+                      </td>
+                      {/* Updated */}
+                      <td className="px-4 py-3.5 text-white/30 text-[11px] tabular-nums whitespace-nowrap">
+                        {new Date(p.updatedAt).toLocaleDateString()}
+                      </td>
+                      {/* Actions */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => openEdit(p, e)}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all"
+                            style={{ background: 'rgba(190,24,93,0.12)', color: '#fb7185', border: '1px solid rgba(190,24,93,0.22)' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(190,24,93,0.25)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(190,24,93,0.12)'; }}
+                          >
+                            <Edit3 size={9} /> Edit
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setFieldsProject(p); }}
+                            className="w-6 h-6 flex items-center justify-center rounded-lg transition-all text-violet-400/50 hover:text-violet-300"
+                            style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)' }}
+                            title="Custom fields"
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(139,92,246,0.2)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(139,92,246,0.08)'; }}
+                          >
+                            <Layers size={10} />
+                          </button>
+                          <button
+                            onClick={(e) => toggleArchive(p, e)}
+                            className="w-6 h-6 flex items-center justify-center rounded-lg transition-all text-slate-400/50 hover:text-slate-300"
+                            style={{ background: 'rgba(100,116,139,0.08)', border: '1px solid rgba(100,116,139,0.15)' }}
+                            title={p.archived ? 'Unarchive' : 'Archive'}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(100,116,139,0.2)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(100,116,139,0.08)'; }}
+                          >
+                            {p.archived ? <ArchiveRestore size={10} /> : <Archive size={10} />}
+                          </button>
+                          <button
+                            onClick={(e) => confirmDelete(p, e)}
+                            className="w-6 h-6 flex items-center justify-center rounded-lg transition-all text-red-500/50 hover:text-red-400"
+                            style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)' }}
+                            title="Delete project"
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.18)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.07)'; }}
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                          <ChevronRight size={10} className="text-white/15 ml-0.5 group-hover/row:text-white/35 transition-colors" />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {!loading && projects.length === 0 && (
                   <tr>
                     <td colSpan={9} className="text-center py-20">

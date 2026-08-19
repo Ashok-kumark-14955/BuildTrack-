@@ -689,27 +689,6 @@ export default function Sidebar() {
                             </div>
                           )}
 
-                          {/* Milestone badge */}
-                          {d.milestoneId && (() => {
-                            const ms = milestones.find((m) => m.id === d.milestoneId);
-                            if (!ms) return null;
-                            const msColor = ms.status === 'Completed' ? '#4ade80' : ms.status === 'On Hold' ? '#94a3b8' : ms.status === 'Cancelled' ? '#ef4444' : '#fbbf24';
-                            return (
-                              <div
-                                className="flex items-center gap-1 mt-1"
-                                title={`Milestone: ${ms.name} — ${ms.status}`}
-                              >
-                                <Milestone size={8} style={{ color: msColor, flexShrink: 0 }} />
-                                <span
-                                  className="text-[9px] font-semibold truncate"
-                                  style={{ color: msColor }}
-                                >
-                                  {ms.name}
-                                </span>
-                              </div>
-                            );
-                          })()}
-
                           {/* Per-drawing progress bar */}
                           {dt.total > 0 && (
                             <div className="mt-1.5 space-y-0.5">
