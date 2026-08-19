@@ -859,12 +859,9 @@ interface RecordRowProps {
 //   Always shows in "<Module> Information" section: Status (dropdown w/ green dot, default "Active"), Multi User
 //   Then appends any extra custom fields from the module definition
 
-// Stable IDs for the 4 always-present Zoho-default fields
-const ZOHO_TITLE_ID       = '__zoho_title__';
-const ZOHO_DESC_ID        = '__zoho_description__';
-const ZOHO_STATUS_ID      = '__zoho_status__';
-
-const ZOHO_STATUS_OPTIONS = ['Active', 'Inactive'];
+// Stable IDs for the always-present Zoho-default fields
+const ZOHO_TITLE_ID = '__zoho_title__';
+const ZOHO_DESC_ID  = '__zoho_description__';
 
 interface NewEntryDrawerProps {
   projectId: string;
@@ -878,9 +875,7 @@ interface NewEntryDrawerProps {
 
 function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore, initialData, onDelete }: NewEntryDrawerProps) {
   // draft uses stable Zoho keys + field.id keys for custom fields
-  const [draft, setDraft] = useState<Record<string, any>>(
-    initialData ?? { [ZOHO_STATUS_ID]: 'Active' }
-  );
+  const [draft, setDraft] = useState<Record<string, any>>(initialData ?? {});
   const [saving, setSaving] = useState(false);
 
   // Custom fields that are NOT one of the 4 default Zoho fields
@@ -889,7 +884,6 @@ function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore, initialD
     const lbl = f.label.toLowerCase();
     if (lbl === 'title') return false;
     if (lbl === 'description' || lbl === 'desc') return false;
-    if (f.type === 'select' && lbl.includes('status')) return false;
     if (f.type === 'multiuser') return false;
     return true;
   });
@@ -901,9 +895,8 @@ function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore, initialD
   // Build the data payload: merge Zoho defaults + custom field values
   function buildPayload() {
     const payload: Record<string, any> = {
-      _title:  draft[ZOHO_TITLE_ID] ?? '',
-      _desc:   draft[ZOHO_DESC_ID] ?? '',
-      _status: draft[ZOHO_STATUS_ID] ?? 'Active',
+      _title: draft[ZOHO_TITLE_ID] ?? '',
+      _desc:  draft[ZOHO_DESC_ID] ?? '',
     };
     // Also include any extra custom fields — strip _preview from attachment objects
     extraFields.forEach((f) => {
@@ -935,8 +928,7 @@ function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore, initialD
     setSaving(true);
     try {
       await onAddMore(buildPayload());
-      // Reset form but keep status default
-      setDraft({ [ZOHO_STATUS_ID]: 'Active' });
+      setDraft({});
     } finally {
       setSaving(false);
     }
@@ -1079,39 +1071,6 @@ function NewEntryDrawer({ projectId, module, onClose, onAdd, onAddMore, initialD
               )}
             </div>
           ))}
-
-          {/* ── 4. "<Module> Information" section — Status + Multi User (always shown) ── */}
-          <div className="pt-2">
-            <button
-              type="button"
-              className="flex items-center gap-2 mb-4 w-full text-left"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-400"><path d="M19 9l-7 7-7-7"/></svg>
-              <span className="text-slate-300 text-sm font-semibold">{module.name} Information</span>
-            </button>
-
-            <div className="space-y-4 pl-1">
-              {/* Status */}
-              <div>
-                <label className="block text-slate-400 text-sm mb-1.5">Status</label>
-                <div className="relative inline-block">
-                  <select
-                    value={draft[ZOHO_STATUS_ID] ?? 'Active'}
-                    onChange={(e) => setValue(ZOHO_STATUS_ID, e.target.value)}
-                    className="appearance-none bg-[#0b0000] border border-slate-600 rounded-lg pl-8 pr-8 py-2.5 text-white text-sm focus:outline-none focus:border-rose-600 cursor-pointer min-w-[160px]"
-                  >
-                    {ZOHO_STATUS_OPTIONS.map((o) => (
-                      <option key={o} value={o}>{o}</option>
-                    ))}
-                  </select>
-                  {/* Green dot */}
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-emerald-400 pointer-events-none" />
-                  <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-                </div>
-              </div>
-
-            </div>
-          </div>
 
         </div>
 
