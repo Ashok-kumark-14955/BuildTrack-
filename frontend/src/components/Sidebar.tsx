@@ -28,8 +28,8 @@ import { useApp } from '../AppContext';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ProjectFormModal from './ProjectFormModal';
 import toast from 'react-hot-toast';
-import type { Drawing } from '../types';
-import { DrawingsAPI } from '../api';
+import type { Drawing, Task } from '../types';
+import { DrawingsAPI, TasksAPI } from '../api';
 
 const navItems = [
   { to: '/', label: 'Drawing & Task Tracker', icon: FileImage, accent: '#60a5fa', accentBg: 'rgba(96,165,250,0.14)', accentBorder: 'rgba(96,165,250,0.35)' },
@@ -262,16 +262,31 @@ export default function Sidebar() {
     return projects[0];
   }, [projects, activeProjectId, currentDrawing]);
 
-  // Scope stats to the active project's drawings only — `tasks` and `drawings`
-  // are fetched globally across all projects, so mixing in other projects'
-  // tasks here produced an incorrect "done" percentage on the project card.
+  // Scope stats to the active project's drawings only — `tasks` from context
+  // is scoped to just the currently-open drawing (fetched fresh whenever the
+  // user switches drawings, for the main canvas's pinned-task list), so it
+  // can't be used to compute counts for OTHER drawings or the whole project.
+  // `allTasks` below is a separate, unscoped fetch used only for these
+  // read-only summaries (sidebar per-drawing counts + the project progress
+  // ring) — it never touches the canvas's pinned-task behavior.
   const projectDrawingIds = useMemo(
     () => new Set(drawings.filter((d) => d.projectId === activeProject?.id).map((d) => d.id)),
     [drawings, activeProject]
   );
+
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    TasksAPI.list({}).then((data) => { if (!cancelled) setAllTasks(data); }).catch(() => {});
+    return () => { cancelled = true; };
+    // Re-fetch whenever the active project changes, or whenever the
+    // currently-open drawing's own task list changes (a reasonable proxy for
+    // "the user just added/completed a task, the summary is now stale").
+  }, [activeProject?.id, tasks]);
+
   const projectTasks = useMemo(
-    () => tasks.filter((t) => projectDrawingIds.has(t.drawingId)),
-    [tasks, projectDrawingIds]
+    () => allTasks.filter((t) => projectDrawingIds.has(t.drawingId)),
+    [allTasks, projectDrawingIds]
   );
 
   const stats = useMemo(() => {
@@ -311,16 +326,17 @@ export default function Sidebar() {
     [sortedProjectDrawings, drawingFilter]
   );
 
-  // Per-drawing task counts
+  // Per-drawing task counts — sourced from `allTasks` (unscoped fetch above)
+  // so every drawing shows real counts, not just the currently-open one.
   const tasksByDrawing = useMemo(() => {
     const map: Record<string, { total: number; done: number }> = {};
-    for (const t of tasks) {
+    for (const t of allTasks) {
       if (!map[t.drawingId]) map[t.drawingId] = { total: 0, done: 0 };
       map[t.drawingId].total++;
       if (t.status === 'Completed') map[t.drawingId].done++;
     }
     return map;
-  }, [tasks]);
+  }, [allTasks]);
 
   const managers = useMemo(
     () => Array.from(new Set(projects.map((p) => p.managerName).filter(Boolean))) as string[],

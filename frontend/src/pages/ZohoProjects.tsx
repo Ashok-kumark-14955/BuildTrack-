@@ -1637,6 +1637,17 @@ const TYPE_PILL_COLOR: Record<FieldType, string> = {
   attachment: 'bg-rose-800/50 text-rose-300',
 };
 
+/** Solid accent color per field type — used for the icon chip ring and the persistent column-identity underline. */
+const TYPE_ACCENT_COLOR: Record<FieldType, string> = {
+  name:       '#34d399',
+  text:       '#64748b',
+  number:     '#60a5fa',
+  date:       '#a78bfa',
+  select:     '#fbbf24',
+  multiuser:  '#22d3ee',
+  attachment: '#fb7185',
+};
+
 // ─── Sortable + Resizable column header ──────────────────────────────────────
 
 interface SortableResizableThProps extends ResizableThProps {
@@ -1658,15 +1669,16 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
   }, [showMenu]);
 
   const pillColor = TYPE_PILL_COLOR[field.type] ?? 'bg-slate-600/60 text-slate-300';
+  const accentColor = TYPE_ACCENT_COLOR[field.type] ?? '#64748b';
 
   return (
     <th
       style={{ width, minWidth: width, maxWidth: width, background: 'linear-gradient(180deg, #1a0005 0%, #130003 100%)' }}
       className="relative px-0 py-0 text-left select-none group/th"
     >
-      {/* Top accent line */}
+      {/* Top accent line — sort/menu feedback overrides the column's resting identity color */}
       <div className="absolute top-0 left-0 right-0 h-[2px] z-20 transition-all duration-200"
-        style={{ background: showMenu || sortDir ? 'linear-gradient(90deg, transparent, #fb7185 30%, #e11d48 70%, transparent)' : 'transparent' }}
+        style={{ background: showMenu || sortDir ? 'linear-gradient(90deg, transparent, #fb7185 30%, #e11d48 70%, transparent)' : `${accentColor}4d` }}
       />
       <div className="absolute top-0 left-0 right-0 h-[2px] z-20 opacity-0 group-hover/th:opacity-100 transition-opacity duration-150"
         style={{ background: 'linear-gradient(90deg, transparent, rgba(251,113,133,0.6) 30%, rgba(225,29,72,0.8) 70%, transparent)' }}
@@ -1685,12 +1697,12 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
             'inline-flex items-center justify-center w-[18px] h-[18px] rounded flex-shrink-0 transition-all duration-150',
             showMenu ? 'bg-rose-700/60 text-rose-200' : pillColor,
           )}
-          style={showMenu ? { boxShadow: '0 0 8px rgba(251,113,133,0.4)' } : undefined}
+          style={{ boxShadow: showMenu ? '0 0 8px rgba(251,113,133,0.4)' : `inset 0 0 0 1px ${accentColor}40` }}
         >
           <FieldTypeIcon type={field.type} />
         </span>
 
-        <span className="text-[11px] font-bold text-slate-300 group-hover/th:text-white uppercase tracking-widest truncate flex-1 transition-colors duration-150"
+        <span className="text-[11px] font-semibold text-slate-300 group-hover/th:text-white uppercase tracking-wide truncate flex-1 transition-colors duration-150"
           style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
           {field.label}
         </span>
@@ -1847,8 +1859,8 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
   const rowBg = selected
     ? 'linear-gradient(135deg, rgba(220,38,90,0.18) 0%, rgba(120,5,30,0.25) 100%)'
     : isEven
-      ? 'linear-gradient(135deg, rgba(18,0,4,0.95) 0%, rgba(10,0,2,0.98) 100%)'
-      : 'linear-gradient(135deg, rgba(26,0,7,0.97) 0%, rgba(16,0,4,0.99) 100%)';
+      ? 'linear-gradient(135deg, rgba(20,0,5,0.96) 0%, rgba(9,0,2,0.99) 100%)'
+      : 'linear-gradient(135deg, rgba(32,1,9,0.97) 0%, rgba(18,0,5,0.99) 100%)';
 
   // Persistent left rail colored by this row's Status field, so state reads
   // at a glance without needing to scroll to the Status column or hover.
@@ -1907,7 +1919,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
       {fields.map((field, fIdx) => (
         <td
           key={field.id}
-          className="px-0 py-0 cursor-pointer relative overflow-hidden"
+          className="group/cell px-0 py-0 cursor-pointer relative overflow-hidden"
           style={{ borderRight: fIdx < fields.length - 1 ? '1px solid rgba(60,5,20,0.5)' : 'none' }}
           onClick={() => setEditingCell(field.id)}
         >
@@ -1916,7 +1928,7 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
               style={{ background: 'rgba(220,38,90,0.1)', boxShadow: 'inset 0 0 0 2px rgba(220,38,90,0.5)' }}
             />
           )}
-          <div className="relative px-3 py-3">
+          <div className="relative px-3 py-3 pr-6">
             {editingCell === field.id ? (
               <CellEditor
                 field={field}
@@ -1925,6 +1937,15 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
                 onCancel={() => setEditingCell(null)}
               />
             ) : renderCellValue(field)}
+            {editingCell !== field.id && (
+              <svg
+                className="absolute top-1/2 right-2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-60 transition-opacity duration-150 pointer-events-none"
+                width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(251,113,133,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            )}
           </div>
         </td>
       ))}
