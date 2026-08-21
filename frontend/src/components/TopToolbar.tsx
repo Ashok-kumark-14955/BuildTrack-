@@ -98,7 +98,7 @@ export default function TopToolbar({
   onGridSizeChange,
   onShareSnapshot,
 }: Props) {
-  const { currentDrawing, refreshDrawings, refreshTasks, setCurrentDrawingId, drawings, projects, activity } = useApp();
+  const { currentDrawing, refreshDrawings, refreshTasks, setCurrentDrawingId, drawings, projects, activity, activeProjectId } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [showGridSettings, setShowGridSettings] = useState(false);
@@ -231,7 +231,7 @@ export default function TopToolbar({
       const form = new FormData();
       form.append('file', uploadFile, uploadFile.name);
       form.append('name', file.name);
-      form.append('projectId', currentDrawing?.projectId || projects[0]?.id || '');
+      form.append('projectId', activeProjectId || currentDrawing?.projectId || projects[0]?.id || '');
       form.append('gridCols', String(cols));
       form.append('gridRows', String(rows));
       const drawing = await DrawingsAPI.upload(form);
