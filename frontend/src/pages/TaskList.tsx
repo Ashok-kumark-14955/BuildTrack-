@@ -5,7 +5,7 @@ import {
   Download, Search, ClipboardList, ArrowUp, ArrowDown,
   Flag, ChevronDown, ChevronRight, X, FileImage,
   LayoutGrid, Building2, Minus, Plus, MapPin, Navigation, Send,
-  Crosshair,
+  Crosshair, ListChecks,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import {
@@ -337,48 +337,69 @@ export default function TaskList() {
   return (
     <div className="p-7 h-full flex flex-col overflow-hidden" style={{ background: 'radial-gradient(ellipse 90% 55% at 15% 5%, rgba(190,24,93,0.18) 0%, transparent 60%), #09090b' }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-5 pb-3 relative">
+        {/* Soft divider under the header */}
+        <span
+          className="absolute bottom-0 left-0 right-0 h-px"
+          style={{ background: 'linear-gradient(90deg, rgba(190,24,93,0.35), rgba(190,24,93,0.08) 40%, transparent)' }}
+        />
+        {/* Left: title + subtitle */}
         <div>
-          <h1 className="font-display text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Building2 size={20} className="text-rose-500" />
-            Project Hierarchy
-            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full ml-1" style={{ background: 'rgba(190,24,93,0.15)', color: '#fb7185', border: '1px solid rgba(190,24,93,0.3)' }}>
-              Task Management Module
+          <h1 className="font-display text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
+            <span
+              className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+              style={{ background: 'rgba(190,24,93,0.15)', border: '1px solid rgba(190,24,93,0.3)', boxShadow: '0 0 12px rgba(190,24,93,0.15)' }}
+            >
+              <Building2 size={18} className="text-rose-400" />
             </span>
+            Task Management
           </h1>
-          <p className="text-sm text-rose-300/60 mt-0.5">
-            {activeProject?.name ?? 'Project'} · {projectMilestones.length} milestones · {projectDrawings.length} drawings · {tasksLoading ? '…' : totalFiltered} tasks
+          <p className="text-sm text-rose-300/60 mt-1.5 flex items-center gap-1.5 flex-wrap">
+            <span className="inline-flex items-center gap-1"><Flag size={11} className="text-rose-400/70" />{projectMilestones.length} milestones</span>
+            <span className="text-rose-800">•</span>
+            <span className="inline-flex items-center gap-1"><FileImage size={11} className="text-rose-400/70" />{projectDrawings.length} drawings</span>
+            <span className="text-rose-800">•</span>
+            <span className="inline-flex items-center gap-1"><ListChecks size={11} className="text-rose-400/70" />{tasksLoading ? '…' : totalFiltered} tasks</span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={openCreateMs} className="btn px-3.5 py-2.5 text-white shadow-lg" style={{ background: 'linear-gradient(135deg,#be185d,#9f1239)', boxShadow: '0 4px 14px rgba(190,24,93,0.3)' }}>
+        {/* Right: filters + action buttons — all inline in the header */}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Search */}
+          <div className="flex items-center gap-2 bg-zinc-900 rounded-lg px-3 py-2 border border-zinc-800 focus-within:border-rose-700/50 transition-all min-w-[180px]">
+            <Search size={14} className="text-rose-400/60 shrink-0" />
+            <input
+              className="flex-1 outline-none text-sm bg-transparent text-slate-200 placeholder:text-zinc-600 w-36"
+              placeholder="Search task, engineer…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {/* Status filter */}
+          <select className="input !w-auto text-sm py-2" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All Statuses</option>
+            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {/* Priority filter */}
+          <select className="input !w-auto text-sm py-2" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+            <option value="">All Priorities</option>
+            {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          {/* Divider */}
+          <div className="w-px h-7 bg-rose-900/30 mx-1" />
+          <button
+            onClick={openCreateMs}
+            className="btn px-3.5 py-2.5 text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 active:scale-95"
+            style={{ background: 'linear-gradient(135deg,#be185d,#9f1239)', boxShadow: '0 4px 14px rgba(190,24,93,0.3)' }}
+          >
             <Flag size={15} /> New Milestone
           </button>
-          <button onClick={exportExcel} className="btn px-3.5 py-2.5 bg-emerald-700 text-white hover:bg-emerald-800 shadow-lg">
+          <button
+            onClick={exportExcel}
+            className="btn px-3.5 py-2.5 bg-emerald-700 text-white hover:bg-emerald-800 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 active:scale-95"
+          >
             <Download size={15} /> Export
           </button>
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5 p-3 rounded-2xl border border-rose-900/25" style={{ background: 'rgba(20,4,8,0.7)' }}>
-        <div className="flex items-center gap-2 bg-zinc-900 rounded-lg px-3 py-2 flex-1 min-w-[180px] border border-zinc-800 focus-within:border-rose-700/50 transition-all">
-          <Search size={15} className="text-rose-400/60 shrink-0" />
-          <input
-            className="flex-1 outline-none text-sm bg-transparent text-slate-200 placeholder:text-zinc-600"
-            placeholder="Search grid, task, engineer…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <select className="input !w-auto text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">All Statuses</option>
-          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select className="input !w-auto text-sm" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-          <option value="">All Priorities</option>
-          {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
       </div>
 
       {/* Tree */}
@@ -560,7 +581,7 @@ export default function TaskList() {
                                   {dTasks.map((t) => (
                                     <tr
                                       key={t.id}
-                                      onClick={() => goToGrid(t)}
+                                      onClick={(e) => { e.stopPropagation(); goToGrid(t); }}
                                       className="hover:bg-rose-950/20 cursor-pointer transition-colors rounded"
                                     >
                                       <td className="px-2 py-1.5 font-semibold text-slate-200">

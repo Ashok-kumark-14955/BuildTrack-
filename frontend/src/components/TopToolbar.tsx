@@ -25,7 +25,6 @@ import {
 import { useApp } from '../AppContext';
 import { DrawingsAPI } from '../api';
 import { detectGridFromImage } from '../utils/gridDetect';
-import { convertToOutline } from '../utils/outlineConvert';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -216,20 +215,8 @@ export default function TopToolbar({
     } catch { /* use defaults */ }
 
     try {
-      let uploadFile = file;
-      if (file.type.startsWith('image/')) {
-        const t = toast.loading('Converting to outline…');
-        try {
-          uploadFile = await convertToOutline(file);
-        } catch {
-          uploadFile = file;
-        } finally {
-          toast.dismiss(t);
-        }
-      }
-
       const form = new FormData();
-      form.append('file', uploadFile, uploadFile.name);
+      form.append('file', file, file.name);
       form.append('name', file.name);
       form.append('projectId', activeProjectId || currentDrawing?.projectId || projects[0]?.id || '');
       form.append('gridCols', String(cols));

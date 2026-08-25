@@ -12,6 +12,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
 import {
   CustomModulesAPI,
@@ -77,16 +78,23 @@ const FIELD_TYPE_LABELS: Record<FieldType, string> = {
 };
 
 // Values that represent an "attention" state — get a small pulsing dot in the Status column.
-const BADGE_ALERT_VALUES = new Set(['Denied', 'Blocked', 'Rejected', 'Expired', 'Terminated', 'Flagged']);
+const BADGE_ALERT_VALUES = new Set(['Denied', 'Blocked', 'Rejected', 'Expired', 'Terminated', 'Flagged', 'Delayed']);
 // Values that represent an active/positive state — get a solid (non-pulsing) dot.
-const BADGE_ACTIVE_VALUES = new Set(['On Site', 'Active', 'Approved', 'Checked In', 'Valid', 'Done', 'In Progress']);
+const BADGE_ACTIVE_VALUES = new Set(['On Site', 'Active', 'Approved', 'Checked In', 'Valid', 'Done', 'Completed']);
 // Values that are informational/neutral-but-notable — a calmer amber accent.
 const BADGE_CAUTION_VALUES = new Set(['Pending', 'On Leave', 'Review']);
+// Values with specific fixed accent colors — checked before the generic sets.
+const BADGE_CUSTOM_COLOR: Record<string, string> = {
+  'Assigned':    '#3b82f6', // blue
+  'In Progress': '#f97316', // orange
+  'Delayed':     '#e11d48', // ruby red
+};
 
 /** Solid accent color for a status value — used for the row's left rail and the badge glow. */
 function statusAccentColor(value: string): string | null {
   if (!value) return null;
-  if (BADGE_ALERT_VALUES.has(value)) return '#f87171';
+  if (BADGE_CUSTOM_COLOR[value]) return BADGE_CUSTOM_COLOR[value];
+  if (BADGE_ALERT_VALUES.has(value)) return '#e11d48';
   if (BADGE_ACTIVE_VALUES.has(value)) return '#34d399';
   if (BADGE_CAUTION_VALUES.has(value)) return '#fbbf24';
   return '#64748b'; // neutral (e.g. Exited, Inactive) — still worth a faint marker
@@ -139,27 +147,67 @@ void formatDuration;
 
 // ─── SelectOptionsEditor ─────────────────────────────────────────────────────
 
-// Colour palette for dropdown option chips (cycles through for variety)
-const OPTION_CHIP_COLORS = [
-  { bg: 'rgba(99,102,241,0.18)', text: '#a5b4fc', border: 'rgba(99,102,241,0.35)' },
-  { bg: 'rgba(245,158,11,0.18)', text: '#fcd34d', border: 'rgba(245,158,11,0.35)' },
-  { bg: 'rgba(16,185,129,0.18)', text: '#6ee7b7', border: 'rgba(16,185,129,0.35)' },
-  { bg: 'rgba(239,68,68,0.18)',  text: '#fca5a5', border: 'rgba(239,68,68,0.35)' },
-  { bg: 'rgba(59,130,246,0.18)', text: '#93c5fd', border: 'rgba(59,130,246,0.35)' },
-  { bg: 'rgba(168,85,247,0.18)', text: '#d8b4fe', border: 'rgba(168,85,247,0.35)' },
-  { bg: 'rgba(20,184,166,0.18)', text: '#5eead4', border: 'rgba(20,184,166,0.35)' },
-  { bg: 'rgba(249,115,22,0.18)', text: '#fdba74', border: 'rgba(249,115,22,0.35)' },
+// Preset colour swatches for option chips
+const PRESET_COLORS = [
+  '#6366f1', // indigo
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#ef4444', // red
+  '#3b82f6', // blue
+  '#a855f7', // purple
+  '#14b8a6', // teal
+  '#f97316', // orange
+  '#ec4899', // pink
+  '#84cc16', // lime
+  '#06b6d4', // cyan
+  '#e11d48', // rose
 ];
 
-function SelectOptionsEditor({ options, onChange }: { options: string[]; onChange: (opts: string[]) => void }) {
+/** Returns a stable default color for an option index */
+function defaultOptionColor(idx: number): string {
+  return PRESET_COLORS[idx % PRESET_COLORS.length];
+}
+
+/** Build a chip style from a hex color */
+function chipStyleFromHex(hex: string): { bg: string; text: string; border: string } {
+  return {
+    bg: `${hex}2e`,
+    text: hex,
+    border: `${hex}55`,
+  };
+}
+
+interface SelectOptionsEditorProps {
+  options: string[];
+  optionColors?: Record<string, string>;
+  onChange: (opts: string[], colors: Record<string, string>) => void;
+}
+
+function SelectOptionsEditor({ options, optionColors = {}, onChange }: SelectOptionsEditorProps) {
   const [input, setInput] = useState('');
+  const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   function add() {
     const v = input.trim();
-    if (v && !options.includes(v)) { onChange([...options, v]); setInput(''); inputRef.current?.focus(); }
+    if (!v || options.includes(v)) return;
+    const newColors = { ...optionColors, [v]: defaultOptionColor(options.length) };
+    onChange([...options, v], newColors);
+    setInput('');
+    inputRef.current?.focus();
   }
-  function remove(idx: number) { onChange(options.filter((_, i) => i !== idx)); }
+
+  function remove(opt: string) {
+    const newColors = { ...optionColors };
+    delete newColors[opt];
+    onChange(options.filter((o) => o !== opt), newColors);
+  }
+
+  function setColor(opt: string, color: string) {
+    const newColors = { ...optionColors, [opt]: color };
+    onChange(options, newColors);
+    setColorPickerFor(null);
+  }
 
   return (
     <div className="mt-3 rounded-xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(220,38,90,0.12)' }}>
@@ -173,27 +221,93 @@ function SelectOptionsEditor({ options, onChange }: { options: string[]; onChang
         )}
       </div>
 
-      {/* Options grid */}
+      {/* Options list */}
       {options.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-3 py-2.5">
+        <div className="flex flex-col gap-1 px-3 py-2.5">
           {options.map((o, i) => {
-            const color = OPTION_CHIP_COLORS[i % OPTION_CHIP_COLORS.length];
+            const hex = optionColors[o] ?? defaultOptionColor(i);
+            const chipStyle = chipStyleFromHex(hex);
+            const isPickingColor = colorPickerFor === o;
             return (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all group"
-                style={{ background: color.bg, color: color.text, border: `1px solid ${color.border}` }}
-              >
-                {o}
-                <button
-                  type="button"
-                  onClick={() => remove(i)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity leading-none hover:text-red-400 ml-0.5"
-                  style={{ color: color.text }}
-                >
-                  ×
-                </button>
-              </span>
+              <div key={o} className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 group">
+                  {/* Color swatch button */}
+                  <button
+                    type="button"
+                    title="Change colour"
+                    onClick={() => setColorPickerFor(isPickingColor ? null : o)}
+                    className="w-5 h-5 rounded-full flex-shrink-0 border-2 transition-all hover:scale-110"
+                    style={{
+                      background: hex,
+                      borderColor: isPickingColor ? '#fff' : `${hex}88`,
+                      boxShadow: isPickingColor ? `0 0 0 2px ${hex}55` : 'none',
+                    }}
+                  />
+                  {/* Chip preview */}
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold flex-1 min-w-0"
+                    style={{ background: chipStyle.bg, color: chipStyle.text, border: `1px solid ${chipStyle.border}` }}
+                  >
+                    <span className="truncate">{o}</span>
+                  </span>
+                  {/* Remove button */}
+                  <button
+                    type="button"
+                    onClick={() => remove(o)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 flex-shrink-0 text-base leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Inline colour picker */}
+                {isPickingColor && (
+                  <div
+                    className="ml-7 p-2.5 rounded-xl flex flex-col gap-2"
+                    style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-500">Pick a colour</span>
+                    {/* Preset swatches */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {PRESET_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          title={c}
+                          onClick={() => setColor(o, c)}
+                          className="w-5 h-5 rounded-full border-2 transition-all hover:scale-110 flex-shrink-0"
+                          style={{
+                            background: c,
+                            borderColor: hex === c ? '#fff' : 'transparent',
+                            boxShadow: hex === c ? `0 0 0 2px ${c}55` : 'none',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {/* Custom hex input */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={hex}
+                        onChange={(e) => setColor(o, e.target.value)}
+                        className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0"
+                        title="Custom colour"
+                      />
+                      <input
+                        type="text"
+                        value={hex}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setColor(o, v);
+                        }}
+                        className="flex-1 bg-transparent text-white text-[11px] font-mono focus:outline-none border-b border-slate-700 pb-0.5"
+                        placeholder="#000000"
+                        maxLength={7}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -234,7 +348,8 @@ function StatusBadge({ value, showDot = false }: { value: string; showDot?: bool
   const isAlert = BADGE_ALERT_VALUES.has(value);
   const isActive = BADGE_ACTIVE_VALUES.has(value);
   const isCaution = BADGE_CAUTION_VALUES.has(value);
-  const dotColor = isAlert ? '#f87171' : isActive ? '#34d399' : isCaution ? '#fbbf24' : '#64748b';
+  // Dot color: custom map first, then semantic sets, then neutral
+  const dotColor = BADGE_CUSTOM_COLOR[value] ?? (isAlert ? '#e11d48' : isActive ? '#34d399' : isCaution ? '#fbbf24' : '#64748b');
 
   return (
     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -388,7 +503,8 @@ function CreateModuleModal({ projectId, onClose, onCreated }: CreateModuleModalP
                   {field.type === 'select' && (
                     <SelectOptionsEditor
                       options={field.options ?? []}
-                      onChange={(opts) => updateField(idx, { options: opts })}
+                      optionColors={field.optionColors ?? {}}
+                      onChange={(opts, colors) => updateField(idx, { options: opts, optionColors: colors })}
                     />
                   )}
                 </div>
@@ -803,7 +919,8 @@ function EditModuleModal({ projectId, module, onClose, onSaved }: EditModuleModa
                         <div className="mt-2 pl-9">
                           <SelectOptionsEditor
                             options={field.options ?? []}
-                            onChange={(opts) => updateField(idx, { options: opts })}
+                            optionColors={field.optionColors ?? {}}
+                            onChange={(opts, colors) => updateField(idx, { options: opts, optionColors: colors })}
                           />
                         </div>
                       )}
@@ -873,14 +990,19 @@ function EditModuleModal({ projectId, module, onClose, onSaved }: EditModuleModa
 // ─── Field Settings Modal (edit module fields only — kept for compat) ─────────
 
 interface FieldSettingsModalProps {
+  projectId: string;
   module: CustomModule;
   onClose: () => void;
   onSaved: (m: CustomModule) => void;
 }
 
-function FieldSettingsModal({ module, onClose, onSaved }: FieldSettingsModalProps) {
-  // Delegate to EditModuleModal opened on the fields tab
-  return <EditModuleModal projectId="" module={module} onClose={onClose} onSaved={onSaved} />;
+function FieldSettingsModal({ projectId, module, onClose, onSaved }: FieldSettingsModalProps) {
+  // Delegate to EditModuleModal opened on the fields tab. `projectId` must be
+  // the real BuildTrack project id — passing an empty string here overwrites
+  // the module's buildTrackProjectId server-side (see CustomModulesAPI.update
+  // → PUT /:id), which silently drops it out of its project's module list on
+  // the very next fetch even though nothing was actually deleted.
+  return <EditModuleModal projectId={projectId} module={module} onClose={onClose} onSaved={onSaved} />;
 }
 
 // ─── Inline cell editor ───────────────────────────────────────────────────────
@@ -1494,12 +1616,10 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
         </span>
 
         {/* Sort indicator */}
-        {sortDir ? (
+        {sortDir && (
           <span className="flex-shrink-0 text-rose-400 text-[10px] font-black">
             {sortDir === 'asc' ? '↑' : '↓'}
           </span>
-        ) : (
-          <span className="flex-shrink-0 text-zinc-600 text-[10px] opacity-0 group-hover/th:opacity-100 transition-opacity">↕</span>
         )}
 
         {/* Context menu trigger — stop click from triggering sort */}
@@ -1515,9 +1635,6 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
           style={showMenu ? { background: 'rgba(225,29,72,0.4)' } : undefined}
           title="Column options"
         >
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
         </button>
       </div>
 
@@ -1615,6 +1732,34 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
   function renderCellValue(field: CustomField) {
     const val = data[field.id] ?? '';
     if (field.type === 'select') {
+      if (!val) return <span className="text-slate-500 text-sm italic">—</span>;
+      // Use custom option color if set, otherwise fall back to the same default
+      // palette color SelectOptionsEditor previews for this option (by index) —
+      // only options that aren't in the field's known option list drop to the
+      // generic semantic StatusBadge below.
+      const customHex = field.optionColors?.[val];
+      const optionIdx = (field.options ?? []).indexOf(val);
+      const hex = customHex ?? (optionIdx >= 0 ? defaultOptionColor(optionIdx) : null);
+      if (hex) {
+        const isStatusField = field.label.toLowerCase().includes('status');
+        const cs = chipStyleFromHex(hex);
+        return (
+          <span
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold"
+            style={{
+              background: cs.bg,
+              color: cs.text,
+              border: `1px solid ${cs.border}`,
+            }}
+          >
+            {isStatusField && (
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: hex }} />
+            )}
+            {val}
+          </span>
+        );
+      }
+      // Fallback: semantic StatusBadge for fields without custom colors
       const isStatusField = field.label.toLowerCase().includes('status');
       return <StatusBadge value={val} showDot={isStatusField} />;
     }
@@ -1645,8 +1790,8 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
   const rowBg = selected
     ? 'rgba(251,113,133,0.12)'
     : isEven
-      ? '#1c1c1e'
-      : '#212123';
+      ? '#111113'
+      : '#161618';
 
   // Persistent left rail colored by this row's Status field, so state reads
   // at a glance without needing to scroll to the Status column or hover.
@@ -1785,6 +1930,59 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showEntryDrawer, setShowEntryDrawer] = useState(false);
+  // "More" dropdown is rendered via a portal (see MoreMenuPortal below) so it can
+  // escape the module toolbar's `overflow-hidden` pill container — without this,
+  // the toolbar's rounded-pill clipping silently hides the whole dropdown.
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const [moreMenuPos, setMoreMenuPos] = useState<{ top: number; right: number } | null>(null);
+  function openMoreMenu() {
+    const rect = moreButtonRef.current?.getBoundingClientRect();
+    if (rect) setMoreMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    setShowMoreMenu(true);
+  }
+
+  function MoreMenuPortal() {
+    if (!showMoreMenu || !moreMenuPos) return null;
+    return createPortal(
+      <>
+        {/* Backdrop to close on outside click */}
+        <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+        <div
+          className="fixed z-50 w-48 rounded-xl overflow-hidden shadow-2xl"
+          style={{
+            top: moreMenuPos.top,
+            right: moreMenuPos.right,
+            background: '#1e1e20',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
+          }}
+        >
+          <div className="px-3 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Module Options</p>
+          </div>
+          <div className="py-1">
+            <button onClick={() => { setShowMoreMenu(false); setShowEditModal(true); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/5 transition-colors">
+              <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.25)' }}><EditIcon /></span>
+              <div className="text-left"><p className="font-semibold leading-none text-slate-200">Edit Module</p><p className="text-[10px] text-slate-500 mt-0.5">Rename &amp; manage fields</p></div>
+            </button>
+            <button onClick={() => { setShowMoreMenu(false); setShowSettings(true); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/5 transition-colors">
+              <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(20,184,166,0.15)', border: '1px solid rgba(20,184,166,0.25)' }}><SettingsIcon /></span>
+              <div className="text-left"><p className="font-semibold leading-none text-slate-200">Field Settings</p><p className="text-[10px] text-slate-500 mt-0.5">Configure field types</p></div>
+            </button>
+            <div className="mx-3 my-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
+            <button onClick={() => { setShowMoreMenu(false); setConfirmDelete(true); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-900/15 transition-colors">
+              <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}><TrashIcon /></span>
+              <div className="text-left"><p className="font-semibold leading-none">Delete Module</p><p className="text-[10px] text-red-500/70 mt-0.5">Permanently remove all data</p></div>
+            </button>
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
 
   // ── Search & Sort ──────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -1969,20 +2167,133 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
     <>
       {/* Module header — sticky sub-bar, visually part of the top nav */}
       <div
-        className="flex items-center justify-between sticky top-0 z-20 px-4 py-2 flex-wrap gap-2"
+        className="flex items-center sticky top-0 z-20 px-6 py-0.5 gap-3 flex-wrap"
         style={{
           background: 'linear-gradient(180deg, #110204 0%, #0d0101 100%)',
           borderBottom: '1px solid rgba(220,38,90,0.15)',
           boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-          marginLeft: '-24px',
-          marginRight: '-24px',
-          marginBottom: '12px',
+          marginLeft: '-48px',
+          marginRight: '-48px',
+          marginBottom: '6px',
         }}
       >
-        <div className="flex items-center gap-3">
-          {/* ── Status ring stats — any module with a Status field gets this ── */}
-          {moduleStatusField && !loading && records.length > 0 && (() => {
-            const statusField = moduleStatusField;
+        {/* Bulk delete — floats outside the pill so it's always visible */}
+        {someSelected && (
+          <button
+            onClick={() => setConfirmBulkDelete(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-400 hover:text-white hover:bg-red-900/30 text-xs transition-colors shrink-0"
+            style={{ border: '1px solid rgba(220,38,90,0.3)' }}
+          >
+            <TrashIcon /> Delete {selectedIds.size}
+          </button>
+        )}
+        {/* ── Status ring stats — any module with a Status field gets this ── */}
+        {/* Also wraps Search / New Entry / CSV / More inside the same pill ── */}
+        {!loading && (() => {
+          // When there's no status field (or no records), render a minimal pill
+          // that still houses the toolbar actions.
+          if (!moduleStatusField || records.length === 0) {
+            return (
+              <div
+                className="flex items-center gap-0 overflow-hidden flex-1"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '9999px',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
+                }}
+              >
+                {/* Module name badge */}
+                <div
+                  className="flex items-center px-3 py-1.5"
+                  style={{ background: 'rgba(255,255,255,0.02)', borderRight: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  <span className="font-black text-[11px] uppercase tracking-[0.1em]" style={{ color: 'rgba(226,232,240,0.85)' }}>
+                    {module.name}
+                  </span>
+                </div>
+                {/* Search */}
+                <div className="flex items-center px-2 py-1" style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="relative">
+                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                      style={{ color: searchQuery ? 'rgba(251,113,133,0.8)' : 'rgba(148,163,184,0.45)' }}
+                      width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input ref={searchRef} type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search…"
+                      className="text-[11.5px] text-white placeholder-slate-600 focus:outline-none transition-all duration-200"
+                      style={{ paddingLeft: '26px', paddingRight: searchQuery ? '24px' : '8px', paddingTop: '4px', paddingBottom: '4px', width: searchQuery ? '160px' : '110px', background: 'transparent', border: 'none' }}
+                      onFocus={(e) => { e.currentTarget.style.width = '180px'; }}
+                      onBlur={(e) => { e.currentTarget.style.width = searchQuery ? '160px' : '110px'; }}
+                    />
+                    {searchQuery ? (
+                      <button onClick={() => setSearchQuery('')} className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded"
+                        style={{ color: 'rgba(148,163,184,0.5)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = '#fb7185'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(148,163,184,0.5)'; }}>
+                        <XIcon />
+                      </button>
+                    ) : (
+                      <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] font-black tracking-widest pointer-events-none select-none px-1 py-0.5 rounded"
+                        style={{ color: 'rgba(148,163,184,0.3)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>/</span>
+                    )}
+                  </div>
+                  {searchQuery && <span className="text-[10px] text-slate-500 ml-1 whitespace-nowrap">{filteredSortedRecords.length}</span>}
+                </div>
+                {/* Add Entry */}
+                <div className="flex items-center px-2 py-1" style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+                  <button onClick={() => setShowEntryDrawer(true)}
+                    className="flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-full shrink-0 transition-all duration-200"
+                    style={{ background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 55%, #4c0519 100%)', color: '#fff', border: '1px solid rgba(159,18,57,0.5)', boxShadow: '0 1px 8px rgba(159,18,57,0.35), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                    title="New entry (press N)"
+                    onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.2)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Add Entry
+                  </button>
+                </div>
+                {/* CSV + More */}
+                <div className="flex items-center">
+                  <button onClick={exportCSV}
+                    className="flex items-center gap-1 px-3 py-2 text-[11px] font-semibold transition-all duration-150"
+                    style={{ color: 'rgba(148,163,184,0.75)' }}
+                    title="Export to CSV"
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(148,163,184,0.75)'; }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    CSV
+                  </button>
+                  <div className="w-px self-stretch my-1.5" style={{ background: 'rgba(255,255,255,0.07)' }} />
+                  <div className="relative">
+                    <button ref={moreButtonRef} onClick={() => (showMoreMenu ? setShowMoreMenu(false) : openMoreMenu())}
+                      className="flex items-center gap-1 px-3 py-2 text-[11px] font-semibold transition-all duration-150"
+                      style={{ color: showMoreMenu ? '#fff' : 'rgba(148,163,184,0.75)', background: showMoreMenu ? 'rgba(255,255,255,0.08)' : 'transparent' }}
+                      title="Module options"
+                      onMouseEnter={(e) => { if (!showMoreMenu) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }}}
+                      onMouseLeave={(e) => { if (!showMoreMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(148,163,184,0.75)'; }}}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <circle cx="5" cy="12" r="1.3" fill="currentColor" stroke="none"/>
+                        <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>
+                        <circle cx="19" cy="12" r="1.3" fill="currentColor" stroke="none"/>
+                      </svg>
+                      More
+                    </button>
+                    <MoreMenuPortal />
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // When there IS a status field with records → full pill with rings
+          const statusField = moduleStatusField;
+          return (() => {
+
             const total = records.length;
             // Same colour function the table's StatusBadge/row-rail use, so ring colours always match the badges.
             const statusCounts = (statusField?.options ?? []).map((opt) => ({
@@ -1992,8 +2303,8 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
             }));
 
             // Mini ring SVG component (inline) — colored dot badge sits above the ring, like a status marker
-            const MiniRing = ({ value, color, size = 28 }: { value: number; color: string; size?: number }) => {
-              const cx = size / 2, cy = size / 2, R = size / 2 - 3.5, sw = 2.5;
+            const MiniRing = ({ value, color, size = 32 }: { value: number; color: string; size?: number }) => {
+              const cx = size / 2, cy = size / 2, R = size / 2 - 4, sw = 3;
               const circ = 2 * Math.PI * R;
               const pct = total > 0 ? value / total : 0;
               const arcLen = pct * circ;
@@ -2028,7 +2339,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
             // Big total ring
             const BigRing = () => {
-              const size = 52, cx = 26, cy = 26, R = 20, sw = 4.5;
+              const size = 55, cx = 27.5, cy = 27.5, R = 21, sw = 4;
               const circ = 2 * Math.PI * R;
               const segs = statusCounts.filter((s) => s.value > 0);
               let offset = 0;
@@ -2047,9 +2358,27 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               });
               return (
                 <div className="relative shrink-0" style={{ width: size, height: size }}>
+                  {/* Ambient glow behind the ring, tinted to the dominant status colour */}
+                  {dominant.value > 0 && (
+                    <div
+                      className="absolute rounded-full pointer-events-none"
+                      style={{
+                        inset: 6,
+                        background: dominant.color,
+                        opacity: 0.16,
+                        filter: 'blur(10px)',
+                      }}
+                    />
+                  )}
                   <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
+                    <defs>
+                      <radialGradient id={`bigring-fill-${module.id}`} cx="35%" cy="30%" r="75%">
+                        <stop offset="0%" stopColor="#161f30" />
+                        <stop offset="100%" stopColor="#0a0e1a" />
+                      </radialGradient>
+                    </defs>
                     {/* Dark badge fill behind the ring */}
-                    <circle cx={cx} cy={cy} r={R - sw / 2 - 1} fill="#0c1220" />
+                    <circle cx={cx} cy={cy} r={R - sw / 2 - 1} fill={`url(#bigring-fill-${module.id})`} />
                     {/* Tick marks */}
                     {ticks.map((t, i) => (
                       <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
@@ -2067,13 +2396,14 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                           stroke={seg.color} strokeWidth={sw}
                           strokeDasharray={`${arcLen} ${circ - arcLen}`}
                           strokeDashoffset={dashoffset}
-                          strokeLinecap="round" />
+                          strokeLinecap="round"
+                          style={{ transition: 'stroke-dasharray 500ms ease, stroke-dashoffset 500ms ease', filter: `drop-shadow(0 0 3px ${seg.color}66)` }} />
                       );
                     })}
                     {/* Total count — bright white with glow */}
                     <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
                       fill="white"
-                      style={{ fontSize: 15, fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.3px', filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.5))' }}>
+                      style={{ fontSize: 12, fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.3px', filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.55))' }}>
                       {total}
                     </text>
                   </svg>
@@ -2101,320 +2431,241 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
             return (
               <div
-                className="flex items-center gap-2 px-2 py-1"
+                className="flex items-center gap-0 overflow-hidden flex-1"
                 style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.09)',
-                  borderRadius: '999px',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)',
+                  border: '1.5px solid rgba(255,255,255,0.18)',
+                  borderRadius: '9999px',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
+                  marginLeft: '20px',
+                  marginRight: '20px',
                 }}
               >
-                {/* Big total ring */}
-                <BigRing />
-                {/* Module title + summary, beside the ring */}
-                <div className="flex flex-col gap-0.5 pr-0.5">
-                  <span className="text-white font-extrabold text-[13px] uppercase tracking-wider leading-none">
-                    {module.name}
-                  </span>
-                  <span className="text-[11px] leading-none whitespace-nowrap" style={{ color: 'rgba(148,163,184,0.65)' }}>
-                    <span className="text-white font-bold">{total}</span> in module
-                    {topStatus.value > 0 && (
-                      <>
-                        <span style={{ color: 'rgba(100,116,139,0.6)' }}> · </span>
-                        <span className="inline-flex items-center gap-1">
-                          <span className="w-1 h-1 rounded-full inline-block" style={{ background: topStatus.color }} />
-                          <span style={{ color: topStatus.color, fontWeight: 700 }}>{topPct}%</span> {topStatus.label.toLowerCase()}
-                        </span>
-                      </>
-                    )}
-                  </span>
+                {/* ── Left section: Big ring + title + summary ── */}
+                <div
+                  className="relative flex items-center gap-2 pl-2 pr-2 py-0.5"
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    borderRight: '1px solid rgba(255,255,255,0.07)',
+                  }}
+                >
+                  {/* Accent rail — ties this card to the module's dominant status colour */}
+                  <span
+                    className="absolute left-0 top-1.5 bottom-1.5 rounded-full"
+                    style={{ width: 2.5, background: topStatus.color, opacity: 0.7 }}
+                  />
+                  <BigRing />
+                  <div className="flex flex-col gap-1">
+                    <span
+                      className="font-black text-[11.5px] uppercase tracking-[0.1em] leading-none"
+                      style={{ color: 'rgba(241,245,249,0.95)', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}
+                    >
+                      {module.name}
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] leading-none whitespace-nowrap font-medium" style={{ color: 'rgba(100,116,139,0.8)' }}>
+                      <span className="text-white font-bold" style={{ fontSize: 11 }}>{total}</span>
+                      <span style={{ color: 'rgba(71,85,105,0.7)' }}>entries</span>
+                      {topStatus.value > 0 && (
+                        <>
+                          <span style={{ color: 'rgba(71,85,105,0.4)' }}>·</span>
+                          <span
+                            className="inline-block rounded-full shrink-0"
+                            style={{ width: 5, height: 5, background: topStatus.color, boxShadow: `0 0 4px ${topStatus.color}` }}
+                          />
+                          <span style={{ color: topStatus.color, fontWeight: 700 }}>{topPct}%</span>
+                          <span style={{ color: 'rgba(71,85,105,0.7)' }}>{topStatus.label.toLowerCase()}</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
                 </div>
-                {/* Divider */}
-                <div className="w-px h-8" style={{ background: 'rgba(71,85,105,0.3)' }} />
-                {/* Individual stat rings — one per Status option, so a newly added option shows up too.
-                    Clicking a ring filters the table to that status; clicking the active one clears it. */}
-                <div className="flex items-center gap-1.5">
-                  {statusCounts.map((s) => {
+
+                {/* ── Right section: individual status rings ── */}
+                <div className="flex items-center px-1.5 py-1 gap-0.5">
+                  {statusCounts.map((s, si) => {
                     const isActive = activeFilter?.fieldId === statusField!.id && activeFilter?.value === s.label;
                     return (
                       <button
                         key={s.label}
                         type="button"
                         onClick={() => setActiveFilter(isActive ? null : { fieldId: statusField!.id, value: s.label })}
-                        className="flex flex-col items-center gap-0.5 rounded-md px-1 py-0.5 transition-transform hover:scale-105"
+                        className="flex flex-col items-center gap-1 rounded-xl px-2 py-1.5 transition-all duration-150"
                         style={{
-                          background: isActive ? 'rgba(148,163,184,0.15)' : 'transparent',
-                          boxShadow: isActive ? `0 0 0 1px ${s.color}` : 'none',
+                          background: isActive
+                            ? `${s.color}18`
+                            : 'transparent',
+                          border: isActive
+                            ? `1px solid ${s.color}40`
+                            : '1px solid transparent',
                           cursor: 'pointer',
+                          minWidth: 36,
                         }}
-                        title={`Filter by ${s.label}`}
+                        onMouseEnter={(e) => {
+                          if (!isActive) {
+                            e.currentTarget.style.background = `${s.color}0f`;
+                            e.currentTarget.style.borderColor = `${s.color}25`;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = 'transparent';
+                          }
+                        }}
+                        title={`Filter by ${s.label} (${s.value})`}
                       >
                         <MiniRing value={s.value} color={s.color} />
-                        <span className="text-[8px] font-bold uppercase tracking-wide whitespace-nowrap"
-                          style={{ color: isActive ? s.color : 'rgba(148,163,184,0.6)' }}>{s.label}</span>
+                        <span
+                          className="font-bold uppercase tracking-wide whitespace-nowrap leading-none"
+                          style={{
+                            fontSize: 7,
+                            color: isActive ? s.color : `${s.color}cc`,
+                            letterSpacing: '0.06em',
+                          }}
+                        >
+                          {s.label}
+                        </span>
                       </button>
                     );
+                    void si;
                   })}
                 </div>
-              </div>
-            );
-          })()}
-          {searchQuery && (
-            <span className="text-slate-500 text-xs">
-              · {filteredSortedRecords.length} match{filteredSortedRecords.length !== 1 ? 'es' : ''}
-            </span>
-          )}
-          {activeFilter && (
-            <button
-              type="button"
-              onClick={() => setActiveFilter(null)}
-              className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-white transition-colors"
-              title="Clear status filter"
-            >
-              · Filtered: {activeFilter.value} ✕
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Search bar */}
-          <div className="relative group">
-            {/* Search icon */}
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200"
-              style={{ color: searchQuery ? 'rgba(251,113,133,0.8)' : 'rgba(148,163,184,0.5)' }}
-              width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-              strokeLinecap="round" strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search records…"
-              className="text-[12.5px] text-white placeholder-slate-500 focus:outline-none transition-all duration-300"
-              style={{
-                paddingLeft: '34px',
-                paddingRight: searchQuery ? '58px' : '72px',
-                paddingTop: '7px',
-                paddingBottom: '7px',
-                width: searchQuery ? '220px' : '196px',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.09)',
-                borderRadius: '12px',
-                boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(251,113,133,0.55)';
-                e.currentTarget.style.background = 'rgba(251,113,133,0.06)';
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(251,113,133,0.1), inset 0 1px 3px rgba(0,0,0,0.3)';
-                e.currentTarget.style.width = '240px';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                e.currentTarget.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.3)';
-                e.currentTarget.style.width = searchQuery ? '220px' : '196px';
-              }}
-            />
-            {/* Right side: clear button OR keyboard shortcut badge */}
-            {searchQuery ? (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-md transition-all duration-150"
-                style={{ color: 'rgba(148,163,184,0.6)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(251,113,133,0.2)'; e.currentTarget.style.color = '#fb7185'; e.currentTarget.style.borderColor = 'rgba(251,113,133,0.4)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(148,163,184,0.6)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
-                title="Clear search (Esc)"
-              >
-                <XIcon />
-              </button>
-            ) : (
-              <span
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black tracking-widest pointer-events-none select-none px-1.5 py-0.5 rounded-md"
-                style={{ color: 'rgba(148,163,184,0.4)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                /
-              </span>
-            )}
-          </div>
 
-          {/* Bulk delete (shown only when items selected) */}
-          {someSelected && (
-            <button
-              onClick={() => setConfirmBulkDelete(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-400 hover:text-white hover:bg-red-900/30 text-xs transition-colors"
-              style={{ border: '1px solid rgba(220,38,90,0.3)' }}
-            >
-              <TrashIcon /> Delete {selectedIds.size}
-            </button>
-          )}
-
-          {/* ── Secondary action group — Export + More ── */}
-          <div
-            className="flex items-center rounded-xl overflow-hidden shrink-0"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}
-          >
-            {/* Export CSV */}
-            <button
-              onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-[7px] text-[12px] font-semibold transition-all duration-150"
-              style={{ color: 'rgba(148,163,184,0.85)' }}
-              title="Export to CSV"
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(148,163,184,0.85)'; }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              CSV
-            </button>
-            {/* Divider */}
-            <div className="w-px self-stretch my-1.5" style={{ background: 'rgba(255,255,255,0.08)' }} />
-            {/* ── More (⋯) dropdown — Edit, Fields, Delete ── */}
-            <div className="relative">
-            <button
-              onClick={() => setShowMoreMenu((v) => !v)}
-              className="flex items-center gap-1.5 px-3 py-[7px] text-[12px] font-semibold transition-all duration-150"
-              style={{ color: showMoreMenu ? '#fff' : 'rgba(148,163,184,0.85)', background: showMoreMenu ? 'rgba(255,255,255,0.1)' : 'transparent' }}
-              title="Module options"
-              onMouseEnter={(e) => { if (!showMoreMenu) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#fff'; }}}
-              onMouseLeave={(e) => { if (!showMoreMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(148,163,184,0.85)'; }}}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="5" cy="12" r="1.3" fill="currentColor" stroke="none"/>
-                <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>
-                <circle cx="19" cy="12" r="1.3" fill="currentColor" stroke="none"/>
-              </svg>
-              More
-            </button>
-          {/* ── Primary action — New Entry ── */}
-          <button
-            onClick={() => setShowEntryDrawer(true)}
-            className="flex items-center gap-1.5 text-[12.5px] font-bold px-4 py-[7px] rounded-xl shrink-0 transition-all duration-200"
-            style={{
-              background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 55%, #4c0519 100%)',
-              color: '#fff',
-              border: '1px solid rgba(159,18,57,0.5)',
-              boxShadow: '0 2px 16px rgba(159,18,57,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
-            }}
-            title="New entry (press N)"
-            onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.2)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(159,18,57,0.5), inset 0 1px 0 rgba(255,255,255,0.12)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; e.currentTarget.style.boxShadow = '0 2px 16px rgba(159,18,57,0.35), inset 0 1px 0 rgba(255,255,255,0.12)'; }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            New Entry
-          </button>
-
-          {/* ── Secondary action group — CSV + More ── */}
-          <div
-            className="flex items-center rounded-xl overflow-hidden shrink-0"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}
-          >
-            {/* Export CSV */}
-            <button
-              onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-[7px] text-[12px] font-semibold transition-all duration-150"
-              style={{ color: 'rgba(148,163,184,0.85)' }}
-              title="Export to CSV"
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(148,163,184,0.85)'; }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              CSV
-            </button>
-            {/* Divider */}
-            <div className="w-px self-stretch my-1.5" style={{ background: 'rgba(255,255,255,0.08)' }} />
-            {/* ── More (⋯) dropdown — Edit, Fields, Delete ── */}
-            <div className="relative">
-            <button
-              onClick={() => setShowMoreMenu((v) => !v)}
-              className="flex items-center gap-1.5 px-3 py-[7px] text-[12px] font-semibold transition-all duration-150"
-              style={{ color: showMoreMenu ? '#fff' : 'rgba(148,163,184,0.85)', background: showMoreMenu ? 'rgba(255,255,255,0.1)' : 'transparent' }}
-              title="Module options"
-              onMouseEnter={(e) => { if (!showMoreMenu) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#fff'; }}}
-              onMouseLeave={(e) => { if (!showMoreMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(148,163,184,0.85)'; }}}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="5" cy="12" r="1.3" fill="currentColor" stroke="none"/>
-                <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>
-                <circle cx="19" cy="12" r="1.3" fill="currentColor" stroke="none"/>
-              </svg>
-              More
-            </button>
-            {showMoreMenu && (
-              <>
-                {/* Backdrop to close on outside click */}
-                <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                {/* ── Search section — grows to fill all remaining space ── */}
                 <div
-                  className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl overflow-hidden shadow-2xl"
-                  style={{
-                    background: '#1e1e20',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
-                  }}
+                  className="flex items-center flex-1 min-w-0 px-2 py-1"
+                  style={{ borderLeft: '1px solid rgba(255,255,255,0.07)' }}
                 >
-                  {/* Header */}
-                  <div className="px-3 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Module Options</p>
+                  <div className="relative group flex-1 min-w-0">
+                    {/* Search icon */}
+                    <svg
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200"
+                      style={{ color: searchQuery ? 'rgba(251,113,133,0.8)' : 'rgba(148,163,184,0.45)' }}
+                      width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                      strokeLinecap="round" strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input
+                      ref={searchRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search…"
+                      className="w-full text-[11.5px] text-white placeholder-slate-600 focus:outline-none transition-all duration-200"
+                      style={{
+                        paddingLeft: '26px',
+                        paddingRight: searchQuery ? '24px' : '8px',
+                        paddingTop: '4px',
+                        paddingBottom: '4px',
+                        background: 'transparent',
+                        border: 'none',
+                      }}
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded transition-all duration-150"
+                        style={{ color: 'rgba(148,163,184,0.5)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = '#fb7185'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(148,163,184,0.5)'; }}
+                        title="Clear search (Esc)"
+                      >
+                        <XIcon />
+                      </button>
+                    )}
+                    {!searchQuery && (
+                      <span
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] font-black tracking-widest pointer-events-none select-none px-1 py-0.5 rounded"
+                        style={{ color: 'rgba(148,163,184,0.3)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+                      >
+                        /
+                      </span>
+                    )}
                   </div>
-                  <div className="py-1">
-                    {/* Edit module */}
-                    <button
-                      onClick={() => { setShowMoreMenu(false); setShowEditModal(true); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
-                    >
-                      <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.25)' }}>
-                        <EditIcon />
-                      </span>
-                      <div className="text-left">
-                        <p className="font-semibold leading-none text-slate-200">Edit Module</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">Rename &amp; manage fields</p>
-                      </div>
-                    </button>
-                    {/* Field settings */}
-                    <button
-                      onClick={() => { setShowMoreMenu(false); setShowSettings(true); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
-                    >
-                      <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(20,184,166,0.15)', border: '1px solid rgba(20,184,166,0.25)' }}>
-                        <SettingsIcon />
-                      </span>
-                      <div className="text-left">
-                        <p className="font-semibold leading-none text-slate-200">Field Settings</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">Configure field types</p>
-                      </div>
-                    </button>
-                    {/* Divider */}
-                    <div className="mx-3 my-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
-                    {/* Delete module */}
-                    <button
-                      onClick={() => { setShowMoreMenu(false); setConfirmDelete(true); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-900/15 transition-colors"
-                    >
-                      <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                        <TrashIcon />
-                      </span>
-                      <div className="text-left">
-                        <p className="font-semibold leading-none">Delete Module</p>
-                        <p className="text-[10px] text-red-500/70 mt-0.5">Permanently remove all data</p>
-                      </div>
-                    </button>
-                  </div>
+                  {searchQuery && (
+                    <span className="text-[10px] text-slate-500 ml-1 whitespace-nowrap">
+                      {filteredSortedRecords.length}
+                    </span>
+                  )}
                 </div>
-              </>
-            )}
+
+                {/* ── New Entry section ── */}
+                <div
+                  className="flex items-center px-2 py-1"
+                  style={{ borderLeft: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  <button
+                    onClick={() => setShowEntryDrawer(true)}
+                    className="flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-full shrink-0 transition-all duration-200"
+                    style={{
+                      background: 'linear-gradient(135deg, #9f1239 0%, #7c0a2a 55%, #4c0519 100%)',
+                      color: '#fff',
+                      border: '1px solid rgba(159,18,57,0.5)',
+                      boxShadow: '0 1px 8px rgba(159,18,57,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
+                    }}
+                    title="New entry (press N)"
+                    onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.2)'; e.currentTarget.style.boxShadow = '0 2px 14px rgba(159,18,57,0.5), inset 0 1px 0 rgba(255,255,255,0.12)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; e.currentTarget.style.boxShadow = '0 1px 8px rgba(159,18,57,0.35), inset 0 1px 0 rgba(255,255,255,0.12)'; }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Add Entry
+                  </button>
+                </div>
+
+                {/* ── CSV + More section ── */}
+                <div
+                  className="flex items-center"
+                  style={{ borderLeft: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  {/* Export CSV */}
+                  <button
+                    onClick={exportCSV}
+                    className="flex items-center gap-1 px-3 py-2 text-[11px] font-semibold transition-all duration-150"
+                    style={{ color: 'rgba(148,163,184,0.75)' }}
+                    title="Export to CSV"
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(148,163,184,0.75)'; }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    CSV
+                  </button>
+                  {/* Inner divider */}
+                  <div className="w-px self-stretch my-1.5" style={{ background: 'rgba(255,255,255,0.07)' }} />
+                  {/* More dropdown */}
+                  <div className="relative">
+                    <button
+                      ref={moreButtonRef}
+                      onClick={() => (showMoreMenu ? setShowMoreMenu(false) : openMoreMenu())}
+                      className="flex items-center gap-1 px-3 py-2 text-[11px] font-semibold transition-all duration-150"
+                      style={{ color: showMoreMenu ? '#fff' : 'rgba(148,163,184,0.75)', background: showMoreMenu ? 'rgba(255,255,255,0.08)' : 'transparent' }}
+                      title="Module options"
+                      onMouseEnter={(e) => { if (!showMoreMenu) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }}}
+                      onMouseLeave={(e) => { if (!showMoreMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(148,163,184,0.75)'; }}}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <circle cx="5" cy="12" r="1.3" fill="currentColor" stroke="none"/>
+                        <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>
+                        <circle cx="19" cy="12" r="1.3" fill="currentColor" stroke="none"/>
+                      </svg>
+                      More
+                    </button>
+                    <MoreMenuPortal />
+                  </div>
           </div>
         </div>
+            );
+          })();
+        })()}
       </div>
 
       {/* Table */}
       <div
-        className="rounded-2xl overflow-auto max-h-[calc(100vh-230px)]"
+        className="rounded-2xl overflow-auto max-h-[calc(100vh-230px)] mb-8"
         style={{
           border: '1px solid rgba(255,255,255,0.08)',
           background: '#19191b',
@@ -2570,6 +2821,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
       {/* Field settings modal */}
       {showSettings && (
         <FieldSettingsModal
+          projectId={projectId}
           module={module}
           onClose={() => setShowSettings(false)}
           onSaved={(updated) => { onModuleUpdated(updated); setShowSettings(false); }}
@@ -2701,10 +2953,14 @@ export default function CustomModulesPage() {
       >
         <div className="flex items-stretch px-3 gap-0 h-11">
 
-          {/* Module tabs — scrollable, underline style */}
+          {/* Module tabs — scrollable, underline style, with edge-fade to hint scrollability */}
           <nav
             className="flex items-stretch gap-0 overflow-x-auto flex-1 min-w-0"
-            style={{ scrollbarWidth: 'none' }}
+            style={{
+              scrollbarWidth: 'none',
+              WebkitMaskImage: 'linear-gradient(90deg, transparent 0, black 16px, black calc(100% - 16px), transparent 100%)',
+              maskImage: 'linear-gradient(90deg, transparent 0, black 16px, black calc(100% - 16px), transparent 100%)',
+            }}
           >
             {loading ? (
               <div className="flex items-center gap-2 px-4 text-slate-500 text-xs">
@@ -2723,7 +2979,7 @@ export default function CustomModulesPage() {
                     key={m.id}
                     onClick={() => setActiveModuleId(m.id)}
                     className={cn(
-                      'group/tab relative flex items-center gap-2 px-4 text-[13px] font-medium transition-all duration-150 whitespace-nowrap flex-shrink-0 select-none',
+                      'group/tab relative flex items-center gap-2 px-4 text-[13px] font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 select-none',
                       isActive
                         ? 'text-white'
                         : 'text-slate-500 hover:text-slate-300',
@@ -2732,22 +2988,26 @@ export default function CustomModulesPage() {
                     {/* Active: pill background */}
                     {isActive && (
                       <span
-                        className="absolute inset-x-0 inset-y-[6px] pointer-events-none"
+                        className="absolute inset-x-0 inset-y-[6px] pointer-events-none animate-in fade-in zoom-in-95 duration-200"
                         style={{
-                          background: 'linear-gradient(180deg, rgba(220,38,90,0.18) 0%, rgba(150,10,40,0.1) 100%)',
-                          border: '1px solid rgba(220,38,90,0.22)',
+                          background: 'linear-gradient(180deg, rgba(220,38,90,0.2) 0%, rgba(150,10,40,0.12) 100%)',
+                          border: '1px solid rgba(220,38,90,0.28)',
                           borderRadius: '999px',
+                          boxShadow: '0 2px 10px rgba(220,38,90,0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
                         }}
                       />
                     )}
-                    {/* Hover: subtle bg for inactive */}
+                    {/* Hover: subtle bg + lift for inactive */}
                     {!isActive && (
-                      <span className="absolute inset-0 rounded-none bg-white/0 group-hover/tab:bg-white/[0.03] transition-colors pointer-events-none" />
+                      <span
+                        className="absolute inset-x-0 inset-y-[6px] rounded-full bg-white/0 group-hover/tab:bg-white/[0.04] transition-colors duration-200 pointer-events-none"
+                        style={{ border: '1px solid transparent' }}
+                      />
                     )}
 
                     {/* Status dot */}
                     <span
-                      className="relative w-[7px] h-[7px] rounded-full flex-shrink-0 transition-all duration-200"
+                      className={cn('relative w-[7px] h-[7px] rounded-full flex-shrink-0 transition-all duration-200', isActive && 'animate-pulse')}
                       style={
                         isActive
                           ? { background: 'radial-gradient(circle, #fb7185 0%, #e11d48 100%)', boxShadow: '0 0 6px rgba(251,113,133,0.7)' }
@@ -2768,6 +3028,13 @@ export default function CustomModulesPage() {
                         }}
                       />
                     )}
+                    {/* Bottom bar preview on hover — hints affordance before clicking */}
+                    {!isActive && (
+                      <span
+                        className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full opacity-0 group-hover/tab:opacity-40 transition-opacity duration-200"
+                        style={{ background: 'linear-gradient(90deg, transparent, #64748b 30%, #64748b 70%, transparent)' }}
+                      />
+                    )}
                   </button>
                 );
               })
@@ -2775,10 +3042,15 @@ export default function CustomModulesPage() {
           </nav>
 
           {/* Divider + New Module button */}
-          <div className="flex items-center gap-0 flex-shrink-0 pl-2 border-l border-rose-900/30 ml-1">
+          <div className="relative flex items-center gap-0 flex-shrink-0 pl-3 ml-1">
+            {/* Fading divider instead of a hard line */}
+            <span
+              className="absolute left-0 top-1.5 bottom-1.5 w-px"
+              style={{ background: 'linear-gradient(180deg, transparent, rgba(220,38,90,0.35) 50%, transparent)' }}
+            />
             <button
               onClick={() => setShowNewModal(true)}
-              className="group/new flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 relative overflow-hidden"
+              className="group/new flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 relative overflow-hidden active:scale-95"
               style={{
                 background: 'linear-gradient(145deg, rgba(220,38,90,0.2) 0%, rgba(100,10,30,0.3) 100%)',
                 border: '1px solid rgba(220,38,90,0.3)',
@@ -2788,17 +3060,24 @@ export default function CustomModulesPage() {
                 e.currentTarget.style.background = 'linear-gradient(145deg, rgba(220,38,90,0.35) 0%, rgba(120,10,35,0.45) 100%)';
                 e.currentTarget.style.borderColor = 'rgba(220,38,90,0.55)';
                 e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.boxShadow = '0 2px 12px rgba(220,38,90,0.3)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'linear-gradient(145deg, rgba(220,38,90,0.2) 0%, rgba(100,10,30,0.3) 100%)';
                 e.currentTarget.style.borderColor = 'rgba(220,38,90,0.3)';
                 e.currentTarget.style.color = '#fda4af';
+                e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              {/* Sheen sweep on hover */}
+              <span
+                className="absolute inset-0 -translate-x-full group-hover/new:translate-x-full transition-transform duration-700 ease-out pointer-events-none"
+                style={{ background: 'linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%)' }}
+              />
+              <svg className="relative transition-transform duration-200 group-hover/new:rotate-90" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              <span>New Module</span>
+              <span className="relative">New Module</span>
             </button>
           </div>
         </div>

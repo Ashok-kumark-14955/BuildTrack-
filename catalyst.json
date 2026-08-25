@@ -18,5 +18,8 @@
       "source": "backend",
       "name": "construction-backend"
     }
-  ]
+  ],
+  "apig": {
+    "enabled": true
+  }
 }

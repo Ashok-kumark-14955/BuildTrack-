@@ -1751,7 +1751,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
 
       {/* ── Labels / High Contrast toggle bar ── */}
       <div
-        className="absolute top-3 left-1/2 -translate-x-1/2 rounded-xl border px-2 py-1 flex items-center gap-1.5 z-20"
+        className={`absolute top-3 rounded-xl border px-2 py-1 flex items-center gap-1.5 z-20 ${calibrating ? 'right-[210px]' : 'right-3'}`}
         style={{
           background: 'rgba(15, 23, 42, 0.78)',
           backdropFilter: 'blur(14px)',

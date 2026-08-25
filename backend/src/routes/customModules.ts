@@ -127,7 +127,30 @@ async function getIndexTasklistId(token: string, portalId: string, zProjectId: s
   return cachedIndexTasklistId;
 }
 
-/** Read the full module index: { listId, indexTaskId, modules }. */
+/**
+ * Merge two module-index snapshots into one, entry by entry (keyed by id).
+ * Used when more than one `__index__` task is found (see readIndex) — a
+ * leftover from a create-then-delete writeIndex whose delete step never
+ * completed. Prefers whichever side has richer data for each module, so a
+ * stale snapshot missing a recent edit (or missing buildTrackProjectId)
+ * never silently wins over a newer one.
+ */
+function mergeModules(a: any[], b: any[]): any[] {
+  const byId = new Map<string, any>();
+  for (const m of [...a, ...b]) {
+    if (!m?.id) continue;
+    const existing = byId.get(m.id);
+    if (!existing) { byId.set(m.id, m); continue; }
+    // Prefer the entry with a non-empty buildTrackProjectId, then the one
+    // with more fields (a richer/edited definition), else keep the first.
+    const existingScore = (existing.buildTrackProjectId ? 2 : 0) + (Array.isArray(existing.fields) ? existing.fields.length : 0);
+    const candidateScore = (m.buildTrackProjectId ? 2 : 0) + (Array.isArray(m.fields) ? m.fields.length : 0);
+    if (candidateScore > existingScore) byId.set(m.id, m);
+  }
+  return Array.from(byId.values());
+}
+
+/** Read the full module index: { listId, indexTaskIds, modules }. */
 async function readIndex(token: string, portalId: string, zProjectId: string) {
   let listId = await getIndexTasklistId(token, portalId, zProjectId);
   let taskData: any;
@@ -141,10 +164,21 @@ async function readIndex(token: string, portalId: string, zProjectId: string) {
     listId = await getIndexTasklistId(token, portalId, zProjectId);
     taskData = await zohoGet(token, `/portal/${portalId}/projects/${zProjectId}/tasks/?tasklist_id=${listId}`);
   }
-  const indexTask = (taskData.tasks || []).find((t: any) => t.name === INDEX_TASK_NAME);
-  const meta = safeParse(indexTask?.description);
-  const modules = Array.isArray(meta.modules) ? meta.modules : [];
-  return { listId, indexTaskId: indexTask ? taskId(indexTask) : null, modules };
+  // There should only ever be one task named `__index__`, but a writeIndex
+  // whose delete-old-task step failed (network blip, rate limit) can leave
+  // more than one behind. Picking just the first one non-deterministically
+  // (Zoho's list order isn't guaranteed) is what silently drops modules or
+  // reverts recent edits — so merge every `__index__` task found instead of
+  // trusting a single one, and remember all their ids so writeIndex can
+  // clean up every stray copy in one go.
+  const indexTasks = (taskData.tasks || []).filter((t: any) => t.name === INDEX_TASK_NAME);
+  let modules: any[] = [];
+  for (const t of indexTasks) {
+    const meta = safeParse(t.description);
+    const theirModules = Array.isArray(meta.modules) ? meta.modules : [];
+    modules = mergeModules(modules, theirModules);
+  }
+  return { listId, indexTaskIds: indexTasks.map((t: any) => taskId(t)), modules };
 }
 
 /**
@@ -157,13 +191,17 @@ async function readIndex(token: string, portalId: string, zProjectId: string) {
  * instead of PUT (in that order, so a failed create never loses the existing
  * index). The index task's own id therefore changes on every write; that's
  * fine since it's always looked up by name (INDEX_TASK_NAME), never cached.
+ *
+ * `oldIndexTaskIds` deletes every stray `__index__` task readIndex found
+ * (not just one) so duplicates never accumulate and cause the merge/race
+ * described in readIndex.
  */
 async function writeIndex(
   token: string,
   portalId: string,
   zProjectId: string,
   listId: string,
-  indexTaskId: string | null,
+  oldIndexTaskIds: string[],
   modules: any[]
 ) {
   const description = JSON.stringify({ modules });
@@ -172,8 +210,12 @@ async function writeIndex(
     tasklist_id: listId,
     description,
   });
-  if (indexTaskId) {
-    await zohoDelete(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${indexTaskId}/`);
+  for (const oldId of oldIndexTaskIds) {
+    try {
+      await zohoDelete(token, `/portal/${portalId}/projects/${zProjectId}/tasks/${oldId}/`);
+    } catch (err: any) {
+      console.warn(`[customModules] Failed to delete stale index task ${oldId}:`, err?.message);
+    }
   }
 }
 
@@ -239,8 +281,8 @@ router.post('/', async (req, res) => {
     const listId = taskId(tl);
 
     const module = { id: listId, name: tl.name, fields: fields || [], buildTrackProjectId: projectId || '' };
-    const { listId: indexListId, indexTaskId, modules } = await readIndex(token, portalId, zProjectId);
-    await writeIndex(token, portalId, zProjectId, indexListId, indexTaskId, [...modules, module]);
+    const { listId: indexListId, indexTaskIds, modules } = await readIndex(token, portalId, zProjectId);
+    await writeIndex(token, portalId, zProjectId, indexListId, indexTaskIds, [...modules, module]);
 
     res.status(201).json(module);
   } catch (err: any) {
@@ -262,24 +304,38 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, fields } = req.body as { name?: string; fields?: any[] };
+    const { name, fields, projectId, buildTrackProjectId } = req.body as { name?: string; fields?: any[]; projectId?: string; buildTrackProjectId?: string };
     const token = await getAccessToken();
     const portalId = getPortalId();
     const zProjectId = getZohoProjectId();
 
-    const { listId, indexTaskId, modules } = await readIndex(token, portalId, zProjectId);
+    // Accept either `buildTrackProjectId` or `projectId` as the scoping key
+    const newBuildTrackProjectId = buildTrackProjectId ?? projectId;
+
+    const { listId, indexTaskIds, modules } = await readIndex(token, portalId, zProjectId);
     let updated: any = null;
     const nextModules = modules.map((m: any) => {
       if (m.id !== id) return m;
-      updated = { ...m, name: name !== undefined ? name : m.name, fields: fields !== undefined ? fields : m.fields };
+      updated = {
+        ...m,
+        name: name !== undefined ? name : m.name,
+        fields: fields !== undefined ? fields : m.fields,
+        buildTrackProjectId: newBuildTrackProjectId !== undefined ? newBuildTrackProjectId : m.buildTrackProjectId,
+      };
       return updated;
     });
     if (!updated) {
       // Module existed as a task list but had no index entry yet (created before this route existed).
-      updated = { id, name: name || '', fields: fields || [], buildTrackProjectId: '' };
+      // Try to recover its real buildTrackProjectId from the task list's own
+      // tasks (records store `_moduleId`, not the scoping project) is not
+      // possible here without extra calls, so this fallback still can't fully
+      // recover a missing scope — but readIndex merging every `__index__`
+      // task (see above) means this branch should now be far rarer, since a
+      // module's entry only ever gets "lost" if it was never written at all.
+      updated = { id, name: name || '', fields: fields || [], buildTrackProjectId: newBuildTrackProjectId || '' };
       nextModules.push(updated);
     }
-    await writeIndex(token, portalId, zProjectId, listId, indexTaskId, nextModules);
+    await writeIndex(token, portalId, zProjectId, listId, indexTaskIds, nextModules);
 
     res.json(updated);
   } catch (err: any) {
@@ -297,8 +353,8 @@ router.delete('/:id', async (req, res) => {
 
     await zohoDelete(token, `/portal/${portalId}/projects/${zProjectId}/tasklists/${id}/`);
 
-    const { listId, indexTaskId, modules } = await readIndex(token, portalId, zProjectId);
-    await writeIndex(token, portalId, zProjectId, listId, indexTaskId, modules.filter((m: any) => m.id !== id));
+    const { listId, indexTaskIds, modules } = await readIndex(token, portalId, zProjectId);
+    await writeIndex(token, portalId, zProjectId, listId, indexTaskIds, modules.filter((m: any) => m.id !== id));
 
     res.json({ ok: true });
   } catch (err: any) {

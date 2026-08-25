@@ -191,6 +191,8 @@ export interface CustomField {
   label: string;
   type: 'text' | 'name' | 'select' | 'multiuser' | 'number' | 'date' | 'attachment';
   options?: string[];
+  /** Per-option custom colors: maps option label → hex color string (e.g. "#f59e0b") */
+  optionColors?: Record<string, string>;
 }
 
 export interface CustomModule {

@@ -4,7 +4,7 @@
   "stack": "node22",
   "memory": 512,
   "scripts": {
-    "predeploy": "npm install && npm run build && npm install --omit=dev"
+    "predeploy": "npm ci --prefer-offline && npm run build && npm prune --omit=dev"
   },
   "env_variables": {
     "ZOHO_CLIENT_ID": "1000.CDKRZ5XPM4JL0UJAARM9Q5UNZY7EOE",

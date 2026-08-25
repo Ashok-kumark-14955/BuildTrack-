@@ -432,7 +432,11 @@ router.get('/:id/file', async (req, res) => {
             const buf = Buffer.from(b64, 'base64');
             res.setHeader('Content-Type', mime);
             res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Cache-Control', 'public, max-age=3600');
+            // Short cache: this URL has no version/timestamp in it, so a drawing's
+            // file can be replaced (see POST /:id/image) while callers keep using
+            // the exact same proxy URL — a long-lived Cache-Control previously left
+            // replaced files invisible to browsers/CDNs for up to an hour.
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
             return res.send(buf);
         }
         // Stratus signed URL — proxy it
@@ -450,7 +454,11 @@ router.get('/:id/file', async (req, res) => {
             const contentType = isSvg ? 'image/svg+xml' : upstreamCt || 'application/octet-stream';
             res.setHeader('Content-Type', contentType);
             res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Cache-Control', 'public, max-age=3600');
+            // Short cache: this URL has no version/timestamp in it, so a drawing's
+            // file can be replaced (see POST /:id/image) while callers keep using
+            // the exact same proxy URL — a long-lived Cache-Control previously left
+            // replaced files invisible to browsers/CDNs for up to an hour.
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
             if (upstream.statusCode && upstream.statusCode !== 200) {
                 res.status(upstream.statusCode || 500).json({ error: 'Upstream error' });
                 return;
