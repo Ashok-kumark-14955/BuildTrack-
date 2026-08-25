@@ -44,3 +44,9 @@ logs/
 
 # ── Test coverage ─────────────────────────────
 coverage/
+
+# ── Nested repo (not part of this project) ────
+# Local fork of catalystbyzoho/agent-skills for AI-agent tooling; was tracked
+# as a submodule gitlink with no .gitmodules entry, which broke CI checkout
+# ("No url found for submodule path 'agent-skills'") on every push.
+agent-skills/
