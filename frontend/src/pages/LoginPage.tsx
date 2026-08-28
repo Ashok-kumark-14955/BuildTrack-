@@ -1,45 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HardHat, Loader2 } from 'lucide-react';
-import { waitForCatalystSDK } from '../utils/catalystAuth';
 
 const PAGE_GRADIENT =
   'radial-gradient(ellipse 80% 60% at 10% 20%, rgba(160,18,72,0.50) 0%, transparent 55%), radial-gradient(ellipse 60% 50% at 90% 80%, rgba(130,15,60,0.40) 0%, transparent 60%), linear-gradient(135deg, #360016 0%, #520024 35%, #42001e 65%, #2a0012 100%)';
 
 export default function LoginPage() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [widgetLoading, setWidgetLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<'redirecting' | 'error'>('redirecting');
 
   useEffect(() => {
-    let observer: MutationObserver | null = null;
-
-    waitForCatalystSDK().then((sdk) => {
-      if (!sdk) {
-        setError("Sign-in isn't available right now. Please refresh the page.");
-        return;
-      }
-
-      const el = containerRef.current;
-      if (el) {
-        // The widget mounts an iframe into this div asynchronously — swap the
-        // spinner out as soon as it actually appears rather than guessing a delay.
-        observer = new MutationObserver(() => {
-          if (el.childElementCount > 0) setWidgetLoading(false);
-        });
-        observer.observe(el, { childList: true });
-      }
-
-      try {
-        sdk.auth.signIn('login-container', {
-          login_redirect: window.location.origin + '/',
-        });
-      } catch (err) {
-        console.error('[LoginPage] signIn failed:', err);
-        setError('Something went wrong loading sign-in. Please refresh the page.');
-      }
-    });
-
-    return () => observer?.disconnect();
+    // Catalyst Slate serves all pages with x-frame-options: DENY, which
+    // causes the embedded iframe login widget (sdk.auth.signIn) to be blocked
+    // by the browser ("refused to connect"). Instead, we do a full-page
+    // redirect to the Catalyst-hosted sign-in page at /__catalyst/auth/login,
+    // which handles auth and redirects back to the app after login.
+    try {
+      // Small delay so the user sees the "redirecting" state before navigation
+      setTimeout(() => {
+        window.location.href = '/__catalyst/auth/login';
+      }, 300);
+    } catch {
+      setState('error');
+    }
   }, []);
 
   return (
@@ -69,35 +50,34 @@ export default function LoginPage() {
               Site Operations
             </div>
           </div>
-          <p className="text-slate-400 text-xs mt-1">Sign in with your Zoho Catalyst account to continue</p>
+          <p className="text-slate-400 text-xs mt-1">Sign in with your Zoho account to continue</p>
         </div>
 
-        {/* Widget */}
+        {/* Status */}
         <div className="px-6 pb-8">
           <div
-            className="relative rounded-xl overflow-hidden"
-            style={{ minHeight: 300, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+            className="relative rounded-xl overflow-hidden flex flex-col items-center justify-center gap-3 py-12"
+            style={{ minHeight: 160, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
           >
-            {error ? (
-              <div className="flex flex-col items-center justify-center gap-3 text-center px-6 py-16">
-                <span className="text-sm text-red-300 font-medium">{error}</span>
+            {state === 'error' ? (
+              <>
+                <span className="text-sm text-red-300 font-medium text-center px-4">
+                  Sign-in is unavailable right now. Please refresh the page.
+                </span>
                 <button
                   onClick={() => window.location.reload()}
-                  className="text-xs font-bold px-4 py-2 rounded-lg text-white"
+                  className="text-xs font-bold px-4 py-2 rounded-lg text-white mt-2"
                   style={{ background: 'linear-gradient(135deg, #d6486e 0%, #8b0a2e 100%)' }}
                 >
                   Reload
                 </button>
-              </div>
+              </>
             ) : (
               <>
-                {widgetLoading && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-                    <Loader2 size={20} className="animate-spin text-rose-400" />
-                    <span className="text-xs text-slate-500">Loading sign-in…</span>
-                  </div>
-                )}
-                <div id="login-container" ref={containerRef} />
+                <Loader2 size={24} className="animate-spin text-rose-400" />
+                <span className="text-xs text-slate-400">
+                  {state === 'redirecting' ? 'Redirecting to sign-in…' : 'Preparing sign-in…'}
+                </span>
               </>
             )}
           </div>
