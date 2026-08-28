@@ -51,7 +51,7 @@ jobs:
         # --production is required — without it this deploys to a preview
         # slot and the live custom domain never gets updated.
         run: >
-          catalyst deploy slate construction-drawing-frontend -ni --production
+          catalyst deploy slate buildtrack-withdrawing -ni --production
           --token "${{ secrets.CATALYST_TOKEN }}"
           --org "${{ vars.CATALYST_ORG_ID }}"
           --project "${{ vars.CATALYST_PROJECT_ID }}"
