@@ -48,10 +48,12 @@ jobs:
           npm run build
 
       - name: Deploy frontend to Slate
-        # --production is required — without it this deploys to a preview
-        # slot and the live custom domain never gets updated.
+        # No --production flag: that targets a separate Production Catalyst
+        # environment. The actual app + custom domain (buildtrack-withdrawing.
+        # onslate.in) live in the Development environment, so a plain deploy
+        # is what actually updates the live site.
         run: >
-          catalyst deploy slate buildtrack-withdrawing -ni --production
+          catalyst deploy slate construction-drawing-frontend -ni
           --token "${{ secrets.CATALYST_TOKEN }}"
           --org "${{ vars.CATALYST_ORG_ID }}"
           --project "${{ vars.CATALYST_PROJECT_ID }}"
