@@ -20,9 +20,9 @@ declare global {
 }
 
 // Local dev (`vite dev`) never serves /__catalyst/sdk/init.js — only a real
-// Catalyst environment (Slate, or `catalyst serve`) does. So a short timeout
-// there is expected and falls back to a local user; production gets a much
-// longer timeout because a real miss there means sign-in is genuinely down.
+// Catalyst environment (Slate, or `catalyst serve`) does, so there's no point
+// waiting long locally. Either way, a timeout falls back to a local user
+// instead of blocking the app — see FALLBACK_USER below.
 const SDK_TIMEOUT_MS = import.meta.env.DEV ? 1500 : 8000;
 const SDK_POLL_INTERVAL_MS = 100;
 
@@ -45,8 +45,8 @@ export function waitForCatalystSDK(timeoutMs = SDK_TIMEOUT_MS): Promise<Catalyst
   });
 }
 
-/** Only used when the SDK can't be reached at all, and only outside production builds. */
-const DEV_USER: CatalystUser = {
+/** Used whenever Catalyst sign-in can't be completed — SDK unreachable or no active session — so the app never blocks on login. */
+const FALLBACK_USER: CatalystUser = {
   user_id: 'local',
   email_id: 'site.engineer@local',
   first_name: 'Site',
@@ -69,9 +69,9 @@ function toCatalystUser(raw: any): CatalystUser {
   };
 }
 
-export type CatalystAuthStatus = 'checking' | 'authenticated' | 'unauthenticated' | 'unavailable';
+export type CatalystAuthStatus = 'checking' | 'ready';
 
-/** Drives the top-level auth gate: resolves the Catalyst SDK, checks the session, and exposes the current user. */
+/** Resolves the Catalyst SDK and current session, but never blocks the app — falls back to FALLBACK_USER if sign-in can't be completed. */
 export function useCatalystAuth(): { status: CatalystAuthStatus; user: CatalystUser | null } {
   const [status, setStatus] = useState<CatalystAuthStatus>('checking');
   const [user, setUser] = useState<CatalystUser | null>(null);
@@ -84,12 +84,10 @@ export function useCatalystAuth(): { status: CatalystAuthStatus; user: CatalystU
 
       if (!sdk) {
         if (import.meta.env.DEV) {
-          console.warn('[auth] Catalyst SDK not found — using local dev user. Run via `catalyst serve` to test real login.');
-          setUser(DEV_USER);
-          setStatus('authenticated');
-        } else {
-          setStatus('unavailable');
+          console.warn('[auth] Catalyst SDK not found — using local fallback user. Run via `catalyst serve` to test real login.');
         }
+        setUser(FALLBACK_USER);
+        setStatus('ready');
         return;
       }
 
@@ -97,10 +95,11 @@ export function useCatalystAuth(): { status: CatalystAuthStatus; user: CatalystU
         const res = await sdk.auth.isUserAuthenticated();
         if (cancelled) return;
         setUser(toCatalystUser(res));
-        setStatus('authenticated');
+        setStatus('ready');
       } catch {
         if (cancelled) return;
-        setStatus('unauthenticated');
+        setUser(FALLBACK_USER);
+        setStatus('ready');
       }
     });
 
