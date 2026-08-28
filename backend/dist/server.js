@@ -22,13 +22,27 @@ const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000
 // Data is persisted in Zoho Catalyst Data Store (seeded ahead of time via
 // scripts run against the Catalyst environment). The old auto-seed/self-heal
 // boot logic relied on the local SQLite file and no longer applies here.
-// In production, Catalyst's Authorized Domains / CORS Domain list injects
-// Access-Control-Allow-Origin at the gateway level. Setting it again here
-// would produce duplicate header values that browsers reject, so we only
-// apply the Express `cors()` middleware for local development.
-if (!process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
-    app.use((0, cors_1.default)());
-}
+// Allow cross-origin requests from any Catalyst Slate domain (*.onslate.in)
+// so the Slate-hosted frontend can call this AppSail backend.
+// Catalyst AppSail does NOT inject CORS headers automatically for cross-origin
+// Slate→AppSail requests, so we must set them explicitly here.
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (server-to-server, curl, etc.)
+        // and any *.onslate.in Slate domain.
+        if (!origin || origin.endsWith('.onslate.in') || origin.endsWith('.catalystappsail.in')) {
+            callback(null, true);
+        }
+        else if (!process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
+            // Local dev: allow everything
+            callback(null, true);
+        }
+        else {
+            callback(null, false);
+        }
+    },
+    credentials: true,
+}));
 app.use(express_1.default.json({ limit: '25mb' }));
 // Static seed-drawing assets bundled with the deployed source (survive
 // AppSail restarts/redeploys since they come from the git-tracked build,
