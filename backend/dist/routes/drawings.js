@@ -89,9 +89,10 @@ function serialize(row) {
     const deletedBeams = parseMaybeJson(row.deletedBeams, []);
     const columnLabels = parseMaybeJson(row.columnLabels, {});
     const elementTypeLabels = parseMaybeJson(row.elementTypeLabels, {});
+    const annotations = parseMaybeJson(row.annotations, []);
     // Ensure caption is included (may be null/undefined if not set)
     const caption = row.caption ?? undefined;
-    return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, caption };
+    return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, annotations, caption };
 }
 /**
  * If the stored fileUrl is a Stratus object key (starts with "stratus://"),
@@ -260,7 +261,9 @@ async function handleDrawingUpdate(req, res) {
         resetCustomBeams, // boolean — clear all custom beams
         deletedBeams, // { [beamId]: true|false } — true=delete, false=restore
         resetDeletedBeams, // boolean — clear all beam deletions
-        columnLabels, resetColumnLabels, elementTypeLabels, resetElementTypeLabels, lat, lng, fileUrl, } = req.body;
+        columnLabels, resetColumnLabels, elementTypeLabels, resetElementTypeLabels, annotations: annotationsPatch, // { add?: Annotation[], remove?: string[] }
+        resetAnnotations, // boolean — clear all annotations
+        lat, lng, fileUrl, } = req.body;
         const existing = await db.get(req, 'SELECT * FROM drawings WHERE id = ?', [req.params.id]);
         if (!existing)
             return res.status(404).json({ error: 'Not found' });
@@ -330,6 +333,15 @@ async function handleDrawingUpdate(req, res) {
             for (const [beamId, remove] of Object.entries(deletedBeams)) {
                 next = remove ? (next.includes(beamId) ? next : [...next, beamId]) : next.filter((c) => c !== beamId);
             }
+            return next;
+        }, []);
+        mergeJsonField('annotations', annotationsPatch, resetAnnotations, (current) => {
+            let next = [...current];
+            const { add, remove: rem } = annotationsPatch;
+            if (add)
+                next.push(...add);
+            if (rem)
+                next = next.filter((a) => !rem.includes(a.id));
             return next;
         }, []);
         // -----------------------------------------------------------------------

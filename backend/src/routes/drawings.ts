@@ -48,9 +48,10 @@ function serialize(row: any) {
   const deletedBeams = parseMaybeJson<string[]>(row.deletedBeams, []);
   const columnLabels = parseMaybeJson(row.columnLabels, {});
   const elementTypeLabels = parseMaybeJson(row.elementTypeLabels, {});
+  const annotations = parseMaybeJson<{ id: string; points: number[]; color: string; strokeWidth: number }[]>(row.annotations, []);
   // Ensure caption is included (may be null/undefined if not set)
   const caption = row.caption ?? undefined;
-  return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, caption };
+  return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, annotations, caption };
 }
 
 /**
@@ -241,6 +242,8 @@ async function handleDrawingUpdate(req: any, res: any) {
       resetDeletedBeams,                    // boolean — clear all beam deletions
       columnLabels, resetColumnLabels,
       elementTypeLabels, resetElementTypeLabels,
+      annotations: annotationsPatch,       // { add?: Annotation[], remove?: string[] }
+      resetAnnotations,                    // boolean — clear all annotations
       lat, lng, fileUrl,
     } = req.body;
 
@@ -329,6 +332,16 @@ async function handleDrawingUpdate(req: any, res: any) {
       for (const [beamId, remove] of Object.entries(deletedBeams)) {
         next = remove ? (next.includes(beamId) ? next : [...next, beamId]) : next.filter((c) => c !== beamId);
       }
+      return next;
+    }, []);
+
+    // annotations: { add?: Annotation[], remove?: string[] (ids) }
+    type AnnotationRow = { id: string; points: number[]; color: string; strokeWidth: number };
+    mergeJsonField('annotations', annotationsPatch, resetAnnotations, (current: AnnotationRow[]) => {
+      let next = [...current];
+      const { add, remove: rem } = annotationsPatch as { add?: AnnotationRow[]; remove?: string[] };
+      if (add) next.push(...add);
+      if (rem) next = next.filter((a) => !rem.includes(a.id));
       return next;
     }, []);
 

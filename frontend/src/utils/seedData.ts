@@ -1075,6 +1075,7 @@ export async function ensureSampleData(): Promise<void> {
         deletedBeams: [],
         columnLabels: {},
         elementTypeLabels: {},
+        annotations: [],
         lat: null,
         lng: null,
         createdAt: def.createdAt,

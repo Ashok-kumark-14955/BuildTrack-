@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DrawingsAPI, TasksAPI, ActivityAPI, ZohoBackboneAPI, MilestonesAPI, ProjectTasksAPI } from './api';
-import type { ActivityItem, CatalystUser, Drawing, Milestone, Project, ProjectTask, Task } from './types';
+import type { ActivityItem, Annotation, CatalystUser, Drawing, Milestone, Project, ProjectTask, Task } from './types';
 import { ensureSampleData } from './utils/seedData';
 
 interface AppState {
@@ -49,6 +49,12 @@ interface AppState {
   addCustomBeam: (drawingId: string, from: string, to: string) => Promise<void>;
   /** Remove a custom beam by its two grid codes. */
   removeCustomBeam: (drawingId: string, from: string, to: string) => Promise<void>;
+  /** Add a freehand markup stroke to a drawing. */
+  addAnnotation: (drawingId: string, annotation: Annotation) => Promise<void>;
+  /** Remove a single freehand markup stroke by id. */
+  removeAnnotation: (drawingId: string, annotationId: string) => Promise<void>;
+  /** Remove all freehand markup strokes from a drawing. */
+  clearAnnotations: (drawingId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -447,6 +453,48 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     }
   }, [drawings, activeProjectId]);
 
+  /** Add a freehand markup stroke. Optimistic local update + backend persist. */
+  const addAnnotation = useCallback(async (drawingId: string, annotation: Annotation) => {
+    const drawing = drawings.find((d) => d.id === drawingId);
+    const projectId = drawing?.projectId ?? activeProjectId ?? undefined;
+    setDrawings((prev) =>
+      prev.map((d) => (d.id === drawingId ? { ...d, annotations: [...(d.annotations ?? []), annotation] } : d))
+    );
+    try {
+      await DrawingsAPI.update(drawingId, { annotations: { add: [annotation] }, projectId } as any);
+    } catch (err) {
+      console.error('[addAnnotation] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
+
+  /** Remove a single markup stroke by id. Optimistic local update + backend persist. */
+  const removeAnnotation = useCallback(async (drawingId: string, annotationId: string) => {
+    const drawing = drawings.find((d) => d.id === drawingId);
+    const projectId = drawing?.projectId ?? activeProjectId ?? undefined;
+    setDrawings((prev) =>
+      prev.map((d) =>
+        d.id === drawingId ? { ...d, annotations: (d.annotations ?? []).filter((a) => a.id !== annotationId) } : d
+      )
+    );
+    try {
+      await DrawingsAPI.update(drawingId, { annotations: { remove: [annotationId] }, projectId } as any);
+    } catch (err) {
+      console.error('[removeAnnotation] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
+
+  /** Remove every markup stroke from a drawing. Optimistic local update + backend persist. */
+  const clearAnnotations = useCallback(async (drawingId: string) => {
+    const drawing = drawings.find((d) => d.id === drawingId);
+    const projectId = drawing?.projectId ?? activeProjectId ?? undefined;
+    setDrawings((prev) => prev.map((d) => (d.id === drawingId ? { ...d, annotations: [] } : d)));
+    try {
+      await DrawingsAPI.update(drawingId, { resetAnnotations: true, projectId } as any);
+    } catch (err) {
+      console.error('[clearAnnotations] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
+
   const currentDrawing = useMemo(() => drawings.find((d) => d.id === currentDrawingId), [drawings, currentDrawingId]);
   const tasksForCurrentDrawing = useMemo(
     () => tasks.filter((t) => t.drawingId === currentDrawingId),
@@ -495,6 +543,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     deleteDrawingBeam,
     addCustomBeam,
     removeCustomBeam,
+    addAnnotation,
+    removeAnnotation,
+    clearAnnotations,
   }), [
     user,
     projects, drawings, tasks, projectTasks, milestones, activity,
@@ -508,6 +559,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     patchDrawingColumnPositions, resetDrawingColumnPositions,
     patchDrawingColumnLabel, patchDrawingElementTypeLabel,
     deleteDrawingNode, deleteDrawingBeam, addCustomBeam, removeCustomBeam,
+    addAnnotation, removeAnnotation, clearAnnotations,
     activeProjectId, calibrating, setCalibrating,
   ]);
 

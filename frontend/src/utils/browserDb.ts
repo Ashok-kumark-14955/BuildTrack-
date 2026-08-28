@@ -267,6 +267,7 @@ export async function drawingCreate(data: Partial<Drawing> & { svgContent?: stri
     deletedBeams: data.deletedBeams ?? [],
     columnLabels: data.columnLabels ?? {},
     elementTypeLabels: data.elementTypeLabels ?? {},
+    annotations: data.annotations ?? [],
     lat: data.lat ?? null,
     lng: data.lng ?? null,
     createdAt: data.createdAt ?? now,
@@ -334,6 +335,16 @@ export async function drawingUpdate(id: string, data: Record<string, unknown>): 
     }
     updated.customBeams = beams;
   }
+  // annotations patch: { add?: Annotation[], remove?: string[] (ids) }
+  if (data.resetAnnotations) {
+    updated.annotations = [];
+  } else if (data.annotations && typeof data.annotations === 'object') {
+    let annotations = [...(updated.annotations ?? [])];
+    const { add, remove } = data.annotations as { add?: typeof annotations; remove?: string[] };
+    if (add) annotations.push(...add);
+    if (remove) annotations = annotations.filter((a) => !remove.includes(a.id));
+    updated.annotations = annotations;
+  }
   // Generic field updates
   const plain = ['name','milestoneId','gridCols','gridRows','lat','lng','sortOrder'] as const;
   for (const key of plain) {
@@ -389,6 +400,7 @@ export async function drawingUpload(form: FormData): Promise<Drawing> {
     deletedBeams: [],
     columnLabels: {},
     elementTypeLabels: {},
+    annotations: [],
     lat: null,
     lng: null,
     createdAt: now,

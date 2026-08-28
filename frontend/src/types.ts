@@ -19,6 +19,14 @@ export interface ColumnPosition {
   y: number; // fraction of image height, 0-1
 }
 
+/** A single freehand markup stroke drawn on top of a drawing image. */
+export interface Annotation {
+  id: string;
+  points: number[]; // flat [x1,y1,x2,y2,...] in image-pixel space
+  color: string;
+  strokeWidth: number;
+}
+
 export interface Drawing {
   id: string;
   projectId: string;
@@ -39,6 +47,8 @@ export interface Drawing {
   columnLabels: Record<string, string>;
   /** Custom type labels for structural elements (e.g. "column" → "Anchor Bolt", "beam" → "Rafter") */
   elementTypeLabels: Record<string, string>;
+  /** Freehand markup strokes drawn by users on top of this drawing */
+  annotations: Annotation[];
   lat: number | null;
   lng: number | null;
   sortOrder?: number;

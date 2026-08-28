@@ -21,6 +21,8 @@ import {
   Copy,
   CheckCheck,
   Layers,
+  Pencil,
+  Eraser,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { DrawingsAPI } from '../api';
@@ -36,6 +38,11 @@ interface Props {
   setFullscreen: (v: boolean) => void;
   calibrating: boolean;
   setCalibrating: (v: boolean) => void;
+  drawMode: boolean;
+  setDrawMode: (v: boolean) => void;
+  drawColor: string;
+  setDrawColor: (v: string) => void;
+  onClearAnnotations?: () => void;
   gridCols: number;
   gridRows: number;
   onGridSizeChange: (cols: number, rows: number) => void;
@@ -92,6 +99,11 @@ export default function TopToolbar({
   setFullscreen,
   calibrating,
   setCalibrating,
+  drawMode,
+  setDrawMode,
+  drawColor,
+  setDrawColor,
+  onClearAnnotations,
   gridCols,
   gridRows,
   onGridSizeChange,
@@ -361,9 +373,9 @@ export default function TopToolbar({
     <div
       className="h-[58px] flex items-center shrink-0 relative z-50 overflow-visible"
       style={{
-        background: 'linear-gradient(180deg, rgba(26,0,8,0.99) 0%, rgba(18,0,5,0.99) 100%)',
+        background: 'linear-gradient(135deg, #060106 0%, #0c0208 40%, #110410 70%, #080107 100%)',
         borderBottom: '1px solid rgba(159,18,57,0.35)',
-        boxShadow: '0 1px 0 rgba(159,18,57,0.12), 0 4px 24px rgba(0,0,0,0.7)',
+        boxShadow: '0 1px 12px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(190,24,93,0.08)',
         paddingLeft: 16,
         paddingRight: 16,
         gap: 8,
@@ -611,6 +623,57 @@ export default function TopToolbar({
         <Crosshair size={13} />
         <span className="hidden sm:inline">{calibrating ? 'Done' : 'Calibrate'}</span>
       </button>
+
+      {/* ── Draw (freehand markup) button ── */}
+      <button onClick={() => setDrawMode(!drawMode)}
+        title={drawMode ? 'Exit draw mode' : 'Draw markup on the drawing'}
+        className="flex items-center gap-1.5 text-[12.5px] px-3.5 py-[7px] rounded-xl font-bold transition-all duration-200 shrink-0"
+        style={drawMode
+          ? {
+            background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
+            color: '#020617',
+            boxShadow: '0 2px 16px rgba(59,130,246,0.45), inset 0 1px 0 rgba(255,255,255,0.2)',
+            border: '1px solid rgba(96,165,250,0.4)',
+          }
+          : {
+            background: 'rgba(255,255,255,0.05)',
+            color: 'rgba(255,255,255,0.7)',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }}
+        onMouseEnter={(e) => { if (!drawMode) { e.currentTarget.style.background = 'rgba(59,130,246,0.18)'; e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'; e.currentTarget.style.color = '#93c5fd'; } }}
+        onMouseLeave={(e) => { if (!drawMode) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; } }}
+      >
+        <Pencil size={13} />
+        <span className="hidden sm:inline">{drawMode ? 'Done' : 'Draw'}</span>
+      </button>
+
+      {/* ── Draw-mode extras: color swatches + clear (only while drawing) ── */}
+      {drawMode && (
+        <div className="flex items-center gap-1 shrink-0 pl-1">
+          {['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#f8fafc'].map((c) => (
+            <button
+              key={c}
+              onClick={() => setDrawColor(c)}
+              title={c}
+              className="w-5 h-5 rounded-full shrink-0 transition-transform"
+              style={{
+                background: c,
+                border: drawColor === c ? '2px solid white' : '1px solid rgba(255,255,255,0.3)',
+                transform: drawColor === c ? 'scale(1.15)' : 'scale(1)',
+              }}
+            />
+          ))}
+          {onClearAnnotations && (
+            <button
+              onClick={onClearAnnotations}
+              title="Clear all markup"
+              className="flex items-center justify-center w-7 h-7 rounded-lg ml-1 text-rose-300 hover:bg-rose-500/15 border border-rose-500/20 transition-colors"
+            >
+              <Eraser size={13} />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Fullscreen ── */}
       <IconBtn onClick={() => setFullscreen(!fullscreen)} title={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} active={fullscreen}>

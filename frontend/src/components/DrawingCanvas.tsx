@@ -571,10 +571,13 @@ interface Props {
   showBeams: boolean;
   fullscreen: boolean;
   calibrating: boolean;
+  /** Freehand markup mode — disables panning, captures pointer strokes as annotations */
+  drawMode?: boolean;
+  drawColor?: string;
   onSnapshotReady?: (fn: () => string | null) => void;
 }
 
-export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibrating, onSnapshotReady }: Props) {
+export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibrating, drawMode = false, drawColor = '#ef4444', onSnapshotReady }: Props) {
   const {
     currentDrawing,
     tasksForCurrentDrawing,
@@ -589,6 +592,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     deleteDrawingBeam,
     addCustomBeam,
     removeCustomBeam,
+    addAnnotation,
+    removeAnnotation,
     activeProjectId,
   } = useApp();
 
@@ -874,6 +879,37 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
   }, [joinMode, joinFirst, currentDrawing, addCustomBeam, setSelectedElementId]);
   const handleHover = useCallback((id: string | null) => setHoveredElementId(id), [setHoveredElementId]);
   const handleBackgroundClick = useCallback(() => setSelectedElementId(null), [setSelectedElementId]);
+
+  // ── Freehand markup: capture a stroke while drawMode is active ──
+  const [currentStroke, setCurrentStroke] = useState<number[] | null>(null);
+
+  const handleDrawMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!drawMode) return;
+    if (e.target !== e.target.getStage()) return; // clicking an existing stroke deletes it instead (its own handler)
+    const stage = e.target.getStage();
+    const p = stage?.getRelativePointerPosition();
+    if (p) setCurrentStroke([p.x, p.y]);
+  }, [drawMode]);
+
+  const handleDrawMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!drawMode || !currentStroke) return;
+    const stage = e.target.getStage();
+    const p = stage?.getRelativePointerPosition();
+    if (p) setCurrentStroke((pts) => (pts ? [...pts, p.x, p.y] : pts));
+  }, [drawMode, currentStroke]);
+
+  const handleDrawMouseUp = useCallback(() => {
+    if (!drawMode || !currentStroke || !currentDrawing) { setCurrentStroke(null); return; }
+    if (currentStroke.length >= 4) {
+      addAnnotation(currentDrawing.id, {
+        id: crypto.randomUUID(),
+        points: currentStroke,
+        color: drawColor,
+        strokeWidth: 3 / scale,
+      });
+    }
+    setCurrentStroke(null);
+  }, [drawMode, currentStroke, currentDrawing, drawColor, scale, addAnnotation]);
 
   // ── Persist a manually-calibrated column position (beams follow automatically) ──
   // Uses an optimistic local patch so the image never unmounts/reloads on each drag.
@@ -1303,10 +1339,14 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
         scaleY={scale}
         x={pos.x}
         y={pos.y}
-        draggable={!calibrating}
+        draggable={!calibrating && !drawMode}
         onDragEnd={handleDragEnd}
         onClick={handleBackgroundClick}
         onTap={handleBackgroundClick}
+        onMouseDown={handleDrawMouseDown}
+        onMouseMove={handleDrawMouseMove}
+        onMouseUp={handleDrawMouseUp}
+        style={{ cursor: drawMode ? 'crosshair' : undefined }}
       >
         <Layer>
           {image && (
@@ -1474,6 +1514,40 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               />
             );
           })}
+        </Layer>
+
+        {/* ── Freehand markup layer ── */}
+        <Layer listening={drawMode}>
+          {(currentDrawing.annotations ?? []).map((a) => (
+            <Line
+              key={a.id}
+              points={a.points}
+              stroke={a.color}
+              strokeWidth={a.strokeWidth}
+              lineCap="round"
+              lineJoin="round"
+              tension={0.3}
+              hitStrokeWidth={Math.max(12, a.strokeWidth * 3)}
+              onMouseDown={(e) => {
+                if (!drawMode) return;
+                e.cancelBubble = true; // clicking a stroke erases it instead of starting a new one
+                removeAnnotation(currentDrawing.id, a.id);
+              }}
+              onMouseEnter={(e) => { if (drawMode) e.target.getStage()!.container().style.cursor = 'not-allowed'; }}
+              onMouseLeave={(e) => { if (drawMode) e.target.getStage()!.container().style.cursor = 'crosshair'; }}
+            />
+          ))}
+          {currentStroke && (
+            <Line
+              points={currentStroke}
+              stroke={drawColor}
+              strokeWidth={3 / scale}
+              lineCap="round"
+              lineJoin="round"
+              tension={0.3}
+              listening={false}
+            />
+          )}
         </Layer>
       </Stage>
       )}

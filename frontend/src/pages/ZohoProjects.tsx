@@ -1580,12 +1580,11 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
     return () => window.removeEventListener('mousedown', handler);
   }, [showMenu]);
 
-  const pillColor = TYPE_PILL_COLOR[field.type] ?? 'bg-slate-600/60 text-slate-300';
   const accentColor = TYPE_ACCENT_COLOR[field.type] ?? '#64748b';
 
   return (
     <th
-      style={{ width, minWidth: width, maxWidth: width, background: '#242426' }}
+      style={{ width, minWidth: width, maxWidth: width, background: '#1e1e2e' }}
       className="relative px-0 py-0 text-left select-none group/th"
     >
       {/* Top accent line — persistent type-color identity; sort/menu feedback overrides it */}
@@ -1593,7 +1592,7 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
         style={{ background: showMenu || sortDir ? '#fb7185' : `${accentColor}4d` }}
       />
       <div className="absolute inset-0 opacity-0 group-hover/th:opacity-100 transition-opacity duration-150 pointer-events-none"
-        style={{ background: 'rgba(255,255,255,0.04)' }}
+        style={{ background: 'rgba(255,255,255,0.05)' }}
       />
 
       {/* Header content — click label to sort */}
@@ -1601,23 +1600,13 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
         className="relative flex items-center gap-2 px-3 py-2.5 overflow-hidden cursor-pointer"
         onClick={onSort}
       >
-        <span
-          className={cn(
-            'inline-flex items-center justify-center w-[18px] h-[18px] rounded flex-shrink-0 transition-all duration-150',
-            showMenu ? 'bg-rose-700/60 text-rose-200' : pillColor,
-          )}
-          style={{ boxShadow: showMenu ? '0 0 8px rgba(251,113,133,0.4)' : `inset 0 0 0 1px ${accentColor}40` }}
-        >
-          <FieldTypeIcon type={field.type} />
-        </span>
-
-        <span className="text-[12.5px] font-medium text-zinc-400 group-hover/th:text-zinc-100 truncate flex-1 transition-colors duration-150">
+        <span className="text-[12.5px] font-semibold text-zinc-300 group-hover/th:text-white flex-1 transition-colors duration-150 tracking-wide">
           {field.label}
         </span>
 
         {/* Sort indicator */}
         {sortDir && (
-          <span className="flex-shrink-0 text-rose-400 text-[10px] font-black">
+          <span className="flex-shrink-0 text-rose-400 text-xs font-bold">
             {sortDir === 'asc' ? '↑' : '↓'}
           </span>
         )}
@@ -1689,7 +1678,7 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
             </button>
             <div className="mx-3 my-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
             <div className="px-3 py-1.5 flex items-center gap-2">
-              <span className={cn('w-4 h-4 inline-flex items-center justify-center rounded flex-shrink-0', pillColor)}>
+              <span className={cn('w-4 h-4 inline-flex items-center justify-center rounded flex-shrink-0', TYPE_PILL_COLOR[field.type] ?? 'bg-slate-600/60 text-slate-300')}>
                 <FieldTypeIcon type={field.type} />
               </span>
               <span className="text-[10px] text-zinc-500 capitalize">{field.type} field</span>

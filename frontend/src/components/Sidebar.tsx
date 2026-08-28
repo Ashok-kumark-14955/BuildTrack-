@@ -362,8 +362,8 @@ export default function Sidebar() {
     <div
       className={`${collapsed ? 'w-[72px]' : 'w-[280px]'} h-full flex flex-col shrink-0 select-none transition-all duration-300 relative overflow-hidden`}
       style={{
-        background: 'linear-gradient(180deg, #130509 0%, #220b14 20%, #360d1b 40%, #2a0c17 60%, #220b14 80%, #130509 100%)',
-        boxShadow: 'inset -1px 0 0 rgba(216,72,110,0.35), 4px 0 28px rgba(0,0,0,0.55)',
+        background: 'linear-gradient(165deg, #090607 0%, #190910 18%, #2c0c18 34%, #460e1f 50%, #341525 66%, #190a12 82%, #090607 100%)',
+        boxShadow: 'inset -1px 0 0 rgba(216,72,110,0.35)',
       }}
     >
       {/* Subtle gradient orbs for depth */}

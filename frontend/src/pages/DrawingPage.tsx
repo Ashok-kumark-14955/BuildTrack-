@@ -7,10 +7,12 @@ import TopToolbar from '../components/TopToolbar';
 import Legend from '../components/Legend';
 
 export default function DrawingPage() {
-  const { currentDrawing, selectedElementId, refreshDrawings, activeProjectId, calibrating, setCalibrating } = useApp();
+  const { currentDrawing, selectedElementId, refreshDrawings, activeProjectId, calibrating, setCalibrating, clearAnnotations } = useApp();
   const [showGrid, setShowGrid] = useState(true);
   const [showBeams, setShowBeams] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawColor, setDrawColor] = useState('#ef4444');
 
   // Snapshot fn registered by DrawingCanvas via onSnapshotReady
   const snapshotFnRef = useRef<(() => string | null) | null>(null);
@@ -37,6 +39,11 @@ export default function DrawingPage() {
           setFullscreen={setFullscreen}
           calibrating={calibrating}
           setCalibrating={setCalibrating}
+          drawMode={drawMode}
+          setDrawMode={setDrawMode}
+          drawColor={drawColor}
+          setDrawColor={setDrawColor}
+          onClearAnnotations={currentDrawing ? () => clearAnnotations(currentDrawing.id) : undefined}
           gridCols={currentDrawing?.gridCols || 10}
           gridRows={currentDrawing?.gridRows || 8}
           onGridSizeChange={handleGridSizeChange}
@@ -51,6 +58,8 @@ export default function DrawingPage() {
             showBeams={showBeams}
             fullscreen={fullscreen}
             calibrating={calibrating}
+            drawMode={drawMode}
+            drawColor={drawColor}
             onSnapshotReady={handleSnapshotReady}
           />
           {!fullscreen && <Legend />}
