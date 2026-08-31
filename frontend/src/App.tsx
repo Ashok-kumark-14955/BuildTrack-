@@ -8,6 +8,7 @@ import TaskList from './pages/TaskList';
 import Projects from './pages/Projects';
 import ZohoProjectsPage from './pages/ZohoProjects';
 import SettingsPage from './pages/SettingsPage';
+import LoginPage from './pages/LoginPage';
 import { AppProvider } from './AppContext';
 import { useCatalystAuth } from './utils/catalystAuth';
 
@@ -36,6 +37,10 @@ export default function App() {
 
   if (status === 'checking') {
     return <FullScreenMessage title="Loading BuildTrack…" spinner />;
+  }
+
+  if (status === 'unauthenticated') {
+    return <LoginPage />;
   }
 
   return (
