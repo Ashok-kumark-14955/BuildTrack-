@@ -45,6 +45,10 @@ interface AppState {
   deleteDrawingNode: (drawingId: string, code: string, restore?: boolean) => Promise<void>;
   /** Add a single node manually at a given fractional position, outside the row/col grid. */
   addManualNode: (drawingId: string, code: string, x: number, y: number) => Promise<void>;
+  /** Set a node's marker shape (circle/square/rect). */
+  patchDrawingNodeShape: (drawingId: string, code: string, shape: 'circle' | 'square' | 'rect') => Promise<void>;
+  /** Set a node's marker size — scale multipliers on the base hotspot radius. */
+  patchDrawingNodeSize: (drawingId: string, code: string, scaleX: number, scaleY: number) => Promise<void>;
   /** Mark a single auto-derived beam as deleted (hidden). Pass restore=true to un-delete. */
   deleteDrawingBeam: (drawingId: string, beamId: string, restore?: boolean) => Promise<void>;
   /** Add a custom beam between two grid codes. */
@@ -409,6 +413,40 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     }
   }, [drawings, activeProjectId]);
 
+  /** Set a node's marker shape. Optimistic local update + backend persist. */
+  const patchDrawingNodeShape = useCallback(async (drawingId: string, code: string, shape: 'circle' | 'square' | 'rect') => {
+    setDrawings((prev) =>
+      prev.map((d) => {
+        if (d.id !== drawingId) return d;
+        return { ...d, nodeShapes: { ...(d.nodeShapes ?? {}), [code]: shape } };
+      })
+    );
+    const drawing = drawings.find((d) => d.id === drawingId);
+    try {
+      await DrawingsAPI.update(drawingId, { nodeShapes: { [code]: shape }, projectId: drawing?.projectId ?? activeProjectId ?? undefined } as any);
+    } catch (err) {
+      console.error('[patchDrawingNodeShape] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
+
+  /** Set a node's marker size (scaleX/scaleY on the base hotspot radius). Optimistic local update +
+   *  awaited backend persist — callers await this so a "saved" toast (or a page refresh right after
+   *  one) can't race ahead of the write actually landing. */
+  const patchDrawingNodeSize = useCallback(async (drawingId: string, code: string, scaleX: number, scaleY: number) => {
+    setDrawings((prev) =>
+      prev.map((d) => {
+        if (d.id !== drawingId) return d;
+        return { ...d, nodeSizes: { ...(d.nodeSizes ?? {}), [code]: { scaleX, scaleY } } };
+      })
+    );
+    const drawing = drawings.find((d) => d.id === drawingId);
+    try {
+      await DrawingsAPI.update(drawingId, { nodeSizes: { [code]: { scaleX, scaleY } }, projectId: drawing?.projectId ?? activeProjectId ?? undefined } as any);
+    } catch (err) {
+      console.error('[patchDrawingNodeSize] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
+
   /** Mark or un-mark a single auto-derived beam as deleted. Optimistic local update + backend persist. */
   const deleteDrawingBeam = useCallback(async (drawingId: string, beamId: string, restore = false) => {
     // Capture projectId BEFORE optimistic state update
@@ -565,6 +603,8 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     patchDrawingElementTypeLabel,
     deleteDrawingNode,
     addManualNode,
+    patchDrawingNodeShape,
+    patchDrawingNodeSize,
     deleteDrawingBeam,
     addCustomBeam,
     removeCustomBeam,
@@ -583,7 +623,8 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     focusElementRequest, requestFocusElement,
     patchDrawingColumnPositions, resetDrawingColumnPositions,
     patchDrawingColumnLabel, patchDrawingElementTypeLabel,
-    deleteDrawingNode, addManualNode, deleteDrawingBeam, addCustomBeam, removeCustomBeam,
+    deleteDrawingNode, addManualNode, patchDrawingNodeShape, patchDrawingNodeSize,
+    deleteDrawingBeam, addCustomBeam, removeCustomBeam,
     addAnnotation, removeAnnotation, clearAnnotations,
     activeProjectId, calibrating, setCalibrating,
   ]);

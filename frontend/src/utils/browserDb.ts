@@ -264,6 +264,8 @@ export async function drawingCreate(data: Partial<Drawing> & { svgContent?: stri
     columnPositions: data.columnPositions ?? {},
     deletedNodes: data.deletedNodes ?? [],
     manualNodes: data.manualNodes ?? [],
+    nodeShapes: data.nodeShapes ?? {},
+    nodeSizes: data.nodeSizes ?? {},
     customBeams: data.customBeams ?? [],
     deletedBeams: data.deletedBeams ?? [],
     columnLabels: data.columnLabels ?? {},
@@ -314,6 +316,13 @@ export async function drawingUpdate(id: string, data: Record<string, unknown>): 
     const existing = updated.manualNodes ?? [];
     const toAdd = (data.manualNodes as string[]).filter((c) => !existing.includes(c));
     updated.manualNodes = [...existing, ...toAdd];
+  }
+  // nodeShapes / nodeSizes: plain per-code merges, same shape as columnLabels.
+  if (data.nodeShapes && typeof data.nodeShapes === 'object') {
+    updated.nodeShapes = { ...updated.nodeShapes, ...(data.nodeShapes as Record<string, 'circle' | 'square' | 'rect'>) };
+  }
+  if (data.nodeSizes && typeof data.nodeSizes === 'object') {
+    updated.nodeSizes = { ...updated.nodeSizes, ...(data.nodeSizes as Record<string, { scaleX: number; scaleY: number }>) };
   }
   // deletedBeams patch: { [beamId]: true } adds the id; { [beamId]: false } removes it.
   if (data.resetDeletedBeams) {
@@ -405,6 +414,8 @@ export async function drawingUpload(form: FormData): Promise<Drawing> {
     columnPositions: {},
     deletedNodes: [],
     manualNodes: [],
+    nodeShapes: {},
+    nodeSizes: {},
     customBeams: [],
     deletedBeams: [],
     columnLabels: {},

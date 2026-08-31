@@ -41,6 +41,11 @@ export interface Drawing {
   deletedNodes: string[];
   /** Codes of nodes added manually in Calibrate Mode, outside the row/col grid */
   manualNodes: string[];
+  /** Per-node marker shape override; a code absent from this map renders as 'circle' */
+  nodeShapes: Record<string, 'circle' | 'square' | 'rect'>;
+  /** Per-node marker size override — scale multipliers on the base hotspot radius.
+   *  scaleX/scaleY are kept equal for 'circle'/'square' shapes; independent for 'rect'. */
+  nodeSizes: Record<string, { scaleX: number; scaleY: number }>;
   /** Custom beam connections added by the user (grid code pairs) */
   customBeams: { from: string; to: string }[];
   /** Auto-derived structural beam ids that have been individually deleted (hidden) by the user */

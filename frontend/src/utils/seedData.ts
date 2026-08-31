@@ -1072,6 +1072,8 @@ export async function ensureSampleData(): Promise<void> {
         columnPositions: def.columnPositions ?? {},
         deletedNodes: [],
         manualNodes: [],
+        nodeShapes: {},
+        nodeSizes: {},
         customBeams: [],
         deletedBeams: [],
         columnLabels: {},

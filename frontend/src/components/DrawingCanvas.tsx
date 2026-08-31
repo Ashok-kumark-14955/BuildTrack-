@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';
-import { Stage, Layer, Image as KonvaImage, Circle, Line, Group, Text } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Circle, Rect, Line, Group, Text } from 'react-konva';
 import Konva from 'konva';
 import { ImagePlus, Minus, Plus, Scan, Crosshair, RotateCcw, Wand2, ChevronDown, ChevronUp, Trash2, Link, Unlink } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -91,6 +91,11 @@ function nextManualNodeCode(usedCodes: Set<string>) {
   return `M-${n}`;
 }
 
+// Node resize bounds — scale multipliers on the base hotspot radius.
+const NODE_SIZE_STEP = 0.15;
+const NODE_SIZE_MIN = 0.4;
+const NODE_SIZE_MAX = 3;
+
 /**
  * The drawing engine recognizes structural elements generically by
  * { id, type, geometry }. Columns are points, beams are line segments.
@@ -106,7 +111,10 @@ interface ColumnProps {
   label: string; // custom display label (may equal code if not overridden)
   x: number;
   y: number;
-  radius: number;
+  radiusX: number; // half-width; equals radiusY for 'circle'/'square' shapes
+  radiusY: number; // half-height
+  baseRadius: number; // grid-derived radius BEFORE the per-node resize scale — the label is sized off this, so resizing a node doesn't resize its label
+  shape: 'circle' | 'square' | 'rect';
   status: string;
   isHovered: boolean;
   isSelected: boolean;
@@ -123,13 +131,21 @@ interface ColumnProps {
 const SNAP_TOLERANCE_PX = 8; // screen pixels
 
 const ColumnHotspot = memo(function ColumnHotspot({
-  id, code, label, x, y, radius, status, isHovered, isSelected, calibrating, scale, sameRowYs, sameColXs,
+  id, code, label, x, y, radiusX, radiusY, baseRadius, shape, status, isHovered, isSelected, calibrating, scale, sameRowYs, sameColXs,
   onSelect, onHover, onReposition, onDoubleClick,
 }: ColumnProps) {
   const statusColor = STATUS_COLORS[status] ?? STATUS_COLORS['No Task'];
   const color = statusColor;
   const isEmpty = false; // always use status colour
-  const r = isHovered || isSelected ? radius * 1.22 : radius;
+  const grow = isHovered || isSelected ? 1.22 : 1;
+  const rX = radiusX * grow;
+  const rY = radiusY * grow;
+  // Halo rings / crosshair reference the larger half-extent so they generously enclose
+  // whichever shape (circle, square, or a stretched rectangle) is selected.
+  const rUi = Math.max(rX, rY);
+  // Label sizing uses the grid-derived base radius, NOT radiusX/radiusY — so resizing
+  // a node (the per-node scale) never changes its label's font size.
+  const labelR = baseRadius * grow;
   const [snapGuide, setSnapGuide] = useState<{ axis: 'x' | 'y'; value: number } | null>(null);
 
   return (
@@ -195,14 +211,14 @@ const ColumnHotspot = memo(function ColumnHotspot({
       )}
       {isSelected && (
         <>
-          <Circle radius={r + 10} stroke="#3b82f6" strokeWidth={1.5} opacity={0.25} />
-          <Circle radius={r + 5} stroke="#2563eb" strokeWidth={2} opacity={0.7} shadowColor="#2563eb" shadowBlur={6} shadowOpacity={0.5} />
+          <Circle radius={rUi + 10} stroke="#3b82f6" strokeWidth={1.5} opacity={0.25} />
+          <Circle radius={rUi + 5} stroke="#2563eb" strokeWidth={2} opacity={0.7} shadowColor="#2563eb" shadowBlur={6} shadowOpacity={0.5} />
         </>
       )}
       {calibrating && (
         <>
           <Circle
-            radius={r + 7}
+            radius={rUi + 7}
             stroke="#22d3ee"
             strokeWidth={1.75}
             dash={[5, 4]}
@@ -212,31 +228,51 @@ const ColumnHotspot = memo(function ColumnHotspot({
             shadowOpacity={0.35}
           />
           {/* CAD-style crosshair ticks */}
-          <Line points={[-(r + 14), 0, -(r + 4), 0]} stroke="#22d3ee" strokeWidth={1.25} opacity={0.9} listening={false} />
-          <Line points={[r + 4, 0, r + 14, 0]} stroke="#22d3ee" strokeWidth={1.25} opacity={0.9} listening={false} />
-          <Line points={[0, -(r + 14), 0, -(r + 4)]} stroke="#22d3ee" strokeWidth={1.25} opacity={0.9} listening={false} />
-          <Line points={[0, r + 4, 0, r + 14]} stroke="#22d3ee" strokeWidth={1.25} opacity={0.9} listening={false} />
+          <Line points={[-(rUi + 14), 0, -(rUi + 4), 0]} stroke="#22d3ee" strokeWidth={1.25} opacity={0.9} listening={false} />
+          <Line points={[rUi + 4, 0, rUi + 14, 0]} stroke="#22d3ee" strokeWidth={1.25} opacity={0.9} listening={false} />
+          <Line points={[0, -(rUi + 14), 0, -(rUi + 4)]} stroke="#22d3ee" strokeWidth={1.25} opacity={0.9} listening={false} />
+          <Line points={[0, rUi + 4, 0, rUi + 14]} stroke="#22d3ee" strokeWidth={1.25} opacity={0.9} listening={false} />
         </>
       )}
-      <Circle
-        radius={r}
-        fill={color}
-        opacity={isHovered || isSelected ? 1 : 0.9}
-        stroke={isHovered || isSelected ? '#ffffff' : 'rgba(255,255,255,0.55)'}
-        strokeWidth={isHovered || isSelected ? 2 : 1.25}
-        shadowColor="black"
-        shadowBlur={isHovered ? 10 : 4}
-        shadowOpacity={isHovered ? 0.45 : 0.25}
-        shadowOffsetY={1}
-      />
-      {/* Grid label floats above the circle — same colour as the circle fill */}
+      {shape === 'circle' ? (
+        <Circle
+          radius={rX}
+          fill={color}
+          opacity={isHovered || isSelected ? 1 : 0.9}
+          stroke={isHovered || isSelected ? '#ffffff' : 'rgba(255,255,255,0.55)'}
+          strokeWidth={isHovered || isSelected ? 2 : 1.25}
+          shadowColor="black"
+          shadowBlur={isHovered ? 10 : 4}
+          shadowOpacity={isHovered ? 0.45 : 0.25}
+          shadowOffsetY={1}
+        />
+      ) : (
+        <Rect
+          x={-rX}
+          y={-rY}
+          width={rX * 2}
+          height={rY * 2}
+          cornerRadius={Math.min(rX, rY) * 0.15}
+          fill={color}
+          opacity={isHovered || isSelected ? 1 : 0.9}
+          stroke={isHovered || isSelected ? '#ffffff' : 'rgba(255,255,255,0.55)'}
+          strokeWidth={isHovered || isSelected ? 2 : 1.25}
+          shadowColor="black"
+          shadowBlur={isHovered ? 10 : 4}
+          shadowOpacity={isHovered ? 0.45 : 0.25}
+          shadowOffsetY={1}
+        />
+      )}
+      {/* Grid label floats above the shape — same colour as its fill.
+          Sized off labelR (not rY/rUi) so resizing the node doesn't resize its label;
+          rY still shifts the label clear of the shape's actual (possibly resized) top edge. */}
       <Text
         text={label}
-        width={r * 4}
-        offsetX={r * 0.5}
-        y={-(r + Math.max(12, r * 1.2))}
+        width={labelR * 4}
+        offsetX={labelR * 0.5}
+        y={-(rY + Math.max(12, labelR * 1.2))}
         align="center"
-        fontSize={Math.max(15, r * 1.35)}
+        fontSize={Math.max(15, labelR * 1.35)}
         fontStyle="bold"
         fontFamily={calibrating ? "'Courier New', monospace" : 'sans-serif'}
         fill={isEmpty ? '#64748b' : color}
@@ -247,11 +283,11 @@ const ColumnHotspot = memo(function ColumnHotspot({
       {label !== code && (
         <Text
           text={code}
-          width={r * 3}
-          offsetX={r * 1.5}
-          y={-(r + Math.max(10, r * 0.85)) + Math.max(8, r * 0.58) + 1}
+          width={labelR * 3}
+          offsetX={labelR * 1.5}
+          y={-(rY + Math.max(10, labelR * 0.85)) + Math.max(8, labelR * 0.58) + 1}
           align="center"
-          fontSize={Math.max(6, r * 0.38)}
+          fontSize={Math.max(6, labelR * 0.38)}
           fill={isEmpty ? '#94a3b8' : color}
           listening={false}
         />
@@ -596,6 +632,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     patchDrawingColumnLabel,
     deleteDrawingNode,
     addManualNode,
+    patchDrawingNodeShape,
+    patchDrawingNodeSize,
     deleteDrawingBeam,
     addCustomBeam,
     removeCustomBeam,
@@ -799,6 +837,17 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
 
   const beamThickness = useMemo(() => Math.max(2, hotspotRadius * 0.22), [hotspotRadius]);
 
+  // ── Shape/size of the currently-selected node, for the resize/reshape panel controls ──
+  const selectedNodeCode = selectedElementId?.startsWith('Column_') ? selectedElementId.replace('Column_', '') : null;
+  const selectedNodeShape = (selectedNodeCode && currentDrawing?.nodeShapes?.[selectedNodeCode]) || 'circle';
+  const selectedNodeSize = (selectedNodeCode && currentDrawing?.nodeSizes?.[selectedNodeCode]) || { scaleX: 1, scaleY: 1 };
+  const sizeBtnStyle = {
+    background: 'rgba(20,184,166,0.1)',
+    borderColor: 'rgba(20,184,166,0.3)',
+    color: selectedNodeCode ? '#5eead4' : 'rgba(94,234,212,0.3)',
+    cursor: selectedNodeCode ? 'pointer' as const : 'not-allowed' as const,
+  };
+
   // ── The custom (user-joined) beam currently selected, if any ──
   const selectedCustomBeam = useMemo(() => {
     if (!selectedElementId?.startsWith('CustomBeam_') || !currentDrawing) return null;
@@ -937,12 +986,15 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     const y = Math.min(1, Math.max(0, py / ih));
     // Update local state immediately — no full refresh, no image flicker
     patchDrawingColumnPositions(currentDrawing.id, code, x, y);
-    // Fire-and-forget persist to backend
-    DrawingsAPI.update(currentDrawing.id, { columnPositions: { [code]: { x, y } }, projectId: activeProjectId ?? undefined } as any).catch(() => {
+    // Awaited so the "position saved" toast can't appear (and a refresh right after
+    // can't race) before the write has actually landed on the backend.
+    try {
+      await DrawingsAPI.update(currentDrawing.id, { columnPositions: { [code]: { x, y } }, projectId: activeProjectId ?? undefined } as any);
+    } catch {
       // best-effort; local state already reflects the drag
-    });
+    }
     toast.success(`${code} position saved`, { id: `calib-${code}`, duration: 1400, icon: '📍' });
-  }, [currentDrawing, image, patchDrawingColumnPositions]);
+  }, [currentDrawing, image, patchDrawingColumnPositions, activeProjectId]);
 
   const handleResetCalibration = useCallback(async () => {
     if (!currentDrawing) return;
@@ -993,7 +1045,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
 
   // ── Add a single node manually: drop it at the center of the current view, then
   // let the existing drag/rename/delete machinery (all generic on `code`) take over. ──
-  const handleAddNode = useCallback(() => {
+  const handleAddNode = useCallback(async () => {
     if (!currentDrawing || !image) return;
     const iw = image.naturalWidth || image.width || 1;
     const ih = image.naturalHeight || image.height || 1;
@@ -1009,10 +1061,36 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     (currentDrawing.manualNodes ?? []).forEach((c) => usedCodes.add(c));
     const code = nextManualNodeCode(usedCodes);
 
-    addManualNode(currentDrawing.id, code, px / iw, py / ih);
+    // Awaited so the "added" toast (the user's cue that it's safe to navigate away)
+    // never appears before the write has actually landed — otherwise an immediate
+    // refresh can race the persist and look like the node was never saved.
+    await addManualNode(currentDrawing.id, code, px / iw, py / ih);
     setSelectedElementId(`Column_${code}`);
     toast.success(`Node ${code} added — drag to position`, { icon: '📍', duration: 2500 });
   }, [currentDrawing, image, addManualNode, setSelectedElementId]);
+
+  // ── Reshape the selected node (circle/square/rect). Switching away from 'rect'
+  // collapses width/height back to a single uniform size; switching to 'rect' keeps
+  // whatever size it already had as the starting point for independent stretching.
+  // Both patches are awaited so a refresh right after clicking can't race the persist. ──
+  const handleSetNodeShape = useCallback(async (shape: 'circle' | 'square' | 'rect') => {
+    if (!currentDrawing || !selectedNodeCode) return;
+    await patchDrawingNodeShape(currentDrawing.id, selectedNodeCode, shape);
+    if (shape !== 'rect' && selectedNodeSize.scaleX !== selectedNodeSize.scaleY) {
+      await patchDrawingNodeSize(currentDrawing.id, selectedNodeCode, selectedNodeSize.scaleX, selectedNodeSize.scaleX);
+    }
+  }, [currentDrawing, selectedNodeCode, selectedNodeSize, patchDrawingNodeShape, patchDrawingNodeSize]);
+
+  // ── Resize the selected node. 'both' scales circle/square uniformly; 'x'/'y' stretch
+  // a rect's width or height independently. Awaited for the same reason as above. ──
+  const handleResizeNode = useCallback(async (axis: 'both' | 'x' | 'y', delta: number) => {
+    if (!currentDrawing || !selectedNodeCode) return;
+    const clamp = (v: number) => Math.min(NODE_SIZE_MAX, Math.max(NODE_SIZE_MIN, v));
+    const { scaleX, scaleY } = selectedNodeSize;
+    const nextX = axis === 'y' ? scaleX : clamp(scaleX + delta);
+    const nextY = axis === 'x' ? scaleY : clamp(scaleY + delta);
+    await patchDrawingNodeSize(currentDrawing.id, selectedNodeCode, nextX, nextY);
+  }, [currentDrawing, selectedNodeCode, selectedNodeSize, patchDrawingNodeSize]);
 
   // ── Arrow-key nudge: fine-tune the selected column's position while calibrating ──
   // ── Expose snapshot function to parent ──
@@ -1239,7 +1317,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     }
   }, [currentDrawing, image, columnElements, patchDrawingColumnPositions]);
 
-  const handleSegmentDragEnd = useCallback((
+  const handleSegmentDragEnd = useCallback(async (
     _axis: 'h' | 'v', codeA: string, codeB: string
   ) => {
     if (!currentDrawing || !image) return;
@@ -1250,12 +1328,18 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     const x = pB.x / iw;
     const y = pB.y / ih;
     segDeltaRef.current = null;
-    DrawingsAPI.update(currentDrawing.id, {
-      columnPositions: { [codeB]: { x, y } },
-      projectId: activeProjectId ?? undefined,
-    } as any).catch(() => {/* best-effort */});
+    // Awaited for the same reason as handleReposition — the confirmation toast (and any
+    // refresh right after) shouldn't be able to race ahead of the write landing.
+    try {
+      await DrawingsAPI.update(currentDrawing.id, {
+        columnPositions: { [codeB]: { x, y } },
+        projectId: activeProjectId ?? undefined,
+      } as any);
+    } catch {
+      // best-effort
+    }
     toast.success(`Grid boundary ${codeA}↔${codeB} adjusted`, { id: `seg-${codeA}-${codeB}`, duration: 1200, icon: '↔' });
-  }, [currentDrawing, image, columnElements]);
+  }, [currentDrawing, image, columnElements, activeProjectId]);
 
   // ── Column rename ──
   const openRename = useCallback((code: string) => {
@@ -1530,6 +1614,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
             const label = currentDrawing.columnLabels?.[code] || code;
             const sameRowYs = (snapTargets.byRow.get(row) ?? []).filter((v) => v !== y);
             const sameColXs = (snapTargets.byCol.get(col) ?? []).filter((v) => v !== x);
+            const nodeShape = currentDrawing.nodeShapes?.[code] ?? 'circle';
+            const nodeSize = currentDrawing.nodeSizes?.[code] ?? { scaleX: 1, scaleY: 1 };
             return (
               <ColumnHotspot
                 key={id}
@@ -1538,7 +1624,10 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
                 label={showLabels ? label : ''}
                 x={x}
                 y={y}
-                radius={hotspotRadius}
+                radiusX={hotspotRadius * nodeSize.scaleX}
+                radiusY={hotspotRadius * nodeSize.scaleY}
+                baseRadius={hotspotRadius}
+                shape={nodeShape}
                 status={statusByElement[id] ?? 'No Task'}
                 isHovered={hoveredElementId === id}
                 isSelected={selectedElementId === id}
@@ -1730,6 +1819,69 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
             >
               <span>|</span> Align col X
             </button>
+
+            <div className="h-px my-0.5" style={{ background: 'rgba(245,158,11,0.15)' }} />
+
+            {/* ── Reshape selected node ── */}
+            <div className="flex items-center gap-1">
+              {(['circle', 'square', 'rect'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleSetNodeShape(s)}
+                  disabled={!selectedNodeCode}
+                  title={selectedNodeCode ? `Reshape ${selectedNodeCode} to ${s}` : 'Select a node first'}
+                  className="flex-1 flex items-center justify-center text-sm font-semibold py-1.5 rounded-lg border transition-all"
+                  style={{
+                    background: !selectedNodeCode ? 'rgba(20,184,166,0.04)' : selectedNodeShape === s ? 'rgba(20,184,166,0.22)' : 'rgba(20,184,166,0.08)',
+                    borderColor: !selectedNodeCode ? 'rgba(20,184,166,0.15)' : selectedNodeShape === s ? 'rgba(20,184,166,0.6)' : 'rgba(20,184,166,0.3)',
+                    color: !selectedNodeCode ? 'rgba(94,234,212,0.35)' : selectedNodeShape === s ? '#5eead4' : 'rgba(94,234,212,0.7)',
+                    cursor: selectedNodeCode ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {s === 'circle' ? '○' : s === 'square' ? '□' : '▭'}
+                </button>
+              ))}
+            </div>
+
+            {/* ── Resize selected node — uniform for circle/square, independent width/height for rect ── */}
+            {selectedNodeShape === 'rect' ? (
+              <>
+                <div className="w-full flex items-center gap-1.5 text-[11px] font-semibold px-0.5" style={{ color: 'rgba(94,234,212,0.75)' }}>
+                  <span className="flex-1">Width {Math.round(selectedNodeSize.scaleX * 100)}%</span>
+                  <button onClick={() => handleResizeNode('x', -NODE_SIZE_STEP)} disabled={!selectedNodeCode} title="Narrower"
+                    className="flex items-center justify-center w-6 h-6 rounded-md border transition-all" style={sizeBtnStyle}>
+                    <Minus size={10} />
+                  </button>
+                  <button onClick={() => handleResizeNode('x', NODE_SIZE_STEP)} disabled={!selectedNodeCode} title="Wider"
+                    className="flex items-center justify-center w-6 h-6 rounded-md border transition-all" style={sizeBtnStyle}>
+                    <Plus size={10} />
+                  </button>
+                </div>
+                <div className="w-full flex items-center gap-1.5 text-[11px] font-semibold px-0.5" style={{ color: 'rgba(94,234,212,0.75)' }}>
+                  <span className="flex-1">Height {Math.round(selectedNodeSize.scaleY * 100)}%</span>
+                  <button onClick={() => handleResizeNode('y', -NODE_SIZE_STEP)} disabled={!selectedNodeCode} title="Shorter"
+                    className="flex items-center justify-center w-6 h-6 rounded-md border transition-all" style={sizeBtnStyle}>
+                    <Minus size={10} />
+                  </button>
+                  <button onClick={() => handleResizeNode('y', NODE_SIZE_STEP)} disabled={!selectedNodeCode} title="Taller"
+                    className="flex items-center justify-center w-6 h-6 rounded-md border transition-all" style={sizeBtnStyle}>
+                    <Plus size={10} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="w-full flex items-center gap-1.5 text-[11px] font-semibold px-0.5" style={{ color: 'rgba(94,234,212,0.75)' }}>
+                <span className="flex-1">Size {Math.round(selectedNodeSize.scaleX * 100)}%</span>
+                <button onClick={() => handleResizeNode('both', -NODE_SIZE_STEP)} disabled={!selectedNodeCode} title="Smaller"
+                  className="flex items-center justify-center w-6 h-6 rounded-md border transition-all" style={sizeBtnStyle}>
+                  <Minus size={10} />
+                </button>
+                <button onClick={() => handleResizeNode('both', NODE_SIZE_STEP)} disabled={!selectedNodeCode} title="Bigger"
+                  className="flex items-center justify-center w-6 h-6 rounded-md border transition-all" style={sizeBtnStyle}>
+                  <Plus size={10} />
+                </button>
+              </div>
+            )}
 
             <div className="h-px my-0.5" style={{ background: 'rgba(245,158,11,0.15)' }} />
 

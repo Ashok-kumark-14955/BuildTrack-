@@ -45,6 +45,8 @@ function serialize(row: any) {
   const columnPositions = parseMaybeJson(row.columnPositions, {});
   const deletedNodes = parseMaybeJson<string[]>(row.deletedNodes, []);
   const manualNodes = parseMaybeJson<string[]>(row.manualNodes, []);
+  const nodeShapes = parseMaybeJson<Record<string, string>>(row.nodeShapes, {});
+  const nodeSizes = parseMaybeJson<Record<string, { scaleX: number; scaleY: number }>>(row.nodeSizes, {});
   const customBeams = parseMaybeJson<{ from: string; to: string }[]>(row.customBeams, []);
   const deletedBeams = parseMaybeJson<string[]>(row.deletedBeams, []);
   const columnLabels = parseMaybeJson(row.columnLabels, {});
@@ -52,7 +54,7 @@ function serialize(row: any) {
   const annotations = parseMaybeJson<{ id: string; points: number[]; color: string; strokeWidth: number }[]>(row.annotations, []);
   // Ensure caption is included (may be null/undefined if not set)
   const caption = row.caption ?? undefined;
-  return { ...row, columnPositions, deletedNodes, manualNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, annotations, caption };
+  return { ...row, columnPositions, deletedNodes, manualNodes, nodeShapes, nodeSizes, customBeams, deletedBeams, columnLabels, elementTypeLabels, annotations, caption };
 }
 
 /**
@@ -238,6 +240,8 @@ async function handleDrawingUpdate(req: any, res: any) {
       deletedNodes,                         // { [code]: true|false } — true=delete, false=restore
       resetDeletedNodes,                    // boolean — clear all deletions
       manualNodes: manualNodesPatch,        // string[] — codes to add (idempotent union)
+      nodeShapes,                           // { [code]: 'circle'|'square'|'rect' } — merged in
+      nodeSizes,                            // { [code]: { scaleX, scaleY } } — merged in
       customBeams: customBeamsPatch,        // { add?: {from,to}[], remove?: {from,to}[] }
       resetCustomBeams,                     // boolean — clear all custom beams
       deletedBeams,                         // { [beamId]: true|false } — true=delete, false=restore
@@ -321,6 +325,12 @@ async function handleDrawingUpdate(req: any, res: any) {
       }
       return next;
     }, []);
+
+    // nodeShapes / nodeSizes: plain per-code merges, same shape as columnLabels.
+    mergeJsonField('nodeShapes', nodeShapes, false,
+      (current: Record<string, string>) => ({ ...current, ...nodeShapes }), {});
+    mergeJsonField('nodeSizes', nodeSizes, false,
+      (current: Record<string, { scaleX: number; scaleY: number }>) => ({ ...current, ...nodeSizes }), {});
 
     // customBeams: { add?: {from,to}[], remove?: {from,to}[] }
     mergeJsonField('customBeams', customBeamsPatch, resetCustomBeams, (current: { from: string; to: string }[]) => {
