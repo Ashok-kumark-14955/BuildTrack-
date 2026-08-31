@@ -44,6 +44,7 @@ function serialize(row: any) {
   if (!row) return row;
   const columnPositions = parseMaybeJson(row.columnPositions, {});
   const deletedNodes = parseMaybeJson<string[]>(row.deletedNodes, []);
+  const manualNodes = parseMaybeJson<string[]>(row.manualNodes, []);
   const customBeams = parseMaybeJson<{ from: string; to: string }[]>(row.customBeams, []);
   const deletedBeams = parseMaybeJson<string[]>(row.deletedBeams, []);
   const columnLabels = parseMaybeJson(row.columnLabels, {});
@@ -51,7 +52,7 @@ function serialize(row: any) {
   const annotations = parseMaybeJson<{ id: string; points: number[]; color: string; strokeWidth: number }[]>(row.annotations, []);
   // Ensure caption is included (may be null/undefined if not set)
   const caption = row.caption ?? undefined;
-  return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, annotations, caption };
+  return { ...row, columnPositions, deletedNodes, manualNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, annotations, caption };
 }
 
 /**
@@ -236,6 +237,7 @@ async function handleDrawingUpdate(req: any, res: any) {
       columnPositions, resetColumnPositions,
       deletedNodes,                         // { [code]: true|false } — true=delete, false=restore
       resetDeletedNodes,                    // boolean — clear all deletions
+      manualNodes: manualNodesPatch,        // string[] — codes to add (idempotent union)
       customBeams: customBeamsPatch,        // { add?: {from,to}[], remove?: {from,to}[] }
       resetCustomBeams,                     // boolean — clear all custom beams
       deletedBeams,                         // { [beamId]: true|false } — true=delete, false=restore
@@ -306,6 +308,16 @@ async function handleDrawingUpdate(req: any, res: any) {
       let next = [...current];
       for (const [code, remove] of Object.entries(deletedNodes)) {
         next = remove ? (next.includes(code) ? next : [...next, code]) : next.filter((c) => c !== code);
+      }
+      return next;
+    }, []);
+
+    // manualNodes: array of codes to add — manual nodes are only ever appended;
+    // hiding one goes through the deletedNodes soft-delete above.
+    mergeJsonField('manualNodes', manualNodesPatch, false, (current: string[]) => {
+      const next = [...current];
+      for (const code of manualNodesPatch as string[]) {
+        if (!next.includes(code)) next.push(code);
       }
       return next;
     }, []);

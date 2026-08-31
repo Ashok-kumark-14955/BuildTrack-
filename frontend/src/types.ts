@@ -39,6 +39,8 @@ export interface Drawing {
   columnPositions: Record<string, ColumnPosition>;
   /** Grid codes that have been individually deleted (hidden) by the user */
   deletedNodes: string[];
+  /** Codes of nodes added manually in Calibrate Mode, outside the row/col grid */
+  manualNodes: string[];
   /** Custom beam connections added by the user (grid code pairs) */
   customBeams: { from: string; to: string }[];
   /** Auto-derived structural beam ids that have been individually deleted (hidden) by the user */

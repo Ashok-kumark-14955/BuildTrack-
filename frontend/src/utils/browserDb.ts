@@ -263,6 +263,7 @@ export async function drawingCreate(data: Partial<Drawing> & { svgContent?: stri
     gridRows: data.gridRows ?? 4,
     columnPositions: data.columnPositions ?? {},
     deletedNodes: data.deletedNodes ?? [],
+    manualNodes: data.manualNodes ?? [],
     customBeams: data.customBeams ?? [],
     deletedBeams: data.deletedBeams ?? [],
     columnLabels: data.columnLabels ?? {},
@@ -306,6 +307,13 @@ export async function drawingUpdate(id: string, data: Record<string, unknown>): 
       codes = remove ? (codes.includes(code) ? codes : [...codes, code]) : codes.filter((c) => c !== code);
     }
     updated.deletedNodes = codes;
+  }
+  // manualNodes patch: array of codes to add (idempotent union) — manual nodes are
+  // only ever appended; hiding one goes through the deletedNodes soft-delete above.
+  if (Array.isArray(data.manualNodes)) {
+    const existing = updated.manualNodes ?? [];
+    const toAdd = (data.manualNodes as string[]).filter((c) => !existing.includes(c));
+    updated.manualNodes = [...existing, ...toAdd];
   }
   // deletedBeams patch: { [beamId]: true } adds the id; { [beamId]: false } removes it.
   if (data.resetDeletedBeams) {
@@ -396,6 +404,7 @@ export async function drawingUpload(form: FormData): Promise<Drawing> {
     gridRows: 4,
     columnPositions: {},
     deletedNodes: [],
+    manualNodes: [],
     customBeams: [],
     deletedBeams: [],
     columnLabels: {},

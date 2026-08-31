@@ -1071,6 +1071,7 @@ export async function ensureSampleData(): Promise<void> {
         gridRows: def.gridRows,
         columnPositions: def.columnPositions ?? {},
         deletedNodes: [],
+        manualNodes: [],
         customBeams: [],
         deletedBeams: [],
         columnLabels: {},

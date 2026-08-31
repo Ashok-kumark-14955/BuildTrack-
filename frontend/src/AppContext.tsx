@@ -43,6 +43,8 @@ interface AppState {
   patchDrawingElementTypeLabel: (drawingId: string, elementType: string, label: string) => Promise<void>;
   /** Mark a single grid node as deleted (hidden). Pass restore=true to un-delete. */
   deleteDrawingNode: (drawingId: string, code: string, restore?: boolean) => Promise<void>;
+  /** Add a single node manually at a given fractional position, outside the row/col grid. */
+  addManualNode: (drawingId: string, code: string, x: number, y: number) => Promise<void>;
   /** Mark a single auto-derived beam as deleted (hidden). Pass restore=true to un-delete. */
   deleteDrawingBeam: (drawingId: string, beamId: string, restore?: boolean) => Promise<void>;
   /** Add a custom beam between two grid codes. */
@@ -385,6 +387,28 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     }
   }, [drawings, activeProjectId]);
 
+  /** Add a single node manually (outside the row/col grid) at a given fractional position.
+   *  Optimistic local update + backend persist. Delete/restore/rename reuse the existing
+   *  deleteDrawingNode / patchDrawingColumnLabel flows since they operate generically on a code. */
+  const addManualNode = useCallback(async (drawingId: string, code: string, x: number, y: number) => {
+    // Capture projectId BEFORE optimistic state update (find works on current state)
+    const drawing = drawings.find((d) => d.id === drawingId);
+    const projectId = drawing?.projectId ?? activeProjectId ?? undefined;
+    setDrawings((prev) =>
+      prev.map((d) => {
+        if (d.id !== drawingId) return d;
+        const existing = d.manualNodes ?? [];
+        const nextManual = existing.includes(code) ? existing : [...existing, code];
+        return { ...d, manualNodes: nextManual, columnPositions: { ...d.columnPositions, [code]: { x, y } } };
+      })
+    );
+    try {
+      await DrawingsAPI.update(drawingId, { manualNodes: [code], columnPositions: { [code]: { x, y } }, projectId } as any);
+    } catch (err) {
+      console.error('[addManualNode] Failed to persist to backend:', err);
+    }
+  }, [drawings, activeProjectId]);
+
   /** Mark or un-mark a single auto-derived beam as deleted. Optimistic local update + backend persist. */
   const deleteDrawingBeam = useCallback(async (drawingId: string, beamId: string, restore = false) => {
     // Capture projectId BEFORE optimistic state update
@@ -540,6 +564,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     patchDrawingColumnLabel,
     patchDrawingElementTypeLabel,
     deleteDrawingNode,
+    addManualNode,
     deleteDrawingBeam,
     addCustomBeam,
     removeCustomBeam,
@@ -558,7 +583,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     focusElementRequest, requestFocusElement,
     patchDrawingColumnPositions, resetDrawingColumnPositions,
     patchDrawingColumnLabel, patchDrawingElementTypeLabel,
-    deleteDrawingNode, deleteDrawingBeam, addCustomBeam, removeCustomBeam,
+    deleteDrawingNode, addManualNode, deleteDrawingBeam, addCustomBeam, removeCustomBeam,
     addAnnotation, removeAnnotation, clearAnnotations,
     activeProjectId, calibrating, setCalibrating,
   ]);

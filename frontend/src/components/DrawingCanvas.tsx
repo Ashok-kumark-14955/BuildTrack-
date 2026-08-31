@@ -83,7 +83,13 @@ function gridLabel(col: number, row: number) {
   return `${String.fromCharCode(65 + col)}${row + 1}`;
 }
 
-
+// Manually-added nodes get a "M-<n>" code — the hyphen guarantees it can never
+// collide with a gridLabel() code (which is always a bare letter+number).
+function nextManualNodeCode(usedCodes: Set<string>) {
+  let n = 1;
+  while (usedCodes.has(`M-${n}`)) n++;
+  return `M-${n}`;
+}
 
 /**
  * The drawing engine recognizes structural elements generically by
@@ -589,6 +595,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     resetDrawingColumnPositions,
     patchDrawingColumnLabel,
     deleteDrawingNode,
+    addManualNode,
     deleteDrawingBeam,
     addCustomBeam,
     removeCustomBeam,
@@ -713,6 +720,15 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
         points.push({ id: `Column_${code}`, code, x: fx * iw, y: fy * ih, row, col });
       }
     }
+    // Manually-added nodes live outside the row/col grid. Each gets a unique negative
+    // row/col so it never joins another node's row/col snap-target or alignment group.
+    (currentDrawing.manualNodes ?? []).forEach((code, i) => {
+      if (deleted.has(code)) return;
+      const override = overrides[code];
+      const fx = override ? override.x : 0.5;
+      const fy = override ? override.y : 0.5;
+      points.push({ id: `Column_${code}`, code, x: fx * iw, y: fy * ih, row: -1 - i, col: -1 - i });
+    });
     return points;
   }, [currentDrawing, image]);
 
@@ -974,6 +990,29 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
       setAutoCalibrating(false);
     }
   }, [image, currentDrawing, autoCalibrating, patchDrawingColumnPositions]);
+
+  // ── Add a single node manually: drop it at the center of the current view, then
+  // let the existing drag/rename/delete machinery (all generic on `code`) take over. ──
+  const handleAddNode = useCallback(() => {
+    if (!currentDrawing || !image) return;
+    const iw = image.naturalWidth || image.width || 1;
+    const ih = image.naturalHeight || image.height || 1;
+    const viewportCenterX = (sizeRef.current.width / 2 - posRef.current.x) / scaleRef.current;
+    const viewportCenterY = (sizeRef.current.height / 2 - posRef.current.y) / scaleRef.current;
+    const px = Math.min(iw, Math.max(0, viewportCenterX));
+    const py = Math.min(ih, Math.max(0, viewportCenterY));
+
+    const usedCodes = new Set<string>();
+    for (let row = 0; row < currentDrawing.gridRows; row++) {
+      for (let col = 0; col < currentDrawing.gridCols; col++) usedCodes.add(gridLabel(col, row));
+    }
+    (currentDrawing.manualNodes ?? []).forEach((c) => usedCodes.add(c));
+    const code = nextManualNodeCode(usedCodes);
+
+    addManualNode(currentDrawing.id, code, px / iw, py / ih);
+    setSelectedElementId(`Column_${code}`);
+    toast.success(`Node ${code} added — drag to position`, { icon: '📍', duration: 2500 });
+  }, [currentDrawing, image, addManualNode, setSelectedElementId]);
 
   // ── Arrow-key nudge: fine-tune the selected column's position while calibrating ──
   // ── Expose snapshot function to parent ──
@@ -1611,6 +1650,17 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
             >
               <Wand2 size={11} className={autoCalibrating ? 'animate-pulse' : ''} />
               {autoCalibrating ? 'Analysing…' : '✦ Auto-detect'}
+            </button>
+
+            {/* ── Add a single node manually ── */}
+            <button
+              onClick={handleAddNode}
+              title="Add a single new node at the center of the current view, then drag it into place"
+              className="w-full flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all"
+              style={{ background: 'rgba(59,130,246,0.12)', borderColor: 'rgba(59,130,246,0.4)', color: '#93c5fd' }}
+            >
+              <Plus size={11} />
+              Add node
             </button>
 
             <div className="h-px my-0.5" style={{ background: 'rgba(245,158,11,0.15)' }} />

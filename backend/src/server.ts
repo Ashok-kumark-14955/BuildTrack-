@@ -131,7 +131,7 @@ app.post('/api/migrate/add-beam-columns', async (req, res) => {
     console.log('[Migration] Existing columns:', existingCols.join(', '));
 
     // Step 3: Add each missing column
-    const columnsToAdd = ['deletedBeams', 'customBeams', 'deletedNodes'];
+    const columnsToAdd = ['deletedBeams', 'customBeams', 'deletedNodes', 'manualNodes'];
     const results: any[] = [];
 
     for (const colName of columnsToAdd) {
@@ -361,6 +361,7 @@ async function runMigrations() {
       { column_name: 'deletedBeams', data_type: 'text' },
       { column_name: 'customBeams',  data_type: 'text' },
       { column_name: 'deletedNodes', data_type: 'text' },
+      { column_name: 'manualNodes',  data_type: 'text' },
     ];
 
     for (const col of columnsToAdd) {

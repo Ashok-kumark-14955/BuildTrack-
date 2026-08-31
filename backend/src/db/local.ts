@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS drawings (
   gridRows INTEGER NOT NULL DEFAULT 8,
   columnPositions TEXT DEFAULT '{}',
   deletedNodes TEXT DEFAULT '[]',
+  manualNodes TEXT DEFAULT '[]',
   columnLabels TEXT DEFAULT '{}',
   elementTypeLabels TEXT DEFAULT '{}',
   lat REAL,
@@ -186,6 +187,7 @@ ignoreExistingColumn('ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0
 ignoreExistingColumn('ALTER TABLE projects ADD COLUMN updatedAt TEXT');
 ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN columnPositions TEXT DEFAULT '{}'");
 ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN deletedNodes TEXT DEFAULT '[]'");
+ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN manualNodes TEXT DEFAULT '[]'");
 ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN customBeams TEXT DEFAULT '[]'");
 ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN deletedBeams TEXT DEFAULT '[]'");
 ignoreExistingColumn("ALTER TABLE drawings ADD COLUMN columnLabels TEXT DEFAULT '{}'");
