@@ -25,16 +25,6 @@ html, body, #root {
   animation: slide-in-right 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-/* ── Fade/rise-in for full-screen cards (e.g. login) ── */
-@keyframes fade-in-up {
-  from { transform: translateY(10px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.45s cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
 body {
   font-family: var(--font-sans);
   background-color: #09090b;
