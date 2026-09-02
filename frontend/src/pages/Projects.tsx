@@ -688,7 +688,18 @@ export default function Projects() {
           project={editing}
           managers={managers}
           onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); load(); }}
+          onSaved={(saved) => {
+            setShowForm(false);
+            // Merge the server's response straight into state instead of re-fetching —
+            // avoids a race where a fresh GET can briefly miss a just-completed write.
+            setProjects((prev) => {
+              const idx = prev.findIndex((p) => p.id === saved.id);
+              if (idx === -1) return [saved, ...prev];
+              const next = [...prev];
+              next[idx] = saved;
+              return next;
+            });
+          }}
         />
       )}
 

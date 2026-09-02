@@ -85,6 +85,9 @@ function serialize(row) {
         return row;
     const columnPositions = parseMaybeJson(row.columnPositions, {});
     const deletedNodes = parseMaybeJson(row.deletedNodes, []);
+    const manualNodes = parseMaybeJson(row.manualNodes, []);
+    const nodeShapes = parseMaybeJson(row.nodeShapes, {});
+    const nodeSizes = parseMaybeJson(row.nodeSizes, {});
     const customBeams = parseMaybeJson(row.customBeams, []);
     const deletedBeams = parseMaybeJson(row.deletedBeams, []);
     const columnLabels = parseMaybeJson(row.columnLabels, {});
@@ -92,7 +95,7 @@ function serialize(row) {
     const annotations = parseMaybeJson(row.annotations, []);
     // Ensure caption is included (may be null/undefined if not set)
     const caption = row.caption ?? undefined;
-    return { ...row, columnPositions, deletedNodes, customBeams, deletedBeams, columnLabels, elementTypeLabels, annotations, caption };
+    return { ...row, columnPositions, deletedNodes, manualNodes, nodeShapes, nodeSizes, customBeams, deletedBeams, columnLabels, elementTypeLabels, annotations, caption };
 }
 /**
  * If the stored fileUrl is a Stratus object key (starts with "stratus://"),
@@ -257,6 +260,9 @@ async function handleDrawingUpdate(req, res) {
         console.log('[handleDrawingUpdate] body keys:', Object.keys(req.body));
         const { gridCols, gridRows, name, milestoneId, caption, columnPositions, resetColumnPositions, deletedNodes, // { [code]: true|false } — true=delete, false=restore
         resetDeletedNodes, // boolean — clear all deletions
+        manualNodes: manualNodesPatch, // string[] — codes to add (idempotent union)
+        nodeShapes, // { [code]: 'circle'|'square'|'rect' } — merged in
+        nodeSizes, // { [code]: { scaleX, scaleY } } — merged in
         customBeams: customBeamsPatch, // { add?: {from,to}[], remove?: {from,to}[] }
         resetCustomBeams, // boolean — clear all custom beams
         deletedBeams, // { [beamId]: true|false } — true=delete, false=restore
@@ -311,6 +317,19 @@ async function handleDrawingUpdate(req, res) {
             }
             return next;
         }, []);
+        // manualNodes: array of codes to add — manual nodes are only ever appended;
+        // hiding one goes through the deletedNodes soft-delete above.
+        mergeJsonField('manualNodes', manualNodesPatch, false, (current) => {
+            const next = [...current];
+            for (const code of manualNodesPatch) {
+                if (!next.includes(code))
+                    next.push(code);
+            }
+            return next;
+        }, []);
+        // nodeShapes / nodeSizes: plain per-code merges, same shape as columnLabels.
+        mergeJsonField('nodeShapes', nodeShapes, false, (current) => ({ ...current, ...nodeShapes }), {});
+        mergeJsonField('nodeSizes', nodeSizes, false, (current) => ({ ...current, ...nodeSizes }), {});
         // customBeams: { add?: {from,to}[], remove?: {from,to}[] }
         mergeJsonField('customBeams', customBeamsPatch, resetCustomBeams, (current) => {
             let next = [...current];

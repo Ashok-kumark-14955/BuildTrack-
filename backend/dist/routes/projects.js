@@ -135,9 +135,17 @@ router.post('/', async (req, res, next) => {
             return res.status(400).json({ error: 'Project name is required' });
         const id = (0, uuid_1.v4)();
         const now = new Date().toISOString();
+        const created = {
+            id, name: name.trim(), code: code || '', description: description || '',
+            startDate: startDate || '', endDate: endDate || '', status: status || 'Planning',
+            managerName: managerName || '', archived: false, createdAt: now, updatedAt: now,
+        };
         await db.run(req, `INSERT INTO projects (id, name, code, description, startDate, endDate, status, managerName, archived, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [id, name.trim(), code || '', description || '', startDate || '', endDate || '', status || 'Planning', managerName || '', false, now, now]);
-        res.status(201).json(serialize(await db.get(req, 'SELECT * FROM projects WHERE id = ?', [id])));
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [created.id, created.name, created.code, created.description, created.startDate, created.endDate, created.status, created.managerName, false, now, now]);
+        // Respond with the row we just wrote instead of reading it back — ZCQL SELECT can lag
+        // briefly behind a just-completed INSERT, which previously made a successful create look
+        // like it silently failed (the client saw an empty body and never showed the new project).
+        res.status(201).json(created);
     }
     catch (err) {
         next(err);
@@ -152,7 +160,8 @@ router.put('/:id', async (req, res, next) => {
         if (!merged.name || !String(merged.name).trim())
             return res.status(400).json({ error: 'Project name is required' });
         await db.run(req, `UPDATE projects SET name=?, code=?, description=?, startDate=?, endDate=?, status=?, managerName=?, updatedAt=? WHERE id=?`, [merged.name, merged.code || '', merged.description || '', merged.startDate || '', merged.endDate || '', merged.status || 'Planning', merged.managerName || '', merged.updatedAt, req.params.id]);
-        res.json(serialize(await db.get(req, 'SELECT * FROM projects WHERE id = ?', [req.params.id])));
+        // Respond with the merged row directly rather than re-reading it — see the note in POST /.
+        res.json(serialize(merged));
     }
     catch (err) {
         next(err);
@@ -164,8 +173,10 @@ router.patch('/:id/archive', async (req, res, next) => {
         if (!existing)
             return res.status(404).json({ error: 'Not found' });
         const archived = !!req.body.archived;
-        await db.run(req, 'UPDATE projects SET archived = ?, updatedAt = ? WHERE id = ?', [archived, new Date().toISOString(), req.params.id]);
-        res.json(serialize(await db.get(req, 'SELECT * FROM projects WHERE id = ?', [req.params.id])));
+        const updatedAt = new Date().toISOString();
+        await db.run(req, 'UPDATE projects SET archived = ?, updatedAt = ? WHERE id = ?', [archived, updatedAt, req.params.id]);
+        // Respond with the known result directly rather than re-reading it — see the note in POST /.
+        res.json(serialize({ ...existing, archived, updatedAt }));
     }
     catch (err) {
         next(err);

@@ -245,7 +245,7 @@ function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[
 }
 
 export default function Sidebar() {
-  const { tasks, drawings, projects, milestones, refreshProjects, currentDrawingId, setCurrentDrawingId, deleteDrawing, activeProjectId } = useApp();
+  const { tasks, drawings, projects, milestones, upsertProject, currentDrawingId, setCurrentDrawingId, deleteDrawing, activeProjectId } = useApp();
   const navigate = useNavigate();
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1');
@@ -814,7 +814,7 @@ export default function Sidebar() {
           project={activeProject ?? null}
           managers={managers}
           onClose={() => setShowProjectForm(false)}
-          onSaved={() => { setShowProjectForm(false); refreshProjects(); }}
+          onSaved={(project) => { setShowProjectForm(false); upsertProject(project); }}
         />
       )}
 

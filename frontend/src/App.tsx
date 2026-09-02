@@ -11,9 +11,7 @@ import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import { AppProvider } from './AppContext';
 import { useCatalystAuth } from './utils/catalystAuth';
-
-const PAGE_GRADIENT =
-  'radial-gradient(ellipse 80% 60% at 10% 20%, rgba(160,18,72,0.50) 0%, transparent 55%), radial-gradient(ellipse 60% 50% at 90% 80%, rgba(130,15,60,0.40) 0%, transparent 60%), linear-gradient(135deg, #360016 0%, #520024 35%, #42001e 65%, #2a0012 100%)';
+import { PAGE_GRADIENT } from './theme';
 
 function FullScreenMessage({ title, sub, spinner }: { title: string; sub?: string; spinner?: boolean }) {
   return (

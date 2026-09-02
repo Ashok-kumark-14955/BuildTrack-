@@ -4,7 +4,7 @@ import type { CatalystUser } from '../types';
 // ─── Catalyst Web SDK surface (only the pieces we use) ────────────────────────
 
 interface CatalystAuthSDK {
-  signIn: (containerId: string, config: { service_url: string }) => void;
+  signIn: (containerId: string, config: { service_url: string; css_url?: string }) => void;
   signOut: (redirectUrl: string) => void;
   isUserAuthenticated: () => Promise<unknown>;
 }

@@ -26,6 +26,8 @@ interface AppState {
   refreshActivity: () => Promise<void>;
   refreshProjects: () => Promise<void>;
   refreshMilestones: () => Promise<void>;
+  /** Insert or update a single project in local state without a full refetch. */
+  upsertProject: (project: Project) => void;
   createTask: (data: Partial<Task>) => Promise<Task>;
   updateTask: (id: string, data: Partial<Task>) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
@@ -231,6 +233,18 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
   const refreshProjects = useCallback(async () => {
     const list = await ZohoBackboneAPI.listProjects();
     setProjects(list);
+  }, []);
+
+  /** Used after create/update so the change shows immediately — a fresh GET can otherwise
+   *  briefly race a just-completed write and appear to have "lost" it. */
+  const upsertProject = useCallback((project: Project) => {
+    setProjects((prev) => {
+      const idx = prev.findIndex((p) => p.id === project.id);
+      if (idx === -1) return [project, ...prev];
+      const next = [...prev];
+      next[idx] = project;
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -585,6 +599,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     refreshProjectTasks,
     refreshActivity,
     refreshProjects,
+    upsertProject,
     refreshMilestones,
     createTask,
     updateTask,
@@ -616,7 +631,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user: Cat
     projects, drawings, tasks, projectTasks, milestones, activity,
     currentDrawingId, selectedElementId,
     setCurrentDrawingId, setSelectedElementId,
-    refreshDrawings, refreshTasks, refreshProjectTasks, refreshActivity, refreshProjects, refreshMilestones,
+    refreshDrawings, refreshTasks, refreshProjectTasks, refreshActivity, refreshProjects, upsertProject, refreshMilestones,
     createTask, updateTask, deleteTask, deleteDrawing,
     createMilestone, updateMilestone, deleteMilestone,
     currentDrawing, tasksForCurrentDrawing,

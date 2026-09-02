@@ -1,0 +1,183 @@
+/*
+ * BuildTrack theme for the Catalyst embedded sign-in iframe.
+ *
+ * Passed as `css_url` to `catalyst.auth.signIn()` (see LoginPage.tsx) - Zoho
+ * mounts our email/password form inside an iframe on our own domain and
+ * loads whatever stylesheet we point it at instead of its own default.
+ *
+ * The base rules below are Zoho's own default stylesheet for this iframe,
+ * pulled in live via @import (rather than vendored/copy-pasted) so upstream
+ * fixes and new fields keep working without us re-syncing a stale copy.
+ * Our overrides follow afterward and win the cascade by source order.
+ *
+ * Class/ID names below (`.signin_box`, `#login_id`, `.textbox`, `.blue`, etc.)
+ * come from Zoho's own reference stylesheet, not app code:
+ * https://docs.catalyst.zoho.com/en/cloud-scale/help/authentication/native-catalyst-authentication/embedded-authentication/reference-stylesheet-embedded/
+ *
+ * Known gap: Zoho's default file references a handful of decorative images
+ * (background pattern, CAPTCHA-reload icon, social-provider icons, password
+ * -expiry illustration) via paths relative to *their* asset host. Re-hosting
+ * the text doesn't bring those binaries along, so those specific images
+ * 404 silently. All of them are either hidden below (`.bg_one`) or belong to
+ * flows this app doesn't use (social login, phone recovery) - the core
+ * email/password form is unaffected.
+ */
+@import url("https://api.catalyst.zoho.com/baas/v1/auth/static-file?file_name=embedded_signin.css");
+
+/* -- BuildTrack theme -------------------------------------------------- */
+
+body {
+  background: transparent !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  color: #f8fafc !important;
+}
+
+.bg_one {
+  display: none !important;
+}
+
+/* Zoho's default assumes a standalone 520px hosted page; make it a fluid
+   card so it drops into our own narrower, already-styled container. */
+.signin_container {
+  width: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.signin_box {
+  width: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  border-right: none !important;
+  float: none !important;
+  display: block !important;
+  box-sizing: border-box !important;
+}
+/* Secondary "signing in to <service>" panel from the split hosted-page layout - no room for it in a narrow embed. */
+.rightside_box {
+  display: none !important;
+}
+.mod_container {
+  width: 100% !important;
+}
+
+/* Headings & copy */
+.signin_head,
+.username,
+.Notyou,
+.text16,
+.rec_head_text {
+  color: #f8fafc !important;
+}
+.textbox_label,
+.checkbox_label,
+.nopassword_message {
+  color: rgba(248, 250, 252, 0.55) !important;
+}
+
+/* Inputs - match the app's own .input style (see index.css) */
+.textbox {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  box-sizing: border-box !important;
+}
+.textbox:focus,
+.textbox:valid {
+  border: 1.5px solid rgba(190, 24, 93, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(190, 24, 93, 0.18) !important;
+}
+.errorborder:focus,
+.textbox.errorborder {
+  border: 1.5px solid #f87171 !important;
+}
+.show_hide_password {
+  color: rgba(248, 250, 252, 0.4) !important;
+}
+
+/* Buttons - match .btn-primary / .btn-secondary (see index.css) */
+.btn.blue,
+.blue {
+  background: linear-gradient(135deg, #be185d, #9f1239) !important;
+  box-shadow: 0 1px 2px rgba(190, 24, 93, 0.25), 0 6px 14px -6px rgba(159, 18, 57, 0.5) !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+.blue:hover {
+  background: linear-gradient(135deg, #9f1239, #881337) !important;
+  box-shadow: none !important;
+}
+.grey {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Links & errors */
+#forgotpassword a,
+.bluetext,
+.bluetext_action,
+.fielderror a {
+  color: #fb7185 !important;
+}
+.errorlabel,
+.field_error {
+  color: #fca5a5 !important;
+}
+
+/* Checkbox / toggle controls */
+.checkbox {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+.checkbox_check:checked ~ .checkbox,
+.real_togglebtn:checked ~ .togglebase {
+  background-color: #be185d !important;
+  border-color: #be185d !important;
+}
+
+.line {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Popovers - password-policy tooltip, country/autocomplete dropdowns */
+.hover-tool-tip,
+.nopassword_container,
+.focusmanage {
+  background: #18181b !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.5) !important;
+}
+.hover-tool-tip::after {
+  border-color: #18181b transparent transparent #18181b !important;
+  box-shadow: none !important;
+}
+.select2-search__field,
+.cntrysearch {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #f8fafc !important;
+}
+.select2-results__option--highlighted {
+  background: rgba(190, 24, 93, 0.25) !important;
+}
+#select2-combobox-results {
+  background: #18181b !important;
+}
+
+/* Leave CAPTCHA on a light background - the challenge image itself isn't ours to theme */
+#captcha,
+#bcaptcha,
+#captcha_img,
+#bcaptcha_img {
+  background: #f8fafc !important;
+  border-radius: 0.5rem !important;
+}
+
+.Alert,
+.Errormsg {
+  background-color: #18181b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}

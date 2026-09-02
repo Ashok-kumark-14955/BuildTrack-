@@ -8,7 +8,7 @@ interface Props {
   project: Project | null;
   managers: string[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (project: Project) => void;
 }
 
 const STATUS_ICONS: Record<ProjectStatus, string> = {
@@ -52,14 +52,15 @@ export default function ProjectFormModal({ project, managers, onClose, onSaved }
     if (!form.name.trim()) { toast.error('Project name is required'); return; }
     setSaving(true);
     try {
+      let saved: Project;
       if (isEdit) {
-        await ZohoBackboneAPI.updateProject(project.id, form);
+        saved = await ZohoBackboneAPI.updateProject(project.id, form);
         toast.success('Project updated');
       } else {
-        await ZohoBackboneAPI.createProject(form);
+        saved = await ZohoBackboneAPI.createProject(form);
         toast.success('Project created');
       }
-      onSaved();
+      onSaved(saved);
     } catch (err: any) {
       toast.error(err?.response?.data?.error || 'Failed to save project');
     } finally {
