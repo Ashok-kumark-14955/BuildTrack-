@@ -1,72 +1,24 @@
 /**
- * seed_site_entry_module.mjs
+ * reseed_site_entry.mjs
  *
- * Seeds the "🚧 Site Entry" custom module into the live app.
+ * Clears all existing "🚧 Site Entry" records across ALL projects and
+ * re-seeds them with the full 10-worker canonical dataset so that
+ * every worker in Safety Training / Safety Induction is also present
+ * in Site Entry.
  *
- * Path: BuildTrack → Workforce & Safety → Site Entry
+ * Canonical worker list (matches Safety Training & Safety Induction):
+ *   Ravi Kumar, Suresh Babu, Priya Nair, Karthik M, Vijay Kumar,
+ *   Anand Selvaraj, Meena Devi, Ramesh Patel, Lakshmi Priya, Dinesh Kumar
+ *   (+ Arun Prakash from original Site Entry seeding)
  *
- * Fields:
- *   Worker, Entry ID, Project, Site, Date, Entry Time, Exit Time,
- *   Entry Gate, Contractor, Work Area, Assigned Task, Entry Purpose,
- *   Security Officer
- *
- * Run with: node seed_site_entry_module.mjs
+ * Run with: node backend/reseed_site_entry.mjs
  */
 
 const BASE = 'https://construction-backend-50044693287.development.catalystappsail.in/api';
 
-// ── Field definitions ────────────────────────────────────────────────────────
-
-function makeSiteEntryFields() {
-  return [
-    { id: crypto.randomUUID(), label: 'Worker',           type: 'text' },
-    { id: crypto.randomUUID(), label: 'Entry ID',         type: 'text' },
-    { id: crypto.randomUUID(), label: 'Project',          type: 'text' },
-    { id: crypto.randomUUID(), label: 'Site',             type: 'text' },
-    { id: crypto.randomUUID(), label: 'Date',             type: 'date' },
-    { id: crypto.randomUUID(), label: 'Entry Time',       type: 'text' },
-    { id: crypto.randomUUID(), label: 'Exit Time',        type: 'text' },
-    {
-      id: crypto.randomUUID(), label: 'Entry Gate', type: 'select',
-      options: [
-        'Main Gate – Gate 01',
-        'East Gate – Gate 02',
-        'West Gate – Gate 03',
-        'North Gate – Gate 04',
-        'South Gate – Gate 05',
-        'Rear Gate – Gate 06',
-      ],
-    },
-    { id: crypto.randomUUID(), label: 'Contractor',       type: 'text' },
-    { id: crypto.randomUUID(), label: 'Work Area',        type: 'text' },
-    { id: crypto.randomUUID(), label: 'Assigned Task',    type: 'text' },
-    {
-      id: crypto.randomUUID(), label: 'Entry Purpose', type: 'select',
-      options: [
-        'Foundation Work',
-        'Structural Erection',
-        'Electrical Work',
-        'Plumbing & Drainage',
-        'Interior Finishing',
-        'Safety Inspection',
-        'Material Delivery',
-        'Equipment Maintenance',
-        'Survey & Layout',
-        'Other',
-      ],
-    },
-    { id: crypto.randomUUID(), label: 'Security Officer', type: 'text' },
-    {
-      id: crypto.randomUUID(), label: 'Status', type: 'select',
-      options: ['On Site', 'Exited', 'Pending', 'Denied'],
-    },
-  ];
-}
-
-// ── Sample site-entry records ────────────────────────────────────────────────
+// ── Canonical site-entry records ─────────────────────────────────────────────
 
 function makeSampleEntries(fields) {
-  // Build label → field.id lookup
   const f = {};
   for (const field of fields) f[field.label] = field.id;
 
@@ -256,7 +208,7 @@ async function apiGet(path) {
   const r = await fetch(`${BASE}${path}`);
   const text = await r.text();
   try { return JSON.parse(text); }
-  catch { throw new Error(`GET ${path} returned non-JSON: ${text.slice(0, 200)}`); }
+  catch { throw new Error(`GET ${path} returned non-JSON: ${text.slice(0, 300)}`); }
 }
 
 async function apiPost(path, body) {
@@ -276,55 +228,55 @@ async function apiPost(path, body) {
   }
 }
 
+async function apiDelete(path) {
+  const r = await fetch(`${BASE}${path}`, { method: 'DELETE' });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(`DELETE ${path} failed (${r.status}): ${text.slice(0, 200)}`);
+  }
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('🚧 BuildTrack — Site Entry Module Seeder\n');
+  console.log('🔄 BuildTrack — Site Entry Reseeder\n');
   console.log(`Backend: ${BASE}\n`);
+  console.log('This will DELETE all existing Site Entry records and re-seed with\nthe full 11-worker canonical dataset.\n');
 
   const MODULE_NAME = '🚧 Site Entry';
 
-  // 1. Check if module already exists
-  console.log('Fetching existing custom modules…');
-  const existingModules = await apiGet('/custom-modules');
-  const existing = existingModules.find((m) => m.name === MODULE_NAME);
+  // 1. Find the module
+  console.log('Fetching custom modules…');
+  const allModules = await apiGet('/custom-modules');
+  const siteEntryModule = allModules.find((m) => m.name === MODULE_NAME);
 
-  const fields = makeSiteEntryFields();
-  let module;
+  if (!siteEntryModule) {
+    console.error(`❌ Module "${MODULE_NAME}" not found. Run seed_site_entry_module.mjs first.`);
+    process.exit(1);
+  }
+  console.log(`  ✓ Found module "${MODULE_NAME}" id=${siteEntryModule.id}`);
 
-  if (existing) {
-    console.log(`  ⚠  Module "${MODULE_NAME}" already exists (id=${existing.id}). Updating fields…`);
-    const r = await fetch(`${BASE}/custom-modules/${existing.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields }),
-    });
-    module = await r.json();
-    console.log(`  ✓ Fields updated on module id=${module.id}`);
-  } else {
-    module = await apiPost('/custom-modules', { name: MODULE_NAME, fields });
-    console.log(`  ✓ Created "${MODULE_NAME}" module id=${module.id} with ${fields.length} fields`);
+  // 2. Resolve fields
+  const savedFields = typeof siteEntryModule.fields === 'string'
+    ? JSON.parse(siteEntryModule.fields)
+    : siteEntryModule.fields;
+
+  // 3. Delete all existing records
+  const existingRecords = await apiGet(`/custom-modules/${siteEntryModule.id}/records`);
+  console.log(`\n  Found ${existingRecords.length} existing record(s) — deleting…`);
+  for (const rec of existingRecords) {
+    await apiDelete(`/custom-modules/${siteEntryModule.id}/records/${rec.id}`);
+    const workerField = savedFields.find((f) => f.label === 'Worker');
+    const workerName = workerField ? (rec.data?.[workerField.id] ?? '?') : '?';
+    console.log(`    🗑  Deleted record id=${rec.id}  (${workerName})`);
   }
 
-  // 2. Resolve saved fields (may be JSON string in DB)
-  const savedFields = typeof module.fields === 'string'
-    ? JSON.parse(module.fields)
-    : module.fields;
-
-  // 3. Check if records already exist
-  const existingRecords = await apiGet(`/custom-modules/${module.id}/records`);
-  if (existingRecords.length > 0) {
-    console.log(`\n  ℹ  Module already has ${existingRecords.length} records. Skipping record seeding.`);
-    console.log('\n✅ Done — no duplicate records created.');
-    return;
-  }
-
-  // 4. Create sample records
+  // 4. Seed fresh records
   const entries = makeSampleEntries(savedFields);
   console.log(`\nSeeding ${entries.length} site entry records…`);
 
   for (const entry of entries) {
-    const rec = await apiPost(`/custom-modules/${module.id}/records`, entry);
+    const rec = await apiPost(`/custom-modules/${siteEntryModule.id}/records`, entry);
     const workerField = savedFields.find((f) => f.label === 'Worker');
     const workerName = workerField ? entry[workerField.id] : 'Worker';
     const entryIdField = savedFields.find((f) => f.label === 'Entry ID');
@@ -332,11 +284,16 @@ async function main() {
     console.log(`    ➕ ${entryId}  ${workerName}  (record id=${rec.id})`);
   }
 
-  console.log(`\n✅ Site Entry module seeding complete!`);
-  console.log(`\nView in app: Navigate to Workforce & Safety → Site Entry`);
+  console.log('\n✅ Site Entry reseeding complete!');
+  console.log('   All 11 workers now appear consistently across Site Entry,');
+  console.log('   Safety Training, and Safety Induction modules.\n');
+  console.log('   Workers seeded:');
+  console.log('   Arun Prakash, Ravi Kumar, Suresh Babu, Priya Nair, Karthik M,');
+  console.log('   Vijay Kumar, Anand Selvaraj, Meena Devi, Ramesh Patel,');
+  console.log('   Lakshmi Priya, Dinesh Kumar');
 }
 
 main().catch((err) => {
-  console.error('\n❌ Seeding failed:', err.message || err);
+  console.error('\n❌ Reseeding failed:', err.message || err);
   process.exit(1);
 });

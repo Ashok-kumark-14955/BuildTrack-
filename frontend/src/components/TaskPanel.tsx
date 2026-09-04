@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Trash2, Save, Plus, MessageSquare, Send, LayoutGrid, Minus, Flag, Camera, Image as ImageIcon, MapPin, Navigation, Crosshair, Pencil, Check } from 'lucide-react';
+import { X, Trash2, Save, Plus, MessageSquare, Send, LayoutGrid, Minus, Flag, Camera, Image as ImageIcon, MapPin, Navigation, Crosshair, Pencil, Check, Users, HardHat } from 'lucide-react';
 import { useApp } from '../AppContext';
-import { TasksAPI, DrawingsAPI, GeocodeAPI } from '../api';
+import { TasksAPI, DrawingsAPI, GeocodeAPI, CustomModulesAPI } from '../api';
 import { fileToDataUrl, resolveFileUrl } from '../utils/imageStorage';
 import { useWeatherForecast } from '../utils/useWeatherForecast';
 import { getTaskWeatherRisk } from '../utils/weather';
@@ -11,6 +11,76 @@ import {
   type Comment, type ElementType, type Task, type TaskPriority, type TaskStatus,
 } from '../types';
 import toast from 'react-hot-toast';
+
+// ── Work Types ────────────────────────────────────────────────────────────────
+// Work Types exactly match the Training Type options in 🦺 Safety Training module
+export const WORK_TYPES = [
+  'Working at Height Safety',
+  'Confined Space Entry',
+  'Electrical Safety',
+  'Fire Safety & Evacuation',
+  'First Aid & CPR',
+  'Excavation & Trenching Safety',
+  'Scaffolding Safety',
+  'Lifting & Rigging Safety',
+  'Chemical Handling & HAZMAT',
+  'PPE Awareness',
+  'Manual Handling & Ergonomics',
+  'Hot Work Safety',
+];
+
+// ── Work Type → Required Training mapping ────────────────────────────────────
+// Each work type directly maps to itself since work types == training types
+const WORK_TYPE_TRAINING: Record<string, string[]> = {
+  'Working at Height Safety':     ['Working at Height Safety'],
+  'Confined Space Entry':         ['Confined Space Entry'],
+  'Electrical Safety':            ['Electrical Safety'],
+  'Fire Safety & Evacuation':     ['Fire Safety & Evacuation'],
+  'First Aid & CPR':              ['First Aid & CPR'],
+  'Excavation & Trenching Safety':['Excavation & Trenching Safety'],
+  'Scaffolding Safety':           ['Scaffolding Safety'],
+  'Lifting & Rigging Safety':     ['Lifting & Rigging Safety'],
+  'Chemical Handling & HAZMAT':   ['Chemical Handling & HAZMAT'],
+  'PPE Awareness':                ['PPE Awareness'],
+  'Manual Handling & Ergonomics': ['Manual Handling & Ergonomics'],
+  'Hot Work Safety':              ['Hot Work Safety'],
+};
+
+// ── Training Status helpers ───────────────────────────────────────────────────
+type ComplianceStatus = 'valid' | 'expiring' | 'not_completed' | 'expired' | 'missing';
+
+interface WorkerCompliance {
+  worker: string;
+  requiredTrainings: string[];
+  statuses: { training: string; status: ComplianceStatus; expiryDate?: string }[];
+  eligible: boolean;
+}
+
+function getComplianceStatus(trainingRecord: Record<string, any> | undefined, trainingStatusVal: string, expiryDateVal: string): ComplianceStatus {
+  if (!trainingRecord) return 'missing';
+  const status = (trainingStatusVal || '').toLowerCase();
+  if (status === 'expired') return 'expired';
+  if (status === 'completed') {
+    if (!expiryDateVal) return 'valid';
+    const expiry = new Date(expiryDateVal);
+    const now = new Date();
+    if (expiry < now) return 'expired';
+    const thirtyDays = new Date();
+    thirtyDays.setDate(thirtyDays.getDate() + 30);
+    if (expiry <= thirtyDays) return 'expiring';
+    return 'valid';
+  }
+  if (['in progress', 'scheduled', 'pending'].includes(status)) return 'not_completed';
+  return 'missing';
+}
+
+const COMPLIANCE_CONFIG: Record<ComplianceStatus, { label: string; icon: string; color: string; bg: string; border: string }> = {
+  valid:         { label: 'Completed & Valid',  icon: '🟢', color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.25)' },
+  expiring:      { label: 'Expiring Soon',       icon: '🟡', color: '#eab308', bg: 'rgba(234,179,8,0.1)',   border: 'rgba(234,179,8,0.25)' },
+  not_completed: { label: 'Not Completed',       icon: '🟠', color: '#f97316', bg: 'rgba(249,115,22,0.1)', border: 'rgba(249,115,22,0.25)' },
+  expired:       { label: 'Expired',             icon: '🔴', color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.25)' },
+  missing:       { label: 'Not Found',           icon: '🔴', color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.25)' },
+};
 
 // Parse the human-readable label and element type out of an elementId.
 // Accepts an optional columnLabels map to resolve custom display labels.
@@ -40,6 +110,8 @@ const emptyForm: {
   status: TaskStatus;
   progress: number;
   milestoneId: string | null;
+  workType: string;
+  workersInvolved: string[];
 } = {
   name: '',
   description: '',
@@ -51,6 +123,8 @@ const emptyForm: {
   status: 'Assigned',
   progress: 0,
   milestoneId: null,
+  workType: '',
+  workersInvolved: [],
 };
 
 export default function TaskPanel() {
@@ -106,6 +180,71 @@ export default function TaskPanel() {
   const [locatingMe, setLocatingMe] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [loadingAddress, setLoadingAddress] = useState(false);
+
+  // ── Worker Compliance state ──
+  const [availableWorkers, setAvailableWorkers] = useState<string[]>([]);
+  const [loadingWorkers, setLoadingWorkers] = useState(false);
+  const [complianceResults, setComplianceResults] = useState<WorkerCompliance[]>([]);
+  const [checkingCompliance, setCheckingCompliance] = useState(false);
+
+  // ── Load workers from Site Entry module when form is open ──
+  useEffect(() => {
+    if (!activeProjectId || mode !== 'edit') return;
+    let cancelled = false;
+    setLoadingWorkers(true);
+    CustomModulesAPI.list(activeProjectId)
+      .then(async (modules) => {
+        const siteEntryModule = modules.find((m: any) => m.name === '🚧 Site Entry');
+        if (!siteEntryModule) return;
+        const records = await CustomModulesAPI.listRecords(activeProjectId, siteEntryModule.id);
+        const workerField = siteEntryModule.fields.find((f: any) => f.label === 'Worker');
+        if (!workerField) return;
+        const names = [...new Set(records.map((r: any) => r.data[workerField.id]).filter(Boolean))] as string[];
+        if (!cancelled) setAvailableWorkers(names);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingWorkers(false); });
+    return () => { cancelled = true; };
+  }, [activeProjectId, mode]);
+
+  // ── Run compliance check when workType or workersInvolved change ──
+  useEffect(() => {
+    if (!form.workType || form.workersInvolved.length === 0 || !activeProjectId) {
+      setComplianceResults([]);
+      return;
+    }
+    let cancelled = false;
+    setCheckingCompliance(true);
+    const requiredTrainings = WORK_TYPE_TRAINING[form.workType] || [];
+    CustomModulesAPI.list(activeProjectId)
+      .then(async (modules) => {
+        const trainingModule = modules.find((m: any) => m.name === '🦺 Safety Training');
+        if (!trainingModule) return;
+        const records = await CustomModulesAPI.listRecords(activeProjectId, trainingModule.id);
+        const fields = trainingModule.fields;
+        const getFieldId = (label: string) => fields.find((f: any) => f.label === label)?.id;
+        const workerFId = getFieldId('Worker') ?? '';
+        const trainingTypeFId = getFieldId('Training Type') ?? '';
+        const trainingStatusFId = getFieldId('Training Status') ?? '';
+        const expiryDateFId = getFieldId('Expiry Date') ?? '';
+        const results: WorkerCompliance[] = form.workersInvolved.map((worker) => {
+          const workerRecords = records.filter((r: any) => r.data[workerFId] === worker);
+          const statuses = requiredTrainings.map((trainingType) => {
+            const rec = workerRecords.find((r: any) => r.data[trainingTypeFId] === trainingType);
+            const statusVal = rec ? String(rec.data[trainingStatusFId] || '') : '';
+            const expiryVal = rec ? String(rec.data[expiryDateFId] || '') : '';
+            const status = getComplianceStatus(rec?.data, statusVal, expiryVal);
+            return { training: trainingType, status, expiryDate: expiryVal || undefined };
+          });
+          const eligible = statuses.every((s) => s.status === 'valid' || s.status === 'expiring');
+          return { worker, requiredTrainings, statuses, eligible };
+        });
+        if (!cancelled) setComplianceResults(results);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setCheckingCompliance(false); });
+    return () => { cancelled = true; };
+  }, [form.workType, form.workersInvolved, activeProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync location fields when the drawing changes
   useEffect(() => {
@@ -238,6 +377,8 @@ export default function TaskPanel() {
       status: task.status,
       progress: task.progress,
       milestoneId: task.milestoneId ?? null,
+      workType: (task as any).workType || '',
+      workersInvolved: (task as any).workersInvolved || [],
     });
     setMode('edit');
   };
@@ -564,6 +705,85 @@ export default function TaskPanel() {
               </select>
             </Field>
           </div>
+          {/* ── Work Type ── */}
+          <Field label="Work Type">
+            <select
+              className="input"
+              value={form.workType}
+              onChange={(e) => setForm({ ...form, workType: e.target.value, workersInvolved: [] })}
+            >
+              <option value="">— Select Work Type —</option>
+              {WORK_TYPES.map((wt) => (
+                <option key={wt} value={wt}>{wt}</option>
+              ))}
+            </select>
+          </Field>
+
+          {/* ── Workers Involved ── */}
+          <WorkerPicker
+            availableWorkers={availableWorkers}
+            loadingWorkers={loadingWorkers}
+            selected={form.workersInvolved}
+            onChange={(workers) => setForm({ ...form, workersInvolved: workers })}
+          />
+
+          {/* ── Worker Compliance Agent ── */}
+          {form.workType && form.workersInvolved.length > 0 && (
+            <div
+              className="rounded-xl border p-3.5 space-y-3"
+              style={{ background: 'rgba(20,10,30,0.6)', borderColor: 'rgba(139,92,246,0.3)' }}
+            >
+              <div className="flex items-center gap-2">
+                <HardHat size={13} className="text-violet-400" />
+                <span className="text-[11px] font-bold text-violet-300 uppercase tracking-wide">Worker Compliance Agent</span>
+                {checkingCompliance && (
+                  <span className="text-[10px] text-slate-400 animate-pulse">Checking…</span>
+                )}
+              </div>
+              {complianceResults.map((result) => (
+                <div
+                  key={result.worker}
+                  className="rounded-lg p-2.5 space-y-1.5"
+                  style={{
+                    background: result.eligible ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                    border: `1px solid ${result.eligible ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-white truncate">{result.worker}</span>
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                      style={{
+                        background: result.eligible ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                        color: result.eligible ? '#4ade80' : '#f87171',
+                      }}
+                    >
+                      {result.eligible ? '✅ Eligible' : '🚫 Not Eligible'}
+                    </span>
+                  </div>
+                  {result.statuses.map(({ training, status, expiryDate }) => {
+                    const cfg = COMPLIANCE_CONFIG[status];
+                    return (
+                      <div
+                        key={training}
+                        className="flex items-center justify-between rounded px-2 py-1 gap-2"
+                        style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
+                      >
+                        <span className="text-[11px] text-slate-300 flex-1 truncate">{training}</span>
+                        <span className="text-[10px] font-semibold whitespace-nowrap shrink-0" style={{ color: cfg.color }}>
+                          {cfg.icon} {cfg.label}
+                          {expiryDate && status !== 'missing' && (
+                            <span className="ml-1 text-slate-500">· {expiryDate}</span>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+
           <Field label="Assigned Engineer">
             <input className="input" value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })} placeholder="Engineer or crew name" />
           </Field>
@@ -919,6 +1139,287 @@ function ElementTypeLabelEditor({
       </span>
       <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition-opacity" style={{ color }} />
     </button>
+  );
+}
+
+// ── WorkerPicker ─────────────────────────────────────────────────────────────
+/** Avatar initials badge for a worker */
+function WorkerAvatar({ name, size = 28, selected = false }: { name: string; size?: number; selected?: boolean }) {
+  const parts = name.trim().split(/\s+/);
+  const initials = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+
+  // Deterministic hue from name
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash) % 360;
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: selected
+          ? 'linear-gradient(135deg,#be123c,#9f1239)'
+          : `hsl(${hue},55%,28%)`,
+        border: selected ? '2px solid #fb7185' : `2px solid hsl(${hue},40%,22%)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        transition: 'all 0.15s',
+        boxShadow: selected ? '0 0 0 2px rgba(251,113,133,0.25)' : 'none',
+      }}
+    >
+      <span
+        style={{
+          fontSize: size * 0.36,
+          fontWeight: 700,
+          color: selected ? '#fff' : `hsl(${hue},70%,80%)`,
+          letterSpacing: '-0.02em',
+          lineHeight: 1,
+          userSelect: 'none',
+        }}
+      >
+        {initials}
+      </span>
+    </div>
+  );
+}
+
+interface WorkerPickerProps {
+  availableWorkers: string[];
+  loadingWorkers: boolean;
+  selected: string[];
+  onChange: (workers: string[]) => void;
+}
+
+function WorkerPicker({ availableWorkers, loadingWorkers, selected, onChange }: WorkerPickerProps) {
+  const [query, setQuery] = useState('');
+
+  const filtered = query.trim()
+    ? availableWorkers.filter((w) => w.toLowerCase().includes(query.toLowerCase()))
+    : availableWorkers;
+
+  const toggle = (worker: string) => {
+    if (selected.includes(worker)) {
+      onChange(selected.filter((w) => w !== worker));
+    } else {
+      onChange([...selected, worker]);
+    }
+  };
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((w) => selected.includes(w));
+
+  const toggleAll = () => {
+    if (allFilteredSelected) {
+      // Deselect all filtered
+      onChange(selected.filter((w) => !filtered.includes(w)));
+    } else {
+      // Select all filtered (merge, no duplicates)
+      const merged = [...new Set([...selected, ...filtered])];
+      onChange(merged);
+    }
+  };
+
+  return (
+    <div>
+      {/* Section header */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+          <Users size={11} />
+          Workers Involved
+          {loadingWorkers && (
+            <span className="text-[10px] text-slate-500 normal-case font-normal animate-pulse">Loading…</span>
+          )}
+        </span>
+        {selected.length > 0 && (
+          <span
+            className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: 'rgba(190,18,60,0.18)', color: '#fb7185', border: '1px solid rgba(190,18,60,0.35)' }}
+          >
+            <Users size={9} />
+            {selected.length} selected
+          </span>
+        )}
+      </div>
+
+      {/* Empty state */}
+      {!loadingWorkers && availableWorkers.length === 0 && (
+        <div className="text-xs text-slate-500 italic px-1">No workers found in Site Entry module</div>
+      )}
+
+      {availableWorkers.length > 0 && (
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ border: '1px solid rgba(63,63,70,0.8)', background: 'rgba(9,5,10,0.6)' }}
+        >
+          {/* Search bar */}
+          <div
+            className="flex items-center gap-2 px-3 py-2"
+            style={{ borderBottom: '1px solid rgba(63,63,70,0.6)', background: 'rgba(255,255,255,0.03)' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0 text-slate-500">
+              <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search workers…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none"
+            />
+            {query && (
+              <button onClick={() => setQuery('')} className="text-slate-600 hover:text-slate-400 transition-colors">
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Select-all row */}
+          {filtered.length > 1 && (
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="w-full flex items-center gap-2.5 px-3 py-1.5 transition-colors text-left"
+              style={{ borderBottom: '1px solid rgba(63,63,70,0.4)', background: 'rgba(255,255,255,0.015)' }}
+            >
+              <div
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 4,
+                  border: allFilteredSelected ? '2px solid #be123c' : '2px solid rgba(63,63,70,1)',
+                  background: allFilteredSelected ? 'linear-gradient(135deg,#be123c,#9f1239)' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {allFilteredSelected && <Check size={9} className="text-white" style={{ strokeWidth: 3 }} />}
+                {!allFilteredSelected && filtered.some((w) => selected.includes(w)) && (
+                  <div style={{ width: 6, height: 2, background: '#f43f5e', borderRadius: 1 }} />
+                )}
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400">
+                {allFilteredSelected ? 'Deselect all' : 'Select all'}
+                {query && ` (${filtered.length} results)`}
+              </span>
+            </button>
+          )}
+
+          {/* Worker list */}
+          <div className="max-h-48 overflow-y-auto divide-y divide-zinc-800">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-slate-600 italic">No matches for "{query}"</div>
+            ) : (
+              filtered.map((worker) => {
+                const isSelected = selected.includes(worker);
+                return (
+                  <button
+                    key={worker}
+                    type="button"
+                    onClick={() => toggle(worker)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-all group"
+                    style={{
+                      background: isSelected
+                        ? 'linear-gradient(135deg, rgba(190,18,60,0.12), rgba(159,18,57,0.06))'
+                        : 'transparent',
+                      borderLeft: isSelected ? '2px solid rgba(251,113,133,0.6)' : '2px solid transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                      else e.currentTarget.style.background = 'linear-gradient(135deg, rgba(190,18,60,0.12), rgba(159,18,57,0.06))';
+                    }}
+                  >
+                    {/* Avatar */}
+                    <WorkerAvatar name={worker} size={28} selected={isSelected} />
+
+                    {/* Name */}
+                    <span
+                      className="flex-1 text-sm font-medium truncate"
+                      style={{ color: isSelected ? '#fda4af' : '#cbd5e1' }}
+                    >
+                      {worker}
+                    </span>
+
+                    {/* Checkmark */}
+                    <div
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: '50%',
+                        border: isSelected ? '2px solid #be123c' : '2px solid rgba(63,63,70,0.8)',
+                        background: isSelected ? 'linear-gradient(135deg,#be123c,#9f1239)' : 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {isSelected && <Check size={9} className="text-white" style={{ strokeWidth: 3 }} />}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer: selected worker avatar strip */}
+          {selected.length > 0 && (
+            <div
+              className="flex items-center gap-2 px-3 py-2"
+              style={{ borderTop: '1px solid rgba(63,63,70,0.5)', background: 'rgba(190,18,60,0.06)' }}
+            >
+              <div className="flex items-center" style={{ gap: -4 }}>
+                {selected.slice(0, 6).map((w, i) => (
+                  <div key={w} style={{ marginLeft: i === 0 ? 0 : -8, zIndex: selected.length - i }}>
+                    <WorkerAvatar name={w} size={22} selected />
+                  </div>
+                ))}
+                {selected.length > 6 && (
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: 'rgba(63,63,70,0.8)',
+                      border: '2px solid rgba(63,63,70,1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginLeft: -8,
+                      zIndex: 0,
+                    }}
+                  >
+                    <span className="text-[9px] font-bold text-slate-400">+{selected.length - 6}</span>
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-400 flex-1 truncate">
+                {selected.length === 1 ? selected[0] : `${selected.length} workers selected`}
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="text-[10px] text-rose-400/70 hover:text-rose-400 transition-colors whitespace-nowrap"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

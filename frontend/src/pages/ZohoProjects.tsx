@@ -1374,12 +1374,12 @@ function AddRecordRow({ fields, moduleName, onOpenDrawer }: AddRecordRowProps) {
 
 /** Default min-width per field type (in px) */
 const FIELD_DEFAULT_WIDTH: Record<FieldType, number> = {
-  name:        200,
+  name:        320,
   text:        180,
   number:      100,
   date:        120,
   select:      140,
-  multiuser:   160,
+  multiuser:   280,
   attachment:  160,
 };
 
@@ -1398,27 +1398,47 @@ function defaultColWidth(field: CustomField): number {
     return Math.min(Math.max(base + labelBonus, optionWidth), 320);
   }
 
-  return Math.min(base + labelBonus, 280);
+  return Math.min(base + labelBonus, 400);
 }
 
 // ─── Column-resize hook ───────────────────────────────────────────────────────
 
-function useResizableColumns(fields: CustomField[]) {
+function useResizableColumns(fields: CustomField[], moduleId: string) {
+  const storageKey = `colWidths_${moduleId}`;
+
+  // Load previously saved manual widths from localStorage
+  const savedWidths = React.useMemo<Record<string, number>>(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {};
-    fields.forEach((f) => { init[f.id] = defaultColWidth(f); });
+    fields.forEach((f) => {
+      // Use saved manual width if available, otherwise compute default
+      init[f.id] = savedWidths[f.id] ?? defaultColWidth(f);
+    });
     return init;
   });
+
+  // Track which columns were manually resized — auto-fit will skip these
+  const manuallyResized = useRef<Set<string>>(new Set(Object.keys(savedWidths)));
 
   // Sync when fields change (new fields added / removed)
   useEffect(() => {
     setColWidths((prev) => {
       const next = { ...prev };
       fields.forEach((f) => {
-        if (!(f.id in next)) next[f.id] = defaultColWidth(f);
+        if (!(f.id in next)) next[f.id] = savedWidths[f.id] ?? defaultColWidth(f);
       });
       return next;
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields]);
 
   const dragging = useRef<{ fieldId: string; startX: number; startW: number } | null>(null);
@@ -1439,6 +1459,24 @@ function useResizableColumns(fields: CustomField[]) {
       setColWidths((prev) => ({ ...prev, [dragging.current!.fieldId]: newW }));
     }
     function onMouseUp() {
+      if (dragging.current) {
+        const { fieldId: fId } = dragging.current;
+        // Mark as manually resized so auto-fit won't override it
+        manuallyResized.current.add(fId);
+        // Persist all current widths + this new one to localStorage
+        setColWidths((prev) => {
+          const updated = { ...prev };
+          try {
+            // Merge with existing saved widths so we only overwrite what changed
+            const existing = JSON.parse(localStorage.getItem(storageKey) ?? '{}') as Record<string, number>;
+            const merged = { ...existing, ...updated };
+            localStorage.setItem(storageKey, JSON.stringify(merged));
+          } catch {
+            // ignore storage errors
+          }
+          return updated;
+        });
+      }
       dragging.current = null;
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
@@ -1449,16 +1487,32 @@ function useResizableColumns(fields: CustomField[]) {
 
   function resetWidth(fieldId: string) {
     const field = fields.find((f) => f.id === fieldId);
-    if (field) setColWidths((prev) => ({ ...prev, [fieldId]: defaultColWidth(field) }));
+    if (!field) return;
+    // Remove from manual set so auto-fit can take over again
+    manuallyResized.current.delete(fieldId);
+    const defaultW = defaultColWidth(field);
+    setColWidths((prev) => {
+      const updated = { ...prev, [fieldId]: defaultW };
+      try {
+        const existing = JSON.parse(localStorage.getItem(storageKey) ?? '{}') as Record<string, number>;
+        delete existing[fieldId];
+        localStorage.setItem(storageKey, JSON.stringify(existing));
+      } catch { /* ignore */ }
+      return updated;
+    });
   }
 
   function resetAllWidths() {
+    manuallyResized.current.clear();
+    try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
     const next: Record<string, number> = {};
     fields.forEach((f) => { next[f.id] = defaultColWidth(f); });
     setColWidths(next);
   }
 
   function fitToContent(fieldId: string, records: CustomRecord[]) {
+    // Skip columns the user has manually resized — honour their preference
+    if (manuallyResized.current.has(fieldId)) return;
     const field = fields.find((f) => f.id === fieldId);
     if (!field) return;
     // Estimate content width based on max value length
@@ -1467,8 +1521,8 @@ function useResizableColumns(fields: CustomField[]) {
       const len = val ? String(typeof val === 'object' ? val.name ?? '' : val).length : 0;
       return Math.max(max, len);
     }, field.label.length);
-    // ~7px per char + padding
-    const estimated = Math.max(80, Math.min(maxLen * 8 + 32, 400));
+    // ~8px per char + padding (no max cap — columns expand to fit all content)
+    const estimated = Math.max(80, maxLen * 8 + 32);
     setColWidths((prev) => ({ ...prev, [fieldId]: estimated }));
   }
 
@@ -1565,9 +1619,11 @@ const TYPE_ACCENT_COLOR: Record<FieldType, string> = {
 interface SortableResizableThProps extends ResizableThProps {
   sortDir: 'asc' | 'desc' | null;
   onSort: () => void;
+  sticky?: boolean;
+  stickyLeft?: number;
 }
 
-function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth, sortDir, onSort }: SortableResizableThProps) {
+function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onResetWidth, sortDir, onSort, sticky, stickyLeft = 0 }: SortableResizableThProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -1584,7 +1640,16 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
 
   return (
     <th
-      style={{ width, minWidth: width, maxWidth: width, background: '#1e1e2e' }}
+      style={{
+        width, minWidth: width, maxWidth: width,
+        background: sticky ? '#242426' : '#1e1e2e',
+        ...(sticky ? {
+          position: 'sticky',
+          left: stickyLeft,
+          zIndex: 5,
+          boxShadow: '2px 0 8px rgba(0,0,0,0.5)',
+        } : {}),
+      }}
       className="relative px-0 py-0 text-left select-none group/th"
     >
       {/* Top accent line — persistent type-color identity; sort/menu feedback overrides it */}
@@ -1597,10 +1662,10 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
 
       {/* Header content — click label to sort */}
       <div
-        className="relative flex items-center gap-2 px-3 py-2.5 overflow-hidden cursor-pointer"
+        className="relative flex items-center justify-center gap-2 px-3 py-2.5 overflow-hidden cursor-pointer"
         onClick={onSort}
       >
-        <span className="text-[12.5px] font-semibold text-zinc-300 group-hover/th:text-white flex-1 transition-colors duration-150 tracking-wide">
+        <span className="text-[12.5px] font-semibold text-zinc-300 group-hover/th:text-white transition-colors duration-150 tracking-wide text-center">
           {field.label}
         </span>
 
@@ -1809,10 +1874,14 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         (e.currentTarget as HTMLElement).style.boxShadow = restBoxShadow;
       }}
     >
-      {/* Checkbox */}
+      {/* Checkbox — sticky col 1 */}
       <td
         className="px-0 py-0 w-9 text-center select-none"
-        style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
+        style={{
+          borderRight: '1px solid rgba(255,255,255,0.06)',
+          position: 'sticky', left: 0, zIndex: 2,
+          background: selected ? 'rgba(251,113,133,0.12)' : isEven ? '#111113' : '#161618',
+        }}
         onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
       >
         <span className="flex items-center justify-center py-3">
@@ -1820,10 +1889,14 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         </span>
       </td>
 
-      {/* Row number */}
+      {/* Row number — sticky col 2 */}
       <td
         className="px-0 py-0 w-10 text-center select-none tabular-nums"
-        style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
+        style={{
+          borderRight: '1px solid rgba(255,255,255,0.06)',
+          position: 'sticky', left: 36, zIndex: 2,
+          background: selected ? 'rgba(251,113,133,0.12)' : isEven ? '#111113' : '#161618',
+        }}
       >
         <span
           className="flex items-center justify-center h-full py-3 text-[10px] font-mono font-medium"
@@ -1837,7 +1910,10 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         <td
           key={field.id}
           className="group/cell px-0 py-0 cursor-pointer relative overflow-hidden"
-          style={{ borderRight: fIdx < fields.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
+          style={{
+            borderRight: fIdx < fields.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+            ...(fIdx === 0 ? { position: 'sticky', left: 36 + 40, zIndex: 2, background: selected ? 'rgba(251,113,133,0.12)' : isEven ? '#111113' : '#161618' } : {}),
+          }}
           onClick={() => setEditingCell(field.id)}
         >
           {editingCell === field.id && (
@@ -1986,13 +2062,29 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
 
   // ── Site Entry enhanced features ──────────────────────────
   const isSiteEntry = isSiteEntryModule(module.fields);
+
+  // ── Column ordering: always put Worker field first after SL No ──────────────
+  // For modules that have a "Worker" field (Safety Induction, Safety Training,
+  // Site Entry, etc.) we pin the Worker column immediately after the row-number
+  // column so it's always visible first without losing any other columns.
+  const orderedFields = React.useMemo(() => {
+    const workerIdx = module.fields.findIndex(
+      (f) => f.label.toLowerCase() === 'worker'
+    );
+    if (workerIdx <= 0) return module.fields; // already first or not present
+    const reordered = [...module.fields];
+    const [workerField] = reordered.splice(workerIdx, 1);
+    reordered.unshift(workerField);
+    return reordered;
+  }, [module.fields]);
+
   // Any module with a Status select field gets the ring-stats widget, not just Site Entry.
   const moduleStatusField = module.fields.find((f) => f.type === 'select' && f.label.toLowerCase().includes('status'));
   const [activeFilter, setActiveFilter] = useState<{ fieldId: string; value: string } | null>(null);
   const [detailRecord, setDetailRecord] = useState<{ record: CustomRecord; idx: number } | null>(null);
 
   const { colWidths, onResizeStart, resetWidth, resetAllWidths: _resetAllWidths, fitToContent } =
-    useResizableColumns(module.fields);
+    useResizableColumns(module.fields, module.id);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -2006,6 +2098,14 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
   }, [module.id]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+  // Auto-fit all column widths to content whenever records change so that
+  // every column is always as wide as its longest value (or its header label,
+  // whichever is wider — fitToContent already handles the label fallback).
+  useEffect(() => {
+    if (records.length === 0) return;
+    module.fields.forEach((f) => fitToContent(f.id, records));
+  }, [records]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Report count whenever records change
   useEffect(() => { onRecordCountChange?.(records.length); }, [records.length]);
@@ -2667,7 +2767,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
             {/* Checkbox col */}
             <col style={{ width: 36, minWidth: 36 }} />
             <col style={{ width: 40, minWidth: 40 }} />
-            {module.fields.map((f) => (
+            {orderedFields.map((f) => (
               <col key={f.id} style={{ width: colWidths[f.id] ?? defaultColWidth(f), minWidth: colWidths[f.id] ?? defaultColWidth(f) }} />
             ))}
             <col style={{ width: 40, minWidth: 40 }} />
@@ -2681,13 +2781,14 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                 boxShadow: '0 1px 0 rgba(255,255,255,0.03)',
               }}
             >
-              {/* Checkbox header */}
+              {/* Checkbox header — sticky col 1 */}
               <th
                 className="px-0 py-0 text-center select-none"
                 style={{
                   background: '#242426',
                   borderRight: '1px solid rgba(255,255,255,0.07)',
                   width: 36, minWidth: 36,
+                  position: 'sticky', left: 0, zIndex: 6,
                 }}
               >
                 <span className="flex items-center justify-center py-3">
@@ -2698,7 +2799,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                   />
                 </span>
               </th>
-              {/* Row # column */}
+              {/* Row # column — sticky col 2 */}
               <th
                 className="px-0 py-0 text-center select-none"
                 style={{
@@ -2706,6 +2807,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                   borderRight: '1px solid rgba(255,255,255,0.07)',
                   width: 40,
                   minWidth: 40,
+                  position: 'sticky', left: 36, zIndex: 6,
                 }}
               >
                 <span
@@ -2715,7 +2817,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                   #
                 </span>
               </th>
-              {module.fields.map((field) => (
+              {orderedFields.map((field, fIdx) => (
                 <SortableResizableTh
                   key={field.id}
                   field={field}
@@ -2725,6 +2827,8 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                   onResetWidth={() => resetWidth(field.id)}
                   sortDir={sortCol === field.id ? sortDir : null}
                   onSort={() => handleSortClick(field.id)}
+                  sticky={fIdx === 0}
+                  stickyLeft={36 + 40}
                 />
               ))}
               <th style={{ background: '#242426', width: 40, minWidth: 40 }} />
@@ -2766,7 +2870,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                 <SelectableRecordRow
                   key={record.id}
                   record={record}
-                  fields={module.fields}
+                  fields={orderedFields}
                   rowIndex={idx}
                   selected={selectedIds.has(record.id)}
                   onToggleSelect={() => toggleSelect(record.id)}
@@ -2776,7 +2880,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                 />
               ))
             )}
-            <AddRecordRow fields={module.fields} moduleName={module.name} onOpenDrawer={() => setShowEntryDrawer(true)} />
+            <AddRecordRow fields={orderedFields} moduleName={module.name} onOpenDrawer={() => setShowEntryDrawer(true)} />
           </tbody>
         </table>
       </div>
@@ -2879,6 +2983,47 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
       )}
     </>
   );
+}
+
+// ─── Module tab icon — maps module name keywords to a fitting emoji ───────────
+
+function moduleIcon(name: string): string {
+  const n = name.toLowerCase();
+  // Workers / people
+  if (/worker|labour|labor|staff|crew|personnel|employee|manpower/.test(n)) return '👷';
+  // Safety / induction / training
+  if (/safety induction|induction/.test(n)) return '🪪';
+  if (/safety training|training/.test(n)) return '🎓';
+  if (/safety/.test(n)) return '🦺';
+  // Toolbox talks
+  if (/toolbox|tool.?box/.test(n)) return '🔧';
+  // Site entry / access
+  if (/site.?entry|entry|access|gate|visitor/.test(n)) return '🚧';
+  // Inspection / audit / checklist
+  if (/inspect|audit|checklist|punch|snag/.test(n)) return '🔍';
+  // Materials / inventory / stock
+  if (/material|inventory|stock|supply|store/.test(n)) return '📦';
+  // Equipment / machinery / plant
+  if (/equipment|machinery|plant|machine|vehicle|crane|excavat/.test(n)) return '🏗️';
+  // Drawing / document / plan
+  if (/drawing|document|plan|blueprint|dwg/.test(n)) return '📐';
+  // Subcontractor / vendor / supplier
+  if (/subcontract|vendor|supplier|contractor/.test(n)) return '🤝';
+  // Task / activity / work order
+  if (/task|activit|work.?order|punch/.test(n)) return '✅';
+  // Incident / near miss / hazard / RFI
+  if (/incident|accident|near.?miss|hazard/.test(n)) return '⚠️';
+  if (/rfi|request.?for.?information/.test(n)) return '📋';
+  // Progress / milestone / schedule
+  if (/progress|milestone|schedule|timeline/.test(n)) return '📈';
+  // Financial / cost / invoice / bill
+  if (/cost|budget|finance|invoice|bill|payment|expense/.test(n)) return '💰';
+  // Quality / QC / QA
+  if (/quality|qc|qa/.test(n)) return '⭐';
+  // Environment / waste / permit
+  if (/environment|waste|permit|license/.test(n)) return '🌿';
+  // Default
+  return '📋';
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────

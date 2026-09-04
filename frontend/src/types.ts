@@ -95,6 +95,8 @@ export interface Task {
   dueDate: string;
   status: TaskStatus;
   progress: number;
+  workType?: string;
+  workersInvolved?: string[];
   createdAt: string;
   updatedAt: string;
 }
