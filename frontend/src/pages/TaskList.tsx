@@ -20,6 +20,20 @@ import toast from 'react-hot-toast';
 
 type SortKey = 'gridCode' | 'name' | 'status' | 'assignedTo' | 'priority' | 'dueDate' | 'progress';
 
+// Fixed column widths for the per-drawing task table — keeps columns lined up
+// across every drawing's table, since each renders as its own <table> and would
+// otherwise auto-size independently based on that drawing's own row content.
+const TASK_COL_WIDTH: Record<SortKey, string> = {
+  gridCode: '9%',
+  name: '25%',
+  status: '12%',
+  assignedTo: '12%',
+  priority: '9%',
+  dueDate: '15%',
+  progress: '10%',
+};
+const TASK_ACTION_COL_WIDTH = '8%';
+
 const PRIORITY_STYLE: Record<string, string> = {
   Low: 'bg-zinc-800 text-slate-400',
   Medium: 'bg-blue-950/60 text-blue-400',
@@ -559,13 +573,14 @@ export default function TaskList() {
                             {dTasks.length === 0 ? (
                               <p className="text-[11px] text-slate-400 italic py-2">No tasks for this drawing yet.</p>
                             ) : (
-                              <table className="w-full text-xs">
+                              <table className="w-full text-xs" style={{ tableLayout: 'fixed' }}>
                                 <thead>
                                   <tr>
                                     {(['gridCode', 'name', 'status', 'assignedTo', 'priority', 'dueDate', 'progress'] as SortKey[]).map((key) => (
                                       <th
                                         key={key}
                                         onClick={() => toggleSort(key)}
+                                        style={{ width: TASK_COL_WIDTH[key] }}
                                         className="text-left px-2 py-1.5 font-semibold text-[10px] uppercase tracking-wide text-rose-400/60 cursor-pointer hover:text-rose-300 whitespace-nowrap select-none"
                                       >
                                         <span className="inline-flex items-center gap-0.5">
@@ -574,7 +589,7 @@ export default function TaskList() {
                                         </span>
                                       </th>
                                     ))}
-                                    <th />
+                                    <th className="px-2 py-1.5" style={{ width: TASK_ACTION_COL_WIDTH }} />
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -614,7 +629,7 @@ export default function TaskList() {
                                           {t.status}
                                         </span>
                                       </td>
-                                      <td className="px-2 py-1.5 text-slate-400">{t.assignedTo || <span className="text-zinc-600">—</span>}</td>
+                                      <td className="px-2 py-1.5 text-slate-400 truncate">{t.assignedTo || <span className="text-zinc-600">—</span>}</td>
                                       <td className="px-2 py-1.5">
                                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${PRIORITY_STYLE[t.priority]}`}>{t.priority}</span>
                                       </td>

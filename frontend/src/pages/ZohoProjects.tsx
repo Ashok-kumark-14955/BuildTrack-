@@ -1416,6 +1416,12 @@ function defaultColWidth(field: CustomField): number {
   const base = FIELD_DEFAULT_WIDTH[field.type] ?? 160;
   const labelBonus = Math.max(0, field.label.length - 10) * 5;
 
+  // Worker column shows an avatar badge + full name (WorkerCellAvatar) — needs
+  // more room than a plain text column so the name doesn't get cramped/truncated.
+  if (field.label.toLowerCase() === 'worker') {
+    return 500;
+  }
+
   // Select fields render as pills that must never wrap — size the column to
   // fit the longest option text (plus the pill's own padding/dot), not just
   // the label, or long option values like "Main Gate – Gate 01" wrap onto a
@@ -3067,13 +3073,13 @@ export default function CustomModulesPage() {
   const activeModule = modules.find((m) => m.id === activeModuleId) ?? null;
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0a] text-white">
+    <div className="flex flex-col h-full text-white" style={{ background: 'radial-gradient(ellipse 90% 55% at 15% 5%, rgba(190,24,93,0.18) 0%, transparent 60%), #09090b' }}>
       {/* ── Top navigation — module tabs ── */}
       <div
-        className="flex-shrink-0 border-b border-rose-950/60"
+        className="flex-shrink-0 border-b border-rose-950/40"
         style={{
-          background: 'linear-gradient(180deg, #160305 0%, #0e0001 100%)',
-          boxShadow: '0 1px 0 rgba(220,38,90,0.12), 0 4px 16px rgba(0,0,0,0.4)',
+          background: 'linear-gradient(180deg, rgba(22,3,5,0.98) 0%, rgba(14,0,1,0.95) 100%)',
+          boxShadow: '0 1px 0 rgba(190,24,93,0.2), 0 4px 20px rgba(0,0,0,0.5)',
         }}
       >
         <div className="flex items-stretch px-3 gap-0 h-11">
@@ -3242,7 +3248,7 @@ export default function CustomModulesPage() {
       </div>
 
       {/* ── Main content area ── */}
-      <main className="flex-1 overflow-auto px-6 pb-6 pt-0">
+      <main className="flex-1 overflow-auto px-7 pb-7 pt-5">
         {loading ? (
           <div className="flex items-center justify-center h-full text-slate-500">Loading modules…</div>
         ) : modules.length === 0 ? (
