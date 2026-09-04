@@ -177,6 +177,34 @@ function chipStyleFromHex(hex: string): { bg: string; text: string; border: stri
   };
 }
 
+/** Circular initials avatar with a deterministic hue derived from the name — used for Worker cells */
+function WorkerCellAvatar({ name }: { name: string }) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash) % 360;
+  return (
+    <span className="inline-flex items-center gap-2 min-w-0">
+      <span
+        className="flex-shrink-0 flex items-center justify-center rounded-full"
+        style={{
+          width: 24, height: 24,
+          background: `hsl(${hue},55%,28%)`,
+          border: `1.5px solid hsl(${hue},40%,22%)`,
+        }}
+      >
+        <span style={{ fontSize: 10, fontWeight: 700, color: `hsl(${hue},70%,80%)`, letterSpacing: '-0.02em' }}>
+          {initials}
+        </span>
+      </span>
+      <span className="text-sm text-slate-200 font-medium truncate">{name}</span>
+    </span>
+  );
+}
+
 interface SelectOptionsEditorProps {
   options: string[];
   optionColors?: Record<string, string>;
@@ -1642,7 +1670,7 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
     <th
       style={{
         width, minWidth: width, maxWidth: width,
-        background: sticky ? '#242426' : '#1e1e2e',
+        background: '#1e1e2e',
         ...(sticky ? {
           position: 'sticky',
           left: stickyLeft,
@@ -1669,27 +1697,6 @@ function SortableResizableTh({ field, width, onResizeStart, onFitToContent, onRe
           {field.label}
         </span>
 
-        {/* Sort indicator */}
-        {sortDir && (
-          <span className="flex-shrink-0 text-rose-400 text-xs font-bold">
-            {sortDir === 'asc' ? '↑' : '↓'}
-          </span>
-        )}
-
-        {/* Context menu trigger — stop click from triggering sort */}
-        <button
-          onMouseDown={(e) => { e.stopPropagation(); setShowMenu((v) => !v); }}
-          onClick={(e) => e.stopPropagation()}
-          className={cn(
-            'flex-shrink-0 w-5 h-5 flex items-center justify-center rounded transition-all duration-150',
-            showMenu
-              ? 'opacity-100 text-rose-200'
-              : 'opacity-0 group-hover/th:opacity-100 text-zinc-500 hover:text-white',
-          )}
-          style={showMenu ? { background: 'rgba(225,29,72,0.4)' } : undefined}
-          title="Column options"
-        >
-        </button>
       </div>
 
       {/* Right divider */}
@@ -1823,6 +1830,9 @@ function SelectableRecordRow({ record, fields, rowIndex, selected, onToggleSelec
         : <span className="text-slate-500">—</span>;
     }
     if (field.type === 'attachment') return <AttachmentCell val={val} />;
+    if (field.label.toLowerCase() === 'worker' && val) {
+      return <WorkerCellAvatar name={String(val)} />;
+    }
     const isNameField = /name/i.test(field.label);
     if (isNameField && val) {
       const nameStr = String(val);
@@ -2785,7 +2795,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               <th
                 className="px-0 py-0 text-center select-none"
                 style={{
-                  background: '#242426',
+                  background: '#1e1e2e',
                   borderRight: '1px solid rgba(255,255,255,0.07)',
                   width: 36, minWidth: 36,
                   position: 'sticky', left: 0, zIndex: 6,
@@ -2803,7 +2813,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               <th
                 className="px-0 py-0 text-center select-none"
                 style={{
-                  background: '#242426',
+                  background: '#1e1e2e',
                   borderRight: '1px solid rgba(255,255,255,0.07)',
                   width: 40,
                   minWidth: 40,
@@ -2985,45 +2995,26 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
   );
 }
 
-// ─── Module tab icon — maps module name keywords to a fitting emoji ───────────
+// ─── Module accent colours — each tab gets a stable unique colour ─────────────
 
-function moduleIcon(name: string): string {
-  const n = name.toLowerCase();
-  // Workers / people
-  if (/worker|labour|labor|staff|crew|personnel|employee|manpower/.test(n)) return '👷';
-  // Safety / induction / training
-  if (/safety induction|induction/.test(n)) return '🪪';
-  if (/safety training|training/.test(n)) return '🎓';
-  if (/safety/.test(n)) return '🦺';
-  // Toolbox talks
-  if (/toolbox|tool.?box/.test(n)) return '🔧';
-  // Site entry / access
-  if (/site.?entry|entry|access|gate|visitor/.test(n)) return '🚧';
-  // Inspection / audit / checklist
-  if (/inspect|audit|checklist|punch|snag/.test(n)) return '🔍';
-  // Materials / inventory / stock
-  if (/material|inventory|stock|supply|store/.test(n)) return '📦';
-  // Equipment / machinery / plant
-  if (/equipment|machinery|plant|machine|vehicle|crane|excavat/.test(n)) return '🏗️';
-  // Drawing / document / plan
-  if (/drawing|document|plan|blueprint|dwg/.test(n)) return '📐';
-  // Subcontractor / vendor / supplier
-  if (/subcontract|vendor|supplier|contractor/.test(n)) return '🤝';
-  // Task / activity / work order
-  if (/task|activit|work.?order|punch/.test(n)) return '✅';
-  // Incident / near miss / hazard / RFI
-  if (/incident|accident|near.?miss|hazard/.test(n)) return '⚠️';
-  if (/rfi|request.?for.?information/.test(n)) return '📋';
-  // Progress / milestone / schedule
-  if (/progress|milestone|schedule|timeline/.test(n)) return '📈';
-  // Financial / cost / invoice / bill
-  if (/cost|budget|finance|invoice|bill|payment|expense/.test(n)) return '💰';
-  // Quality / QC / QA
-  if (/quality|qc|qa/.test(n)) return '⭐';
-  // Environment / waste / permit
-  if (/environment|waste|permit|license/.test(n)) return '🌿';
-  // Default
-  return '📋';
+const MODULE_ACCENT_PALETTE = [
+  '#f43f5e', // rose
+  '#fb923c', // orange
+  '#facc15', // yellow
+  '#4ade80', // green
+  '#34d399', // emerald
+  '#22d3ee', // cyan
+  '#60a5fa', // blue
+  '#a78bfa', // violet
+  '#e879f9', // fuchsia
+  '#f472b6', // pink
+  '#2dd4bf', // teal
+  '#818cf8', // indigo
+];
+
+/** Returns a stable colour for a module at a given list index */
+function moduleAccentColor(index: number): string {
+  return MODULE_ACCENT_PALETTE[index % MODULE_ACCENT_PALETTE.length];
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -3106,32 +3097,31 @@ export default function CustomModulesPage() {
                 No modules yet — create your first one →
               </div>
             ) : (
-              modules.map((m) => {
+              modules.map((m, mIdx) => {
                 const isActive = m.id === activeModuleId;
+                const accent = moduleAccentColor(mIdx);
                 return (
                   <button
                     key={m.id}
                     onClick={() => setActiveModuleId(m.id)}
                     className={cn(
                       'group/tab relative flex items-center gap-2 px-4 text-[13px] font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 select-none',
-                      isActive
-                        ? 'text-white'
-                        : 'text-slate-500 hover:text-slate-300',
+                      isActive ? 'text-white' : 'text-slate-500 hover:text-slate-300',
                     )}
                   >
-                    {/* Active: pill background */}
+                    {/* Active: pill background — tinted with this module's accent colour */}
                     {isActive && (
                       <span
                         className="absolute inset-x-0 inset-y-[6px] pointer-events-none animate-in fade-in zoom-in-95 duration-200"
                         style={{
-                          background: 'linear-gradient(180deg, rgba(220,38,90,0.2) 0%, rgba(150,10,40,0.12) 100%)',
-                          border: '1px solid rgba(220,38,90,0.28)',
+                          background: `linear-gradient(180deg, ${accent}28 0%, ${accent}0f 100%)`,
+                          border: `1px solid ${accent}40`,
                           borderRadius: '999px',
-                          boxShadow: '0 2px 10px rgba(220,38,90,0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
+                          boxShadow: `0 2px 10px ${accent}22, inset 0 1px 0 rgba(255,255,255,0.05)`,
                         }}
                       />
                     )}
-                    {/* Hover: subtle bg + lift for inactive */}
+                    {/* Hover: subtle bg for inactive */}
                     {!isActive && (
                       <span
                         className="absolute inset-x-0 inset-y-[6px] rounded-full bg-white/0 group-hover/tab:bg-white/[0.04] transition-colors duration-200 pointer-events-none"
@@ -3139,34 +3129,68 @@ export default function CustomModulesPage() {
                       />
                     )}
 
-                    {/* Status dot */}
-                    <span
-                      className={cn('relative w-[7px] h-[7px] rounded-full flex-shrink-0 transition-all duration-200', isActive && 'animate-pulse')}
-                      style={
-                        isActive
-                          ? { background: 'radial-gradient(circle, #fb7185 0%, #e11d48 100%)', boxShadow: '0 0 6px rgba(251,113,133,0.7)' }
-                          : { background: '#374151' }
-                      }
-                    />
+                    {/* Accent dot — unique colour per module, glows when active */}
+                    <span className="relative flex-shrink-0 flex items-center justify-center" style={{ width: 14, height: 14 }}>
+                      {/* Outer glow ring */}
+                      <span
+                        className="absolute inset-0 rounded-full transition-all duration-300"
+                        style={
+                          isActive
+                            ? {
+                                background: `${accent}22`,
+                                boxShadow: `0 0 0 3px ${accent}33, 0 0 12px ${accent}66`,
+                                borderRadius: '50%',
+                              }
+                            : {
+                                background: `${accent}11`,
+                                boxShadow: `0 0 0 2px ${accent}22`,
+                                borderRadius: '50%',
+                              }
+                        }
+                      />
+                      {/* Inner solid dot */}
+                      <span
+                        className={cn(
+                          'relative rounded-full transition-all duration-300',
+                          isActive && 'animate-pulse'
+                        )}
+                        style={
+                          isActive
+                            ? {
+                                width: 8,
+                                height: 8,
+                                background: `radial-gradient(circle at 35% 35%, #fff8 0%, ${accent} 45%, ${accent}cc 100%)`,
+                                boxShadow: `0 0 10px ${accent}, 0 0 4px ${accent}dd, inset 0 1px 1px rgba(255,255,255,0.35)`,
+                                transform: 'scale(1.1)',
+                              }
+                            : {
+                                width: 7,
+                                height: 7,
+                                background: `radial-gradient(circle at 35% 35%, ${accent}cc 0%, ${accent}88 100%)`,
+                                boxShadow: `0 0 4px ${accent}66`,
+                              }
+                        }
+                      />
+                    </span>
 
                     {/* Label */}
                     <span className="relative font-semibold tracking-tight">{m.name}</span>
 
-                    {/* Bottom active bar */}
+                    {/* Bottom active bar — same accent colour */}
                     {isActive && (
                       <span
                         className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full"
                         style={{
-                          background: 'linear-gradient(90deg, transparent, #fb7185 30%, #e11d48 70%, transparent)',
-                          boxShadow: '0 0 8px rgba(251,113,133,0.5)',
+                          background: `linear-gradient(90deg, transparent, ${accent} 30%, ${accent}cc 70%, transparent)`,
+                          boxShadow: `0 0 8px ${accent}99`,
                         }}
                       />
                     )}
-                    {/* Bottom bar preview on hover — hints affordance before clicking */}
+                    {/* Bottom bar preview on hover */}
                     {!isActive && (
                       <span
-                        className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full opacity-0 group-hover/tab:opacity-40 transition-opacity duration-200"
-                        style={{ background: 'linear-gradient(90deg, transparent, #64748b 30%, #64748b 70%, transparent)' }}
+                        className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full opacity-0 group-hover/tab:opacity-50 transition-opacity duration-200"
+                        style={{ background: `linear-gradient(90deg, transparent, ${accent}88 30%, ${accent}88 70%, transparent)` }}
                       />
                     )}
                   </button>
