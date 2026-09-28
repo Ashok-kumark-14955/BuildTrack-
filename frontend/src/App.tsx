@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { HardHat, Loader2 } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import DrawingPage from './pages/DrawingPage';
 import Dashboard from './pages/Dashboard';
@@ -13,21 +12,6 @@ import { useCatalystAuth } from './utils/catalystAuth';
 
 const PAGE_GRADIENT =
   'radial-gradient(ellipse 80% 60% at 10% 20%, rgba(160,18,72,0.50) 0%, transparent 55%), radial-gradient(ellipse 60% 50% at 90% 80%, rgba(130,15,60,0.40) 0%, transparent 60%), linear-gradient(135deg, #360016 0%, #520024 35%, #42001e 65%, #2a0012 100%)';
-
-function FullScreenMessage({ title, sub, spinner }: { title: string; sub?: string; spinner?: boolean }) {
-  return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center gap-3" style={{ background: PAGE_GRADIENT }}>
-      <div
-        className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
-        style={{ background: 'linear-gradient(145deg, #d6486e 0%, #8b0a2e 100%)', border: '1px solid rgba(216,72,110,0.6)' }}
-      >
-        {spinner ? <Loader2 size={20} className="text-white animate-spin" /> : <HardHat size={20} className="text-white" />}
-      </div>
-      <div className="text-white font-bold text-sm">{title}</div>
-      {sub && <div className="text-rose-200/60 text-xs">{sub}</div>}
-    </div>
-  );
-}
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
