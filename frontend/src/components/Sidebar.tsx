@@ -26,6 +26,7 @@ import {
 import { useApp } from '../AppContext';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ProjectFormModal from './ProjectFormModal';
+import DrawingEditModal from './DrawingEditModal';
 import toast from 'react-hot-toast';
 import type { Drawing, Task } from '../types';
 import { DrawingsAPI, TasksAPI } from '../api';
@@ -245,12 +246,13 @@ function useDrawingOrder(projectId: string | undefined, sourceDrawings: Drawing[
 }
 
 export default function Sidebar() {
-  const { tasks, drawings, projects, milestones, upsertProject, currentDrawingId, setCurrentDrawingId, deleteDrawing, activeProjectId } = useApp();
+  const { tasks, drawings, projects, milestones, upsertProject, currentDrawingId, setCurrentDrawingId, deleteDrawing, activeProjectId, refreshDrawings } = useApp();
   const navigate = useNavigate();
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1');
   const [drawingFilter, setDrawingFilter] = useState('');
   const [hoveredDrawing, setHoveredDrawing] = useState<string | null>(null);
+  const [editingDrawing, setEditingDrawing] = useState<Drawing | null>(null);
 
   // Drag state
   const dragId = useRef<string | null>(null);
@@ -754,6 +756,20 @@ export default function Sidebar() {
 
                     {/* Action buttons — top-right on hover */}
                     <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all duration-150">
+                      {/* Edit button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingDrawing(d);
+                        }}
+                        title="Edit drawing"
+                        className="w-5 h-5 flex items-center justify-center rounded-md transition-all duration-150"
+                        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                      >
+                        <Pencil size={9} className="text-pink-100/80" />
+                      </button>
                       {/* Delete button */}
                       <button
                         onClick={async (e) => {
@@ -815,6 +831,14 @@ export default function Sidebar() {
           managers={managers}
           onClose={() => setShowProjectForm(false)}
           onSaved={(project) => { setShowProjectForm(false); upsertProject(project); }}
+        />
+      )}
+
+      {editingDrawing && (
+        <DrawingEditModal
+          drawing={editingDrawing}
+          onClose={() => setEditingDrawing(null)}
+          onSaved={async () => { setEditingDrawing(null); await refreshDrawings(); }}
         />
       )}
 

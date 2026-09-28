@@ -4,7 +4,6 @@ import {
   ChevronRight, Mail, Building2, CheckCircle2,
 } from 'lucide-react';
 import { useApp } from '../AppContext';
-import { signOutOfCatalyst } from '../utils/catalystAuth';
 
 // ─── Section Card ────────────────────────────────────────────────────────────
 function SectionCard({
@@ -205,16 +204,6 @@ export default function SettingsPage() {
           </span>
         </div>
       </div>
-
-      {/* ── Account ── */}
-      <SectionCard title="Account" icon={<Shield size={15} />}>
-        <SettingRow
-          label="Sign Out"
-          sub="End your session on this device"
-          danger
-          onClick={() => signOutOfCatalyst()}
-        />
-      </SectionCard>
 
       {/* ── Appearance ── */}
       <SectionCard title="Appearance" icon={<Palette size={15} />}>

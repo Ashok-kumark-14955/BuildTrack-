@@ -8,7 +8,6 @@ import TaskList from './pages/TaskList';
 import Projects from './pages/Projects';
 import ZohoProjectsPage from './pages/ZohoProjects';
 import SettingsPage from './pages/SettingsPage';
-import LoginPage from './pages/LoginPage';
 import { AppProvider } from './AppContext';
 import { useCatalystAuth } from './utils/catalystAuth';
 
@@ -33,15 +32,7 @@ function FullScreenMessage({ title, sub, spinner }: { title: string; sub?: strin
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { status, user } = useCatalystAuth();
-
-  if (status === 'checking') {
-    return <FullScreenMessage title="Loading BuildTrack…" spinner />;
-  }
-
-  if (status === 'unauthenticated') {
-    return <LoginPage />;
-  }
+  const { user } = useCatalystAuth();
 
   return (
     <AppProvider user={user}>
