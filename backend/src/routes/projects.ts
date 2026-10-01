@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import * as db from '../db';
+import { syncProjectUpsert, syncProjectDelete } from '../crmSync';
 
 const router = Router();
 
@@ -121,6 +122,7 @@ router.post('/', async (req, res, next) => {
     // briefly behind a just-completed INSERT, which previously made a successful create look
     // like it silently failed (the client saw an empty body and never showed the new project).
     res.status(201).json(created);
+    syncProjectUpsert(req, created).catch(() => {});
   } catch (err) { next(err); }
 });
 
@@ -137,6 +139,7 @@ router.put('/:id', async (req, res, next) => {
     );
     // Respond with the merged row directly rather than re-reading it — see the note in POST /.
     res.json(serialize(merged));
+    syncProjectUpsert(req, merged).catch(() => {});
   } catch (err) { next(err); }
 });
 
@@ -166,6 +169,7 @@ router.delete('/:id', async (req, res, next) => {
     }
     await db.run(req, 'DELETE FROM projects WHERE id = ?', [req.params.id]);
     res.status(204).end();
+    syncProjectDelete(req, req.params.id).catch(() => {});
   } catch (err) { next(err); }
 });
 

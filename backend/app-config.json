@@ -12,6 +12,7 @@
     "ZOHO_REFRESH_TOKEN": "1000.c9cfe70eaf4c57b587f2bb09455620ff.23ee499e8a53eccaed7c508524c06b52",
     "ZOHO_PORTAL_ID": "60082733574",
     "ZOHO_PROJECT_ID": "476111000000075843",
-    "ZOHO_TOKEN_ROTATOR_URL": "https://project-rainfall-60081725173.development.catalystserverless.in/server/zoho-token-rotator/"
+    "ZOHO_TOKEN_ROTATOR_URL": "https://project-rainfall-60081725173.development.catalystserverless.in/server/zoho-token-rotator/",
+    "CRM_WEBHOOK_SECRET": "Aqswde"
   }
 }

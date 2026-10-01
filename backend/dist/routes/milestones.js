@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const uuid_1 = require("uuid");
 const db = __importStar(require("../db"));
+const crmSync_1 = require("../crmSync");
 const router = (0, express_1.Router)();
 // List milestones — optionally filter by projectId
 router.get('/', async (req, res, next) => {
@@ -81,7 +82,9 @@ router.post('/', async (req, res, next) => {
         const now = new Date().toISOString();
         await db.run(req, `INSERT INTO milestones (id, projectId, name, description, dueDate, status, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [id, projectId, name, description || '', dueDate || '', status || 'Active', now, now]);
-        res.status(201).json(await db.get(req, 'SELECT * FROM milestones WHERE id = ?', [id]));
+        const created = await db.get(req, 'SELECT * FROM milestones WHERE id = ?', [id]);
+        res.status(201).json(created);
+        (0, crmSync_1.syncMilestoneUpsert)(req, created).catch(() => { });
     }
     catch (err) {
         next(err);
@@ -94,7 +97,9 @@ router.put('/:id', async (req, res, next) => {
             return res.status(404).json({ error: 'Not found' });
         const merged = { ...existing, ...req.body, updatedAt: new Date().toISOString() };
         await db.run(req, `UPDATE milestones SET name=?, description=?, dueDate=?, status=?, updatedAt=? WHERE id=?`, [merged.name, merged.description, merged.dueDate, merged.status, merged.updatedAt, req.params.id]);
-        res.json(await db.get(req, 'SELECT * FROM milestones WHERE id = ?', [req.params.id]));
+        const updated = await db.get(req, 'SELECT * FROM milestones WHERE id = ?', [req.params.id]);
+        res.json(updated);
+        (0, crmSync_1.syncMilestoneUpsert)(req, updated).catch(() => { });
     }
     catch (err) {
         next(err);
@@ -109,6 +114,7 @@ router.delete('/:id', async (req, res, next) => {
         await db.run(req, 'UPDATE tasks SET milestoneId = NULL WHERE milestoneId = ?', [req.params.id]);
         await db.run(req, 'DELETE FROM milestones WHERE id = ?', [req.params.id]);
         res.status(204).end();
+        (0, crmSync_1.syncMilestoneDelete)(req, req.params.id).catch(() => { });
     }
     catch (err) {
         next(err);

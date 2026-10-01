@@ -16,6 +16,7 @@ const geocode_1 = __importDefault(require("./routes/geocode"));
 const mcp_1 = __importDefault(require("./routes/mcp"));
 const zohoProjects_1 = __importDefault(require("./routes/zohoProjects"));
 const customModules_1 = __importDefault(require("./routes/customModules"));
+const crmWebhook_1 = __importDefault(require("./routes/crmWebhook"));
 const cliqReport_1 = require("./cliqReport");
 const app = (0, express_1.default)();
 const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
@@ -49,6 +50,7 @@ app.use('/api/geocode', geocode_1.default);
 app.use('/mcp', mcp_1.default);
 app.use('/api/zoho-projects', zohoProjects_1.default);
 app.use('/api/custom-modules', customModules_1.default);
+app.use('/api/crm-webhook', crmWebhook_1.default);
 // Manual Cliq report endpoint — called from the frontend's "Send Report to Cliq" button.
 // Body: { taskId: string }
 app.post('/api/cliq-report', async (req, res) => {

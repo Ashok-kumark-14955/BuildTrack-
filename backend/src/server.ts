@@ -11,6 +11,7 @@ import geocodeRouter from './routes/geocode';
 import mcpRouter from './routes/mcp';
 import zohoProjectsRouter from './routes/zohoProjects';
 import customModulesRouter from './routes/customModules';
+import crmWebhookRouter from './routes/crmWebhook';
 import { sendManualCliqReport } from './cliqReport';
 
 const app = express();
@@ -50,6 +51,7 @@ app.use('/api/geocode', geocodeRouter);
 app.use('/mcp', mcpRouter);
 app.use('/api/zoho-projects', zohoProjectsRouter);
 app.use('/api/custom-modules', customModulesRouter);
+app.use('/api/crm-webhook', crmWebhookRouter);
 
 // Manual Cliq report endpoint — called from the frontend's "Send Report to Cliq" button.
 // Body: { taskId: string }

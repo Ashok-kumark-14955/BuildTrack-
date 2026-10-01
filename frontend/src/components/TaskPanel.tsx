@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Trash2, Save, Plus, MessageSquare, Send, LayoutGrid, Minus, Flag, Camera, Image as ImageIcon, MapPin, Navigation, Crosshair, Pencil, Check, Users, HardHat } from 'lucide-react';
+import { X, Trash2, Save, Plus, MessageSquare, Send, LayoutGrid, Minus, Flag, Camera, Image as ImageIcon, MapPin, Navigation, Crosshair, Pencil, Check, Users, HardHat, Cloud, Droplets, Wind, Thermometer, CloudRain, Sun, CloudSun } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { TasksAPI, DrawingsAPI, GeocodeAPI, CustomModulesAPI } from '../api';
 import { fileToDataUrl, resolveFileUrl } from '../utils/imageStorage';
 import { useWeatherForecast } from '../utils/useWeatherForecast';
-import { getTaskWeatherRisk } from '../utils/weather';
+import { getTaskWeatherRisk, type DailyForecast } from '../utils/weather';
 import WeatherRiskBadge from './WeatherRiskBadge';
 import {
   CATEGORY_OPTIONS, CONSTRUCTION_STAGE_SUGGESTIONS, BEAM_STAGE_SUGGESTIONS, PRIORITY_OPTIONS, STATUS_COLORS, STATUS_OPTIONS,
@@ -265,18 +265,54 @@ export default function TaskPanel() {
   }, [currentDrawing?.lat, currentDrawing?.lng]);
 
   const useMyLocation = () => {
-    if (!navigator.geolocation) { toast.error('Geolocation is not supported by this browser'); return; }
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by this browser');
+      return;
+    }
     setLocatingMe(true);
+
+    const applyPosition = (pos: GeolocationPosition) => {
+      setLocLat(String(pos.coords.latitude));
+      setLocLng(String(pos.coords.longitude));
+      setLocatingMe(false);
+      toast.success('Location captured — click Save to store it');
+    };
+
+    const handleError = (err: GeolocationPositionError, fallback = false) => {
+      if (!fallback && err.code === err.TIMEOUT) {
+        // High-accuracy timed out — retry with low accuracy (faster, uses network/cell)
+        navigator.geolocation.getCurrentPosition(
+          applyPosition,
+          (err2) => {
+            setLocatingMe(false);
+            toast.error(getGeoErrorMessage(err2));
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+        );
+        return;
+      }
+      setLocatingMe(false);
+      toast.error(getGeoErrorMessage(err));
+    };
+
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocLat(String(pos.coords.latitude));
-        setLocLng(String(pos.coords.longitude));
-        setLocatingMe(false);
-        toast.success('Location captured — click Save to store it');
-      },
-      (err) => { setLocatingMe(false); toast.error('Could not get location: ' + err.message); },
-      { enableHighAccuracy: true, timeout: 10000 }
+      applyPosition,
+      (err) => handleError(err),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
+  };
+
+  const getGeoErrorMessage = (err: GeolocationPositionError): string => {
+    switch (err.code) {
+      case err.PERMISSION_DENIED:
+        return 'Location permission denied. Please allow location access in your browser settings.';
+      case err.POSITION_UNAVAILABLE:
+        return 'Location unavailable. Check that GPS/location services are enabled on your device.';
+      case err.TIMEOUT:
+        return 'Location request timed out. Try moving to an area with better signal.';
+      default:
+        return 'Could not get location. Please try again.';
+    }
   };
 
   const saveLocation = async () => {
@@ -812,6 +848,29 @@ export default function TaskPanel() {
               />
             </Field>
           </div>
+
+          {/* ── Weather Info ── */}
+          {forecast && forecast.length > 0 && (
+            <WeatherDetailPanel forecast={forecast} taskStartDate={form.startDate} taskDueDate={form.dueDate} />
+          )}
+          {!forecast && currentDrawing?.lat != null && (
+            <div
+              className="rounded-xl border p-3.5 flex items-center gap-2"
+              style={{ background: 'rgba(10,20,40,0.6)', borderColor: 'rgba(56,189,248,0.2)' }}
+            >
+              <Cloud size={13} className="text-sky-400 animate-pulse shrink-0" />
+              <span className="text-[11px] text-slate-400">Loading weather forecast…</span>
+            </div>
+          )}
+          {!currentDrawing?.lat && (
+            <div
+              className="rounded-xl border p-3 flex items-center gap-2"
+              style={{ background: 'rgba(10,20,40,0.4)', borderColor: 'rgba(56,189,248,0.15)' }}
+            >
+              <CloudSun size={13} className="text-slate-500 shrink-0" />
+              <span className="text-[11px] text-slate-500 italic">Set a site location above to see the weather forecast.</span>
+            </div>
+          )}
 
           {/* ── Site Location ── */}
           <div className="rounded-xl border border-rose-900/35 p-3.5 space-y-2.5" style={{ background: 'rgba(50,10,22,0.6)' }}>
@@ -1419,6 +1478,230 @@ function WorkerPicker({ availableWorkers, loadingWorkers, selected, onChange }: 
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── WeatherDetailPanel ────────────────────────────────────────────────────────
+/** Returns icon + label describing conditions for a forecast day */
+function weatherConditionLabel(day: DailyForecast): { label: string; iconColor: string; Icon: React.ComponentType<{ size?: number; className?: string }> } {
+  const rain = day.precipitationProbabilityMax ?? 0;
+  const wind = day.windSpeedMaxKmh ?? 0;
+  const mm = day.precipitationSumMm ?? 0;
+  if (rain >= 70 || mm >= 10) return { label: 'Heavy Rain', iconColor: '#f87171', Icon: CloudRain };
+  if (rain >= 40) return { label: 'Rainy', iconColor: '#7dd3fc', Icon: CloudRain };
+  if (wind >= 40) return { label: 'Stormy Winds', iconColor: '#f87171', Icon: Wind };
+  if (wind >= 25) return { label: 'Breezy', iconColor: '#fbbf24', Icon: Cloud };
+  return { label: 'Clear', iconColor: '#4ade80', Icon: Sun };
+}
+
+/**
+ * Detailed weather panel shown in the task edit form.
+ * Shows today's conditions + the 7-day outlook in a compact scrollable strip.
+ */
+function WeatherDetailPanel({
+  forecast,
+  taskStartDate,
+  taskDueDate,
+}: {
+  forecast: DailyForecast[];
+  taskStartDate: string;
+  taskDueDate: string;
+}) {
+  const today = forecast[0];
+  const next7 = forecast.slice(0, 7);
+
+  // Determine the most relevant forecast day for this task
+  const byDate = new Map(forecast.map((d) => [d.date, d]));
+  const todayKey = today.date;
+  let relevantDay: DailyForecast = today;
+  if (taskDueDate && byDate.has(taskDueDate)) relevantDay = byDate.get(taskDueDate)!;
+  else if (taskStartDate && taskDueDate && taskStartDate <= todayKey && todayKey <= taskDueDate) relevantDay = today;
+  else if (taskStartDate && byDate.has(taskStartDate)) relevantDay = byDate.get(taskStartDate)!;
+
+  const { label: condLabel, Icon: CondIcon } = weatherConditionLabel(relevantDay);
+
+  // Risk colour for highlighted day
+  const rain = relevantDay.precipitationProbabilityMax ?? 0;
+  const wind = relevantDay.windSpeedMaxKmh ?? 0;
+  const mm = relevantDay.precipitationSumMm ?? 0;
+  const riskLevel = (rain >= 70 || mm >= 10 || wind >= 40) ? 'high' : (rain >= 40 || wind >= 25) ? 'medium' : 'low';
+  const riskColors = {
+    high:   { border: 'rgba(248,113,113,0.35)', bg: 'rgba(220,38,38,0.1)',  accent: '#f87171' },
+    medium: { border: 'rgba(251,191,36,0.35)',  bg: 'rgba(217,119,6,0.1)',  accent: '#fbbf24' },
+    low:    { border: 'rgba(74,222,128,0.35)',  bg: 'rgba(22,163,74,0.1)',  accent: '#4ade80' },
+  };
+  const rc = riskColors[riskLevel];
+
+  // Format date nicely
+  const fmtDate = (d: string) => {
+    const dt = new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+  const fmtShort = (d: string) => {
+    const dt = new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+  };
+
+  // Gradient backgrounds per risk for the header area
+  const headerGradients = {
+    high:   'linear-gradient(135deg, rgba(127,29,29,0.9) 0%, rgba(69,10,10,0.95) 100%)',
+    medium: 'linear-gradient(135deg, rgba(92,45,0,0.9) 0%, rgba(45,20,0,0.95) 100%)',
+    low:    'linear-gradient(135deg, rgba(5,46,22,0.9) 0%, rgba(2,26,12,0.95) 100%)',
+  };
+  const cardGradients = {
+    high:   'linear-gradient(135deg, rgba(220,38,38,0.18) 0%, rgba(127,29,29,0.12) 100%)',
+    medium: 'linear-gradient(135deg, rgba(217,119,6,0.22) 0%, rgba(120,53,15,0.12) 100%)',
+    low:    'linear-gradient(135deg, rgba(22,163,74,0.18) 0%, rgba(5,46,22,0.1) 100%)',
+  };
+  const glowColors = {
+    high:   'rgba(239,68,68,0.4)',
+    medium: 'rgba(245,158,11,0.4)',
+    low:    'rgba(34,197,94,0.4)',
+  };
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{
+        background: 'rgba(2,8,20,0.97)',
+        border: `1px solid ${rc.border}`,
+        boxShadow: `0 0 14px ${glowColors[riskLevel]}`,
+      }}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-3 py-1.5"
+        style={{ background: headerGradients[riskLevel], borderBottom: `1px solid ${rc.border}` }}
+      >
+        <div className="flex items-center gap-1.5">
+          <span style={{ color: rc.accent }}><CondIcon size={11} /></span>
+          <span className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: rc.accent }}>
+            Site Weather
+          </span>
+          <span
+            className="text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase"
+            style={{ background: 'rgba(0,0,0,0.35)', color: rc.accent, border: `1px solid ${rc.border}` }}
+          >
+            {riskLevel === 'high' ? '⚠ Risk' : riskLevel === 'medium' ? '~ Watch' : '✓ Safe'}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] text-white/50">{fmtDate(relevantDay.date)}</span>
+          {relevantDay.date !== todayKey && (
+            <span className="text-[8px]" style={{ color: rc.accent }}>· task</span>
+          )}
+        </div>
+      </div>
+
+      {/* Main row: icon + stats + temp */}
+      <div
+        className="flex items-center gap-2.5 px-3 py-2"
+        style={{ background: cardGradients[riskLevel] }}
+      >
+        {/* Condition icon */}
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${rc.border}`, boxShadow: `0 0 8px ${glowColors[riskLevel]}` }}
+        >
+          <span style={{ color: rc.accent }}><CondIcon size={14} /></span>
+        </div>
+
+        {/* Condition + stat pills */}
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] font-black leading-none mb-1" style={{ color: rc.accent }}>{condLabel}</div>
+          <div className="flex flex-wrap gap-1">
+            {(relevantDay.tempMaxC != null || relevantDay.tempMinC != null) && (
+              <span className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                style={{ background: 'rgba(251,146,60,0.15)', border: '1px solid rgba(251,146,60,0.25)', color: '#fb923c' }}>
+                <Thermometer size={9} />
+                {relevantDay.tempMinC != null ? `${Math.round(relevantDay.tempMinC)}°` : '—'}/{relevantDay.tempMaxC != null ? `${Math.round(relevantDay.tempMaxC)}°` : '—'}
+              </span>
+            )}
+            {relevantDay.windSpeedMaxKmh != null && (
+              <span className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                style={{ background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.25)', color: '#60a5fa' }}>
+                <Wind size={9} />
+                {Math.round(relevantDay.windSpeedMaxKmh)} km/h
+              </span>
+            )}
+            {relevantDay.precipitationProbabilityMax != null && (
+              <span className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                style={{ background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.25)', color: '#38bdf8' }}>
+                <Droplets size={9} />
+                {relevantDay.precipitationProbabilityMax}%
+              </span>
+            )}
+            {relevantDay.precipitationSumMm != null && relevantDay.precipitationSumMm > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                style={{ background: 'rgba(129,140,248,0.15)', border: '1px solid rgba(129,140,248,0.25)', color: '#818cf8' }}>
+                <CloudRain size={9} />
+                {relevantDay.precipitationSumMm.toFixed(1)} mm
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Big temp */}
+        {relevantDay.tempMaxC != null && (
+          <div
+            className="flex flex-col items-center justify-center rounded-xl px-2 py-1.5 shrink-0"
+            style={{ background: 'rgba(0,0,0,0.4)', border: `1px solid ${rc.border}`, boxShadow: `0 0 10px ${glowColors[riskLevel]}` }}
+          >
+            <span
+              className="text-xl font-black leading-none"
+              style={{ background: `linear-gradient(180deg,#fff 0%,${rc.accent} 100%)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+            >
+              {Math.round(relevantDay.tempMaxC)}°
+            </span>
+            <span className="text-[7px] uppercase tracking-widest font-bold" style={{ color: rc.accent, opacity: 0.6 }}>max</span>
+          </div>
+        )}
+      </div>
+
+      {/* 7-day strip */}
+      <div className="px-2.5 pb-2" style={{ borderTop: `1px solid rgba(255,255,255,0.05)` }}>
+        <div className="text-[8px] font-extrabold text-white/20 uppercase tracking-widest mb-1 pt-1.5">7-Day Outlook</div>
+        <div className="flex gap-1 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+          {next7.map((day) => {
+            const r = day.precipitationProbabilityMax ?? 0;
+            const w = day.windSpeedMaxKmh ?? 0;
+            const isSelected = day.date === relevantDay.date;
+            const dayRisk = (r >= 70 || (day.precipitationSumMm ?? 0) >= 10 || w >= 40) ? 'high' : (r >= 40 || w >= 25) ? 'medium' : 'low';
+            const dotColor = dayRisk === 'high' ? '#f87171' : dayRisk === 'medium' ? '#fbbf24' : '#4ade80';
+            const dayBg = dayRisk === 'high' ? 'rgba(239,68,68,0.1)' : dayRisk === 'medium' ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.06)';
+            const dayBorder = dayRisk === 'high' ? 'rgba(239,68,68,0.3)' : dayRisk === 'medium' ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.2)';
+            const { Icon: DayIcon } = weatherConditionLabel(day);
+            return (
+              <div
+                key={day.date}
+                className="flex-shrink-0 flex flex-col items-center gap-0.5 rounded-lg px-1.5 py-1"
+                style={{
+                  minWidth: 38,
+                  background: isSelected ? `linear-gradient(135deg,${rc.bg},rgba(56,189,248,0.08))` : dayBg,
+                  border: `1px solid ${isSelected ? rc.border : dayBorder}`,
+                  boxShadow: isSelected ? `0 0 6px ${glowColors[riskLevel]}` : 'none',
+                }}
+              >
+                <span className="text-[7px] font-bold uppercase" style={{ color: isSelected ? rc.accent : 'rgba(255,255,255,0.3)' }}>
+                  {fmtShort(day.date)}
+                </span>
+                <span style={{ color: dotColor }}><DayIcon size={11} /></span>
+                {day.tempMaxC != null && (
+                  <span className="text-[9px] font-extrabold leading-none" style={{ color: isSelected ? '#fff' : 'rgba(255,255,255,0.7)' }}>
+                    {Math.round(day.tempMaxC)}°
+                  </span>
+                )}
+                {day.precipitationProbabilityMax != null && day.precipitationProbabilityMax > 0 && (
+                  <span className="text-[7px] font-bold leading-none" style={{ color: dotColor, opacity: 0.85 }}>
+                    {day.precipitationProbabilityMax}%
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

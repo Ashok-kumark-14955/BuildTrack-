@@ -42,6 +42,7 @@ const uuid_1 = require("uuid");
 const db = __importStar(require("../db"));
 const cliqReport_1 = require("../cliqReport");
 const stratus_1 = require("../db/stratus");
+const crmSync_1 = require("../crmSync");
 const router = (0, express_1.Router)();
 // Use memory storage so photo comments are stored as base64 data URLs in the DB.
 // This avoids any dependency on the ephemeral AppSail disk (same approach as drawings).
@@ -101,7 +102,9 @@ router.post('/', async (req, res, next) => {
             assignedTo || '', startDate || '', dueDate || '', status || 'Assigned', progress || 0,
             elementType || 'column', resolvedElementId, now, now]);
         await logActivity(req, `Task "${name}" created on ${resolvedElementId}`, id, drawingId);
-        res.status(201).json(serialize(await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [id])));
+        const created = await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [id]);
+        res.status(201).json(serialize(created));
+        (0, crmSync_1.syncTaskUpsert)(req, created).catch(() => { });
     }
     catch (err) {
         next(err);
@@ -135,7 +138,9 @@ router.put('/:id', async (req, res, next) => {
         else {
             await logActivity(req, `Task "${merged.name}" updated`, req.params.id, existing.drawingId);
         }
-        res.json(serialize(await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [req.params.id])));
+        const updated = await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [req.params.id]);
+        res.json(serialize(updated));
+        (0, crmSync_1.syncTaskUpsert)(req, updated).catch(() => { });
     }
     catch (err) {
         next(err);
@@ -149,6 +154,7 @@ router.delete('/:id', async (req, res, next) => {
         await db.run(req, 'DELETE FROM tasks WHERE id = ?', [req.params.id]);
         await logActivity(req, `Task "${existing.name}" deleted`, undefined, existing.drawingId);
         res.status(204).end();
+        (0, crmSync_1.syncTaskDelete)(req, req.params.id).catch(() => { });
     }
     catch (err) {
         next(err);

@@ -4,6 +4,7 @@ import { v4 as uuid } from 'uuid';
 import * as db from '../db';
 import { reportTaskCompletion } from '../cliqReport';
 import { uploadFile, getSignedUrl, isStratusEnabled } from '../db/stratus';
+import { syncTaskUpsert, syncTaskDelete } from '../crmSync';
 
 const router = Router();
 
@@ -74,7 +75,9 @@ router.post('/', async (req, res, next) => {
         elementType || 'column', resolvedElementId, now, now]
     );
     await logActivity(req, `Task "${name}" created on ${resolvedElementId}`, id, drawingId);
-    res.status(201).json(serialize(await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [id])));
+    const created = await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [id]);
+    res.status(201).json(serialize(created));
+    syncTaskUpsert(req, created).catch(() => {});
   } catch (err) { next(err); }
 });
 
@@ -108,7 +111,9 @@ router.put('/:id', async (req, res, next) => {
     } else {
       await logActivity(req, `Task "${merged.name}" updated`, req.params.id, existing.drawingId);
     }
-    res.json(serialize(await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [req.params.id])));
+    const updated = await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [req.params.id]);
+    res.json(serialize(updated));
+    syncTaskUpsert(req, updated).catch(() => {});
   } catch (err) { next(err); }
 });
 
@@ -119,6 +124,7 @@ router.delete('/:id', async (req, res, next) => {
     await db.run(req, 'DELETE FROM tasks WHERE id = ?', [req.params.id]);
     await logActivity(req, `Task "${existing.name}" deleted`, undefined, existing.drawingId);
     res.status(204).end();
+    syncTaskDelete(req, req.params.id).catch(() => {});
   } catch (err) { next(err); }
 });
 

@@ -111,17 +111,52 @@ export default function TaskList() {
   const [locatingMe, setLocatingMe] = useState(false);
 
   const useMyLocation = () => {
-    if (!navigator.geolocation) { toast.error('Geolocation is not supported by this browser'); return; }
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by this browser');
+      return;
+    }
     setLocatingMe(true);
+
+    const applyPosition = (pos: GeolocationPosition) => {
+      setLocLat(String(pos.coords.latitude));
+      setLocLng(String(pos.coords.longitude));
+      setLocatingMe(false);
+      toast.success('Location captured — click Save to store it');
+    };
+
+    const geoErrorMessage = (err: GeolocationPositionError): string => {
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          return 'Location permission denied. Please allow location access in your browser settings.';
+        case err.POSITION_UNAVAILABLE:
+          return 'Location unavailable. Check that GPS/location services are enabled on your device.';
+        case err.TIMEOUT:
+          return 'Location request timed out. Try moving to an area with better signal.';
+        default:
+          return 'Could not get location. Please try again.';
+      }
+    };
+
+    // First try high-accuracy (GPS); on timeout, fall back to network/cell location
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocLat(String(pos.coords.latitude));
-        setLocLng(String(pos.coords.longitude));
-        setLocatingMe(false);
-        toast.success('Location captured — click Save to store it');
+      applyPosition,
+      (err) => {
+        if (err.code === err.TIMEOUT) {
+          // Retry with lower accuracy — much faster, uses WiFi/cell towers
+          navigator.geolocation.getCurrentPosition(
+            applyPosition,
+            (err2) => {
+              setLocatingMe(false);
+              toast.error(geoErrorMessage(err2));
+            },
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+          );
+        } else {
+          setLocatingMe(false);
+          toast.error(geoErrorMessage(err));
+        }
       },
-      (err) => { setLocatingMe(false); toast.error('Could not get location: ' + err.message); },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
   };
 

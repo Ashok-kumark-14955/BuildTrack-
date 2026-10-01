@@ -37,6 +37,7 @@ exports.projectStats = projectStats;
 const express_1 = require("express");
 const uuid_1 = require("uuid");
 const db = __importStar(require("../db"));
+const crmSync_1 = require("../crmSync");
 const router = (0, express_1.Router)();
 const SORT_COLUMNS = {
     name: 'name',
@@ -146,6 +147,7 @@ router.post('/', async (req, res, next) => {
         // briefly behind a just-completed INSERT, which previously made a successful create look
         // like it silently failed (the client saw an empty body and never showed the new project).
         res.status(201).json(created);
+        (0, crmSync_1.syncProjectUpsert)(req, created).catch(() => { });
     }
     catch (err) {
         next(err);
@@ -162,6 +164,7 @@ router.put('/:id', async (req, res, next) => {
         await db.run(req, `UPDATE projects SET name=?, code=?, description=?, startDate=?, endDate=?, status=?, managerName=?, updatedAt=? WHERE id=?`, [merged.name, merged.code || '', merged.description || '', merged.startDate || '', merged.endDate || '', merged.status || 'Planning', merged.managerName || '', merged.updatedAt, req.params.id]);
         // Respond with the merged row directly rather than re-reading it — see the note in POST /.
         res.json(serialize(merged));
+        (0, crmSync_1.syncProjectUpsert)(req, merged).catch(() => { });
     }
     catch (err) {
         next(err);
@@ -197,6 +200,7 @@ router.delete('/:id', async (req, res, next) => {
         }
         await db.run(req, 'DELETE FROM projects WHERE id = ?', [req.params.id]);
         res.status(204).end();
+        (0, crmSync_1.syncProjectDelete)(req, req.params.id).catch(() => { });
     }
     catch (err) {
         next(err);

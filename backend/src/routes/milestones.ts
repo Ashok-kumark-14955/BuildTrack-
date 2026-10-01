@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import * as db from '../db';
+import { syncMilestoneUpsert, syncMilestoneDelete } from '../crmSync';
 
 const router = Router();
 
@@ -45,7 +46,9 @@ router.post('/', async (req, res, next) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, projectId, name, description || '', dueDate || '', status || 'Active', now, now]
     );
-    res.status(201).json(await db.get(req, 'SELECT * FROM milestones WHERE id = ?', [id]));
+    const created = await db.get(req, 'SELECT * FROM milestones WHERE id = ?', [id]);
+    res.status(201).json(created);
+    syncMilestoneUpsert(req, created).catch(() => {});
   } catch (err) { next(err); }
 });
 
@@ -59,7 +62,9 @@ router.put('/:id', async (req, res, next) => {
       `UPDATE milestones SET name=?, description=?, dueDate=?, status=?, updatedAt=? WHERE id=?`,
       [merged.name, merged.description, merged.dueDate, merged.status, merged.updatedAt, req.params.id]
     );
-    res.json(await db.get(req, 'SELECT * FROM milestones WHERE id = ?', [req.params.id]));
+    const updated = await db.get(req, 'SELECT * FROM milestones WHERE id = ?', [req.params.id]);
+    res.json(updated);
+    syncMilestoneUpsert(req, updated).catch(() => {});
   } catch (err) { next(err); }
 });
 
@@ -71,6 +76,7 @@ router.delete('/:id', async (req, res, next) => {
     await db.run(req, 'UPDATE tasks SET milestoneId = NULL WHERE milestoneId = ?', [req.params.id]);
     await db.run(req, 'DELETE FROM milestones WHERE id = ?', [req.params.id]);
     res.status(204).end();
+    syncMilestoneDelete(req, req.params.id).catch(() => {});
   } catch (err) { next(err); }
 });
 

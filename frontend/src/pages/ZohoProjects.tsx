@@ -80,7 +80,7 @@ const FIELD_TYPE_LABELS: Record<FieldType, string> = {
 // Values that represent an "attention" state — get a small pulsing dot in the Status column.
 const BADGE_ALERT_VALUES = new Set(['Denied', 'Blocked', 'Rejected', 'Expired', 'Terminated', 'Flagged', 'Delayed']);
 // Values that represent an active/positive state — get a solid (non-pulsing) dot.
-const BADGE_ACTIVE_VALUES = new Set(['On Site', 'Active', 'Approved', 'Checked In', 'Valid', 'Done', 'Completed']);
+const BADGE_ACTIVE_VALUES = new Set(['On Site', 'Active', 'Approved', 'Checked In', 'Valid', 'Done', 'Completed', 'Exited']);
 // Values that are informational/neutral-but-notable — a calmer amber accent.
 const BADGE_CAUTION_VALUES = new Set(['Pending', 'On Leave', 'Review']);
 // Values with specific fixed accent colors — checked before the generic sets.
@@ -2274,12 +2274,13 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
       <div
         className="flex items-center sticky top-0 z-20 px-6 py-0.5 gap-3 flex-wrap"
         style={{
-          background: 'linear-gradient(180deg, #110204 0%, #0d0101 100%)',
-          borderBottom: '1px solid rgba(220,38,90,0.15)',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-          marginLeft: '-48px',
-          marginRight: '-48px',
-          marginBottom: '6px',
+          background: 'linear-gradient(135deg, rgba(190,24,93,0.55) 0%, rgba(100,5,25,0.45) 25%, rgba(14,2,6,0.97) 60%, rgba(9,0,3,0.99) 100%)',
+          borderBottom: '1px solid rgba(190,24,93,0.25)',
+          boxShadow: '0 1px 0 rgba(190,24,93,0.12), 0 4px 24px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)',
+          marginLeft: '-56px',
+          marginRight: '-56px',
+          marginTop: '-2px',
+          marginBottom: '4px',
         }}
       >
         {/* Bulk delete — floats outside the pill so it's always visible */}
@@ -2400,12 +2401,20 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
           return (() => {
 
             const total = records.length;
-            // Same colour function the table's StatusBadge/row-rail use, so ring colours always match the badges.
-            const statusCounts = (statusField?.options ?? []).map((opt) => ({
-              label: opt,
-              value: statusField ? records.filter((r) => r.data[statusField.id] === opt).length : 0,
-              color: statusAccentColor(opt) ?? '#64748b',
-            }));
+            // Colour resolution: MUST match renderCellValue exactly so ring arcs
+            // show the same colour as the badge chips in the table rows.
+            // renderCellValue logic: customHex → defaultOptionColor(optionIdx) → StatusBadge
+            // (it never calls statusAccentColor when optionIdx >= 0)
+            const statusCounts = (statusField?.options ?? []).map((opt, optIdx) => {
+              const customHex = statusField?.optionColors?.[opt];
+              // Exact same resolution order as renderCellValue:
+              const color = customHex ?? defaultOptionColor(optIdx);
+              return {
+                label: opt,
+                value: statusField ? records.filter((r) => r.data[statusField.id] === opt).length : 0,
+                color,
+              };
+            });
 
             // Mini ring SVG component (inline) — colored dot badge sits above the ring, like a status marker
             const MiniRing = ({ value, color, size = 32 }: { value: number; color: string; size?: number }) => {
@@ -2416,7 +2425,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
               return (
                 <div className="relative" style={{ width: size, height: size }}>
                   <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
-                    <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(51,65,85,0.5)" strokeWidth={sw} />
+                    <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(120,20,50,0.45)" strokeWidth={sw} />
                     <circle cx={cx} cy={cy} r={R} fill="none" stroke={color} strokeWidth={sw}
                       strokeDasharray={`${arcLen} ${circ - arcLen}`}
                       strokeDashoffset={circ * 0.25}
@@ -2490,7 +2499,7 @@ function ModuleTable({ projectId, module, onModuleUpdated, onModuleDeleted, onRe
                         stroke="rgba(100,116,139,0.4)" strokeWidth={1} strokeLinecap="round" />
                     ))}
                     {/* Track ring */}
-                    <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(30,41,59,0.9)" strokeWidth={sw} />
+                    <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(100,15,35,0.75)" strokeWidth={sw} />
                     {/* Coloured segments */}
                     {segs.map((seg, i) => {
                       const arcLen = Math.max(0, (seg.value / total) * circ - gap);
@@ -3248,7 +3257,7 @@ export default function CustomModulesPage() {
       </div>
 
       {/* ── Main content area ── */}
-      <main className="flex-1 overflow-auto px-7 pb-7 pt-5">
+      <main className="flex-1 overflow-auto px-7 pb-7 pt-0">
         {loading ? (
           <div className="flex items-center justify-center h-full text-slate-500">Loading modules…</div>
         ) : modules.length === 0 ? (
