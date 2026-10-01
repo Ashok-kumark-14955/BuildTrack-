@@ -2054,9 +2054,9 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
             color: highContrast ? '#bae6fd' : '#cbd5e1',
             border: '1px solid rgba(148,163,184,0.2)',
           }}
-          title={highContrast ? 'Disable high contrast mode' : 'Enable high contrast mode'}
+          title={highContrast ? 'Switch to day mode' : 'Switch to night mode'}
         >
-          {highContrast ? 'High Contrast On' : 'High Contrast Off'}
+          {highContrast ? 'Night Mode' : 'Day Mode'}
         </button>
       </div>
 
