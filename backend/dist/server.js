@@ -18,6 +18,7 @@ const zohoProjects_1 = __importDefault(require("./routes/zohoProjects"));
 const customModules_1 = __importDefault(require("./routes/customModules"));
 const crmWebhook_1 = __importDefault(require("./routes/crmWebhook"));
 const cliqReport_1 = require("./cliqReport");
+const crmSync_1 = require("./crmSync");
 const app = (0, express_1.default)();
 const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
 // Data is persisted in Zoho Catalyst Data Store (seeded ahead of time via
@@ -679,4 +680,13 @@ app.listen(PORT, () => {
     console.log(`Backend running on http://localhost:${PORT}`);
     // Run migrations after server starts to ensure DataStore has required columns
     runMigrations().catch((err) => console.warn('[migration] startup error:', err?.message || err));
+    // Zoho CRM can't fire a webhook on record deletion, so periodically poll for
+    // Task_list records that have disappeared from CRM and delete their
+    // BuildTrack counterpart. Production-only — local dev has no CRM connection.
+    if (process.env.X_ZOHO_CATALYST_LISTEN_PORT) {
+        const RECONCILE_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+        setInterval(() => {
+            (0, crmSync_1.reconcileCrmTaskDeletes)({}).catch((err) => console.warn('[crmSync] reconcile interval error:', err?.message || err));
+        }, RECONCILE_INTERVAL_MS);
+    }
 });
