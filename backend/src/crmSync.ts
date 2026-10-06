@@ -1,10 +1,17 @@
 /**
  * crmSync.ts
  *
- * One-way BuildTrack → Zoho CRM sync for projects, milestones, and tasks.
+ * Two-way BuildTrack <-> Zoho CRM sync for projects, milestones, and tasks.
  * Uses the Catalyst Connection "Ashokprimehome" (OAuth to Zoho CRM) to call
  * the CRM REST API, and the `crm_sync_map` DataStore table to track
  * buildtrack_id <-> crm_id pairs per entity type.
+ *
+ * Both BuildTrack task types — Drawing Grid Tasks (`tasks` table, entity
+ * type "task") and standalone Project Tasks (`project_tasks` table, entity
+ * type "projectTask") — sync to/from the same CRM "Task_list" module. They
+ * share the module but never share a `crm_sync_map` row (entity_type keeps
+ * them distinct even though their buildtrack_id UUIDs could theoretically
+ * collide with a different table's id).
  *
  * Sync failures are logged but never thrown — a CRM outage must not break
  * the app's own create/update/delete flows.
@@ -21,6 +28,7 @@ const MODULE = {
   project: 'Ashok_Prime_Home_Projects',
   milestone: 'Milestones',
   task: 'Task_list',
+  projectTask: 'Task_list',
 } as const;
 
 type EntityType = keyof typeof MODULE;
@@ -154,22 +162,35 @@ export async function syncMilestoneDelete(req: Request, milestoneId: string): Pr
   }
 }
 
+// ---------------------------------------------------------------------------
+// Drawing Grid Tasks (`tasks` table) <-> CRM Task_list
+// ---------------------------------------------------------------------------
+
 export async function syncTaskUpsert(req: Request, task: any): Promise<void> {
   try {
-    // Tasks without a milestone have nothing to link to in CRM — skip.
-    if (!task.milestoneId) return;
     const crmId = await getCrmId(req, 'task', task.id);
-    const milestoneCrmId = await getCrmId(req, 'milestone', task.milestoneId);
-    if (!milestoneCrmId) return;
     const data: Record<string, any> = {
       Name: task.name,
-      // NOTE: the Task_list module's lookup field to Milestones is "MIleStone"
-      // (unusual casing baked into the CRM schema) — do NOT rename to "Milestone".
-      MIleStone: { id: milestoneCrmId },
+      Description: task.description || '',
+      Category: task.category || '',
+      Staart: task.startDate || null,
+      Date_2: task.dueDate || null,
+      Status: task.status || '',
+      Priority: task.priorityLevel ?? task.priority ?? '',
+      Progress: task.progress ?? 0,
+      Assignee_Name: task.assignedTo || '',
     };
-    const milestone = await db.get(req, 'SELECT projectId FROM milestones WHERE id = ?', [task.milestoneId]);
-    const projectCrmId = milestone?.projectId ? await getCrmId(req, 'project', milestone.projectId) : null;
-    if (projectCrmId) data.Project = { id: projectCrmId };
+    if (task.milestoneId) {
+      const milestoneCrmId = await getCrmId(req, 'milestone', task.milestoneId);
+      if (milestoneCrmId) {
+        // NOTE: the Task_list module's lookup field to Milestones is "MIleStone"
+        // (unusual casing baked into the CRM schema) — do NOT rename to "Milestone".
+        data.MIleStone = { id: milestoneCrmId };
+        const milestone = await db.get(req, 'SELECT projectId FROM milestones WHERE id = ?', [task.milestoneId]);
+        const projectCrmId = milestone?.projectId ? await getCrmId(req, 'project', milestone.projectId) : null;
+        if (projectCrmId) data.Project = { id: projectCrmId };
+      }
+    }
     if (crmId) {
       await crmUpdate(req, 'task', crmId, data);
     } else {
@@ -189,5 +210,107 @@ export async function syncTaskDelete(req: Request, taskId: string): Promise<void
     await deleteMapping(req, 'task', taskId);
   } catch (err) {
     console.error('[crmSync] task delete failed', taskId, err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Project Tasks (`project_tasks` table) <-> CRM Task_list
+// ---------------------------------------------------------------------------
+
+export async function syncProjectTaskUpsert(req: Request, task: any): Promise<void> {
+  try {
+    const crmId = await getCrmId(req, 'projectTask', task.id);
+    const data: Record<string, any> = {
+      Name: task.name,
+      Description: task.description || '',
+      Date_2: task.dueDate || null,
+      Status: task.status || '',
+      Priority: task.priorityLevel ?? task.priority ?? '',
+      Assignee_Name: task.assignee || '',
+    };
+    const projectCrmId = task.projectId ? await getCrmId(req, 'project', task.projectId) : null;
+    if (projectCrmId) data.Project = { id: projectCrmId };
+    if (task.milestoneId) {
+      const milestoneCrmId = await getCrmId(req, 'milestone', task.milestoneId);
+      if (milestoneCrmId) data.MIleStone = { id: milestoneCrmId };
+    }
+    if (crmId) {
+      await crmUpdate(req, 'projectTask', crmId, data);
+    } else {
+      const newId = await crmCreate(req, 'projectTask', data);
+      if (newId) await saveMapping(req, 'projectTask', task.id, newId);
+    }
+  } catch (err) {
+    console.error('[crmSync] project task upsert failed', task.id, err);
+  }
+}
+
+export async function syncProjectTaskDelete(req: Request, taskId: string): Promise<void> {
+  try {
+    const crmId = await getCrmId(req, 'projectTask', taskId);
+    if (!crmId) return;
+    await crmDelete(req, 'projectTask', crmId);
+    await deleteMapping(req, 'projectTask', taskId);
+  } catch (err) {
+    console.error('[crmSync] project task delete failed', taskId, err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reconciliation: catch CRM-side deletes.
+//
+// Zoho CRM workflow rules cannot fire a webhook on record deletion, so a
+// task deleted directly in CRM never reaches crmWebhook.ts. Instead this
+// periodically lists every live Task_list record id and deletes the
+// BuildTrack counterpart of any mapped crm_id that's gone missing.
+//
+// Writes go straight through db.run (not the route handlers) so they don't
+// re-trigger syncTaskDelete/syncProjectTaskDelete and bounce back to CRM.
+// ---------------------------------------------------------------------------
+
+async function fetchAllCrmTaskIds(req: Request): Promise<Set<string>> {
+  const ids = new Set<string>();
+  let page = 1;
+  while (true) {
+    const body = await crmRequest(
+      req, 'GET',
+      `/${MODULE.task}?fields=id&per_page=200&page=${page}`
+    ).catch((err: any) => {
+      // CRM returns a 204/"no content" style error once pages run out.
+      if (String(err?.message || '').includes('HTTP 204')) return null;
+      throw err;
+    });
+    const records: any[] = body?.data || [];
+    for (const r of records) if (r?.id) ids.add(String(r.id));
+    if (records.length < 200) break;
+    page += 1;
+  }
+  return ids;
+}
+
+export async function reconcileCrmTaskDeletes(req: Request): Promise<void> {
+  try {
+    const liveCrmIds = await fetchAllCrmTaskIds(req);
+    const mapped = await db.all(
+      req,
+      `SELECT entity_type, buildtrack_id, crm_id FROM crm_sync_map WHERE entity_type IN ('task', 'projectTask')`
+    );
+    for (const row of mapped) {
+      if (liveCrmIds.has(String(row.crm_id))) continue;
+      const entityType = row.entity_type as 'task' | 'projectTask';
+      const table = entityType === 'task' ? 'tasks' : 'project_tasks';
+      try {
+        const existing = await db.get(req, `SELECT * FROM ${table} WHERE id = ?`, [row.buildtrack_id]);
+        if (existing) {
+          await db.run(req, `DELETE FROM ${table} WHERE id = ?`, [row.buildtrack_id]);
+          console.log(`[crmSync] reconcile: deleted ${entityType} ${row.buildtrack_id} (CRM record ${row.crm_id} no longer exists)`);
+        }
+        await deleteMapping(req, entityType, row.buildtrack_id);
+      } catch (err) {
+        console.error('[crmSync] reconcile delete failed for', entityType, row.buildtrack_id, err);
+      }
+    }
+  } catch (err) {
+    console.error('[crmSync] reconcile pass failed', err);
   }
 }

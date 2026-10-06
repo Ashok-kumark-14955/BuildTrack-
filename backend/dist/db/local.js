@@ -179,6 +179,16 @@ CREATE TABLE IF NOT EXISTS custom_records (
   updatedAt TEXT NOT NULL,
   FOREIGN KEY (moduleId) REFERENCES custom_modules(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS crm_sync_map (
+  entity_type TEXT NOT NULL,
+  buildtrack_id TEXT NOT NULL,
+  crm_id TEXT NOT NULL,
+  last_synced_at TEXT,
+  sync_direction TEXT,
+  PRIMARY KEY (entity_type, buildtrack_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_sync_map_crmid ON crm_sync_map(entity_type, crm_id);
 `);
 ignoreExistingColumn('ALTER TABLE tasks ADD COLUMN milestoneId TEXT REFERENCES milestones(id) ON DELETE SET NULL');
 ignoreExistingColumn('ALTER TABLE drawings ADD COLUMN milestoneId TEXT REFERENCES milestones(id) ON DELETE SET NULL');

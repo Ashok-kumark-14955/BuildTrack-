@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import * as db from '../db';
 import { reportTaskCompletion } from '../cliqReport';
+import { syncProjectTaskUpsert, syncProjectTaskDelete } from '../crmSync';
 
 const router = Router();
 
@@ -105,6 +106,7 @@ router.post('/', async (req, res) => {
   }
   const inserted = await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [id]);
   res.status(201).json(serialize(inserted));
+  syncProjectTaskUpsert(req, inserted).catch(() => {});
 });
 
 router.put('/:id', async (req, res) => {
@@ -135,7 +137,9 @@ router.put('/:id', async (req, res) => {
       priority: merged.priority ?? existing.priorityLevel,
     });
   }
-  res.json(serialize(await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [req.params.id])));
+  const updated = await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [req.params.id]);
+  res.json(serialize(updated));
+  syncProjectTaskUpsert(req, updated).catch(() => {});
 });
 
 router.delete('/:id', async (req, res) => {
@@ -143,6 +147,7 @@ router.delete('/:id', async (req, res) => {
   if (!existing) return res.status(404).json({ error: 'Not found' });
   await db.run(req, 'DELETE FROM project_tasks WHERE id = ?', [req.params.id]);
   res.status(204).end();
+  syncProjectTaskDelete(req, req.params.id).catch(() => {});
 });
 
 // Comments

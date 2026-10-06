@@ -1432,7 +1432,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               backgroundSize: '20px 20px, 20px 20px, 100px 100px, 100px 100px',
             }
           : {
-              backgroundColor: '#000000',
+              backgroundColor: highContrast ? '#000000' : '#f8fafc',
             }
       }
       // Re-focus the canvas container when the mouse enters so that scroll

@@ -37,6 +37,7 @@ const express_1 = require("express");
 const uuid_1 = require("uuid");
 const db = __importStar(require("../db"));
 const cliqReport_1 = require("../cliqReport");
+const crmSync_1 = require("../crmSync");
 const router = (0, express_1.Router)();
 const SORT_COLUMNS = {
     dueDate: 'dueDate',
@@ -152,6 +153,7 @@ router.post('/', async (req, res) => {
     }
     const inserted = await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [id]);
     res.status(201).json(serialize(inserted));
+    (0, crmSync_1.syncProjectTaskUpsert)(req, inserted).catch(() => { });
 });
 router.put('/:id', async (req, res) => {
     const existing = await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [req.params.id]);
@@ -179,7 +181,9 @@ router.put('/:id', async (req, res) => {
             priority: merged.priority ?? existing.priorityLevel,
         });
     }
-    res.json(serialize(await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [req.params.id])));
+    const updated = await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [req.params.id]);
+    res.json(serialize(updated));
+    (0, crmSync_1.syncProjectTaskUpsert)(req, updated).catch(() => { });
 });
 router.delete('/:id', async (req, res) => {
     const existing = await db.get(req, 'SELECT * FROM project_tasks WHERE id = ?', [req.params.id]);
@@ -187,6 +191,7 @@ router.delete('/:id', async (req, res) => {
         return res.status(404).json({ error: 'Not found' });
     await db.run(req, 'DELETE FROM project_tasks WHERE id = ?', [req.params.id]);
     res.status(204).end();
+    (0, crmSync_1.syncProjectTaskDelete)(req, req.params.id).catch(() => { });
 });
 // Comments
 router.get('/:id/comments', async (req, res) => {
