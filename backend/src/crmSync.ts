@@ -21,7 +21,7 @@ import catalyst from 'zcatalyst-sdk-node';
 import type { Request } from 'express';
 import * as db from './db';
 
-const CONNECTION_NAME = 'Ashokprimehome';
+const CONNECTION_NAME = 'ashokprimehome';
 const CRM_API_BASE = 'https://www.zohoapis.in/crm/v8';
 
 const MODULE = {
@@ -58,9 +58,14 @@ async function getCrmId(req: Request, entityType: EntityType, buildtrackId: stri
   return row?.crm_id ?? null;
 }
 
+/** Format a Date as "yyyy-MM-dd HH:mm:ss" — the format ZCQL expects for DATETIME columns (ISO 8601 with 'T'/'Z' is rejected). */
+function zcqlDatetime(d: Date = new Date()): string {
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 async function saveMapping(req: Request, entityType: EntityType, buildtrackId: string, crmId: string): Promise<void> {
   const existing = await getCrmId(req, entityType, buildtrackId);
-  const now = new Date().toISOString();
+  const now = zcqlDatetime();
   if (existing) {
     await db.run(
       req,
@@ -202,6 +207,40 @@ export async function syncTaskUpsert(req: Request, task: any): Promise<void> {
     }
   } catch (err) {
     console.error('[crmSync] task upsert failed', task.id, err);
+  }
+}
+
+// TEMP Debug: same as syncTaskUpsert but rethrows instead of swallowing errors.
+// Remove once CRM sync is confirmed working end-to-end.
+export async function syncTaskUpsertDebug(req: Request, task: any): Promise<any> {
+  const crmId = await getCrmId(req, 'task', task.id);
+  const data: Record<string, any> = {
+    Name: task.name,
+    Description: task.description || '',
+    Category: task.category || '',
+    Staart: task.startDate || null,
+    Date_2: task.dueDate || null,
+    Status: task.status || '',
+    Priority: task.priorityLevel ?? task.priority ?? '',
+    Progress: task.progress ?? 0,
+    Assignee_Name: task.assignedTo || '',
+  };
+  const drawing = task.drawingId
+    ? await db.get(req, 'SELECT projectId FROM drawings WHERE id = ?', [task.drawingId])
+    : null;
+  const projectCrmId = drawing?.projectId ? await getCrmId(req, 'project', drawing.projectId) : null;
+  if (projectCrmId) data.Project = { id: projectCrmId };
+  if (task.milestoneId) {
+    const milestoneCrmId = await getCrmId(req, 'milestone', task.milestoneId);
+    if (milestoneCrmId) data.MIleStone = { id: milestoneCrmId };
+  }
+  if (crmId) {
+    await crmUpdate(req, 'task', crmId, data);
+    return { action: 'update', crmId, data };
+  } else {
+    const newId = await crmCreate(req, 'task', data);
+    if (newId) await saveMapping(req, 'task', task.id, newId);
+    return { action: 'create', newId, data };
   }
 }
 

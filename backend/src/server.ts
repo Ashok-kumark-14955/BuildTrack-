@@ -14,6 +14,7 @@ import customModulesRouter from './routes/customModules';
 import crmWebhookRouter from './routes/crmWebhook';
 import { sendManualCliqReport } from './cliqReport';
 import { reconcileCrmTaskDeletes } from './crmSync';
+import * as db from './db';
 
 const app = express();
 const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
@@ -234,7 +235,7 @@ app.get('/api/debug-crm-connection', async (req, res) => {
   try {
     const catalyst = require('zcatalyst-sdk-node');
     const appInst = catalyst.initialize(req as any, { scope: 'admin' });
-    const { headers } = await appInst.connections().getConnectionCredentials('Ashokprimehome');
+    const { headers } = await appInst.connections().getConnectionCredentials('ashokprimehome');
     out.gotCredentials = true;
     out.headerKeys = Object.keys(headers || {});
     const createRes = await fetch('https://www.zohoapis.in/crm/v8/Task_list', {
@@ -248,6 +249,78 @@ app.get('/api/debug-crm-connection', async (req, res) => {
     out.error = err?.message || String(err);
   }
   res.json(out);
+});
+
+// TEMP Debug: probe a CRM module API name with a lightweight GET (?per_page=1)
+// to check if it exists, without the broader settings.modules scope. Remove
+// after CRM sync is confirmed working.
+// GET /api/debug-crm-probe-module?name=Tasks
+app.get('/api/debug-crm-probe-module', async (req, res) => {
+  try {
+    const name = String(req.query.name || '');
+    const catalyst = require('zcatalyst-sdk-node');
+    const appInst = catalyst.initialize(req as any, { scope: 'admin' });
+    const { headers } = await appInst.connections().getConnectionCredentials('ashokprimehome');
+    const r = await fetch(`https://www.zohoapis.in/crm/v8/${name}?per_page=1`, { headers });
+    const text = await r.text();
+    res.json({ name, status: r.status, body: text.slice(0, 500) });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// TEMP Debug: list all CRM module API names to find the correct one. Remove
+// after CRM sync is confirmed working.
+// GET /api/debug-crm-modules
+app.get('/api/debug-crm-modules', async (req, res) => {
+  try {
+    const catalyst = require('zcatalyst-sdk-node');
+    const appInst = catalyst.initialize(req as any, { scope: 'admin' });
+    const { headers } = await appInst.connections().getConnectionCredentials('ashokprimehome');
+    const r = await fetch('https://www.zohoapis.in/crm/v8/settings/modules', { headers });
+    const text = await r.text();
+    let body: any;
+    try { body = JSON.parse(text); } catch { body = null; }
+    if (!body || !Array.isArray(body.modules)) {
+      return res.json({ status: r.status, raw: text.slice(0, 2000) });
+    }
+    const names = body.modules.map((m: any) => ({ api_name: m.api_name, module_name: m.module_name, label: m.singular_label }));
+    res.json(names);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// TEMP Debug: inspect crm_sync_map rows for a given buildtrack_id. Remove
+// after CRM sync is confirmed working.
+// GET /api/debug-crm-sync-map?buildtrackId=...
+app.get('/api/debug-crm-sync-map', async (req, res) => {
+  try {
+    const { buildtrackId } = req.query;
+    const rows = buildtrackId
+      ? await db.all(req, 'SELECT * FROM crm_sync_map WHERE buildtrack_id = ?', [buildtrackId])
+      : await db.all(req, 'SELECT * FROM crm_sync_map ORDER BY last_synced_at DESC LIMIT 20');
+    res.json(rows);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// TEMP Debug: run syncTaskUpsert for a task but surface the raw error instead
+// of swallowing it. Remove after CRM sync is confirmed working.
+// GET /api/debug-resync-task?id=...
+app.get('/api/debug-resync-task', async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'id required' });
+    const task: any = await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [id]);
+    if (!task) return res.status(404).json({ error: 'task not found' });
+    const { syncTaskUpsertDebug } = require('./crmSync');
+    const result = await syncTaskUpsertDebug(req, task);
+    res.json({ ok: true, result });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err?.message || String(err), stack: err?.stack });
+  }
 });
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -19,6 +52,7 @@ const customModules_1 = __importDefault(require("./routes/customModules"));
 const crmWebhook_1 = __importDefault(require("./routes/crmWebhook"));
 const cliqReport_1 = require("./cliqReport");
 const crmSync_1 = require("./crmSync");
+const db = __importStar(require("./db"));
 const app = (0, express_1.default)();
 const PORT = process.env.X_ZOHO_CATALYST_LISTEN_PORT || process.env.PORT || 4000;
 // Data is persisted in Zoho Catalyst Data Store (seeded ahead of time via
@@ -212,7 +246,7 @@ app.get('/api/debug-crm-connection', async (req, res) => {
     try {
         const catalyst = require('zcatalyst-sdk-node');
         const appInst = catalyst.initialize(req, { scope: 'admin' });
-        const { headers } = await appInst.connections().getConnectionCredentials('Ashokprimehome');
+        const { headers } = await appInst.connections().getConnectionCredentials('ashokprimehome');
         out.gotCredentials = true;
         out.headerKeys = Object.keys(headers || {});
         const createRes = await fetch('https://www.zohoapis.in/crm/v8/Task_list', {
@@ -227,6 +261,85 @@ app.get('/api/debug-crm-connection', async (req, res) => {
         out.error = err?.message || String(err);
     }
     res.json(out);
+});
+// TEMP Debug: probe a CRM module API name with a lightweight GET (?per_page=1)
+// to check if it exists, without the broader settings.modules scope. Remove
+// after CRM sync is confirmed working.
+// GET /api/debug-crm-probe-module?name=Tasks
+app.get('/api/debug-crm-probe-module', async (req, res) => {
+    try {
+        const name = String(req.query.name || '');
+        const catalyst = require('zcatalyst-sdk-node');
+        const appInst = catalyst.initialize(req, { scope: 'admin' });
+        const { headers } = await appInst.connections().getConnectionCredentials('ashokprimehome');
+        const r = await fetch(`https://www.zohoapis.in/crm/v8/${name}?per_page=1`, { headers });
+        const text = await r.text();
+        res.json({ name, status: r.status, body: text.slice(0, 500) });
+    }
+    catch (err) {
+        res.status(500).json({ error: err?.message || String(err) });
+    }
+});
+// TEMP Debug: list all CRM module API names to find the correct one. Remove
+// after CRM sync is confirmed working.
+// GET /api/debug-crm-modules
+app.get('/api/debug-crm-modules', async (req, res) => {
+    try {
+        const catalyst = require('zcatalyst-sdk-node');
+        const appInst = catalyst.initialize(req, { scope: 'admin' });
+        const { headers } = await appInst.connections().getConnectionCredentials('ashokprimehome');
+        const r = await fetch('https://www.zohoapis.in/crm/v8/settings/modules', { headers });
+        const text = await r.text();
+        let body;
+        try {
+            body = JSON.parse(text);
+        }
+        catch {
+            body = null;
+        }
+        if (!body || !Array.isArray(body.modules)) {
+            return res.json({ status: r.status, raw: text.slice(0, 2000) });
+        }
+        const names = body.modules.map((m) => ({ api_name: m.api_name, module_name: m.module_name, label: m.singular_label }));
+        res.json(names);
+    }
+    catch (err) {
+        res.status(500).json({ error: err?.message || String(err) });
+    }
+});
+// TEMP Debug: inspect crm_sync_map rows for a given buildtrack_id. Remove
+// after CRM sync is confirmed working.
+// GET /api/debug-crm-sync-map?buildtrackId=...
+app.get('/api/debug-crm-sync-map', async (req, res) => {
+    try {
+        const { buildtrackId } = req.query;
+        const rows = buildtrackId
+            ? await db.all(req, 'SELECT * FROM crm_sync_map WHERE buildtrack_id = ?', [buildtrackId])
+            : await db.all(req, 'SELECT * FROM crm_sync_map ORDER BY last_synced_at DESC LIMIT 20');
+        res.json(rows);
+    }
+    catch (err) {
+        res.status(500).json({ error: err?.message || String(err) });
+    }
+});
+// TEMP Debug: run syncTaskUpsert for a task but surface the raw error instead
+// of swallowing it. Remove after CRM sync is confirmed working.
+// GET /api/debug-resync-task?id=...
+app.get('/api/debug-resync-task', async (req, res) => {
+    try {
+        const { id } = req.query;
+        if (!id)
+            return res.status(400).json({ error: 'id required' });
+        const task = await db.get(req, 'SELECT * FROM tasks WHERE id = ?', [id]);
+        if (!task)
+            return res.status(404).json({ error: 'task not found' });
+        const { syncTaskUpsertDebug } = require('./crmSync');
+        const result = await syncTaskUpsertDebug(req, task);
+        res.json({ ok: true, result });
+    }
+    catch (err) {
+        res.status(500).json({ ok: false, error: err?.message || String(err), stack: err?.stack });
+    }
 });
 // ---------------------------------------------------------------------------
 // Debug: test SDK updateRow directly for a drawing row

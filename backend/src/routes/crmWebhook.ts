@@ -51,9 +51,14 @@ async function findMapping(req: any, entityTypes: EntityType[], crmId: string): 
   return null;
 }
 
+/** Format a Date as "yyyy-MM-dd HH:mm:ss" — the format ZCQL expects for DATETIME columns (ISO 8601 with 'T'/'Z' is rejected). */
+function zcqlDatetime(d: Date = new Date()): string {
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 async function saveMapping(req: any, entityType: EntityType, buildtrackId: string, crmId: string, direction: string): Promise<void> {
   const existing = await db.get(req, 'SELECT crm_id FROM crm_sync_map WHERE entity_type = ? AND buildtrack_id = ?', [entityType, buildtrackId]);
-  const now = new Date().toISOString();
+  const now = zcqlDatetime();
   if (existing) {
     await db.run(
       req,

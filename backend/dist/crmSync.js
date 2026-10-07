@@ -59,13 +59,14 @@ exports.syncProjectDelete = syncProjectDelete;
 exports.syncMilestoneUpsert = syncMilestoneUpsert;
 exports.syncMilestoneDelete = syncMilestoneDelete;
 exports.syncTaskUpsert = syncTaskUpsert;
+exports.syncTaskUpsertDebug = syncTaskUpsertDebug;
 exports.syncTaskDelete = syncTaskDelete;
 exports.syncProjectTaskUpsert = syncProjectTaskUpsert;
 exports.syncProjectTaskDelete = syncProjectTaskDelete;
 exports.reconcileCrmTaskDeletes = reconcileCrmTaskDeletes;
 const zcatalyst_sdk_node_1 = __importDefault(require("zcatalyst-sdk-node"));
 const db = __importStar(require("./db"));
-const CONNECTION_NAME = 'Ashokprimehome';
+const CONNECTION_NAME = 'ashokprimehome';
 const CRM_API_BASE = 'https://www.zohoapis.in/crm/v8';
 const MODULE = {
     project: 'Ashok_Prime_Home_Projects',
@@ -93,9 +94,13 @@ async function getCrmId(req, entityType, buildtrackId) {
     const row = await db.get(req, 'SELECT crm_id FROM crm_sync_map WHERE entity_type = ? AND buildtrack_id = ?', [entityType, buildtrackId]);
     return row?.crm_id ?? null;
 }
+/** Format a Date as "yyyy-MM-dd HH:mm:ss" — the format ZCQL expects for DATETIME columns (ISO 8601 with 'T'/'Z' is rejected). */
+function zcqlDatetime(d = new Date()) {
+    return d.toISOString().slice(0, 19).replace('T', ' ');
+}
 async function saveMapping(req, entityType, buildtrackId, crmId) {
     const existing = await getCrmId(req, entityType, buildtrackId);
-    const now = new Date().toISOString();
+    const now = zcqlDatetime();
     if (existing) {
         await db.run(req, 'UPDATE crm_sync_map SET crm_id = ?, last_synced_at = ?, sync_direction = ? WHERE entity_type = ? AND buildtrack_id = ?', [crmId, now, 'buildtrack_to_crm', entityType, buildtrackId]);
     }
@@ -237,6 +242,43 @@ async function syncTaskUpsert(req, task) {
     }
     catch (err) {
         console.error('[crmSync] task upsert failed', task.id, err);
+    }
+}
+// TEMP Debug: same as syncTaskUpsert but rethrows instead of swallowing errors.
+// Remove once CRM sync is confirmed working end-to-end.
+async function syncTaskUpsertDebug(req, task) {
+    const crmId = await getCrmId(req, 'task', task.id);
+    const data = {
+        Name: task.name,
+        Description: task.description || '',
+        Category: task.category || '',
+        Staart: task.startDate || null,
+        Date_2: task.dueDate || null,
+        Status: task.status || '',
+        Priority: task.priorityLevel ?? task.priority ?? '',
+        Progress: task.progress ?? 0,
+        Assignee_Name: task.assignedTo || '',
+    };
+    const drawing = task.drawingId
+        ? await db.get(req, 'SELECT projectId FROM drawings WHERE id = ?', [task.drawingId])
+        : null;
+    const projectCrmId = drawing?.projectId ? await getCrmId(req, 'project', drawing.projectId) : null;
+    if (projectCrmId)
+        data.Project = { id: projectCrmId };
+    if (task.milestoneId) {
+        const milestoneCrmId = await getCrmId(req, 'milestone', task.milestoneId);
+        if (milestoneCrmId)
+            data.MIleStone = { id: milestoneCrmId };
+    }
+    if (crmId) {
+        await crmUpdate(req, 'task', crmId, data);
+        return { action: 'update', crmId, data };
+    }
+    else {
+        const newId = await crmCreate(req, 'task', data);
+        if (newId)
+            await saveMapping(req, 'task', task.id, newId);
+        return { action: 'create', newId, data };
     }
 }
 async function syncTaskDelete(req, taskId) {
