@@ -203,6 +203,32 @@ app.post('/api/migrate/add-sortorder-column', async (req, res) => {
 });
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 // ---------------------------------------------------------------------------
+// TEMP Debug: verify the "Ashokprimehome" Catalyst Connection + a live CRM
+// create call actually succeed. Remove after CRM sync is confirmed working.
+// GET /api/debug-crm-connection
+// ---------------------------------------------------------------------------
+app.get('/api/debug-crm-connection', async (req, res) => {
+    const out = {};
+    try {
+        const catalyst = require('zcatalyst-sdk-node');
+        const appInst = catalyst.initialize(req, { scope: 'admin' });
+        const { headers } = await appInst.connections().getConnectionCredentials('Ashokprimehome');
+        out.gotCredentials = true;
+        out.headerKeys = Object.keys(headers || {});
+        const createRes = await fetch('https://www.zohoapis.in/crm/v8/Task_list', {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: [{ Name: 'DEBUG CONNECTION TEST ' + Date.now() }] }),
+        });
+        out.crmStatus = createRes.status;
+        out.crmBody = await createRes.text();
+    }
+    catch (err) {
+        out.error = err?.message || String(err);
+    }
+    res.json(out);
+});
+// ---------------------------------------------------------------------------
 // Debug: test SDK updateRow directly for a drawing row
 // POST /api/debug-update-drawing  body: { drawingId, col, value }
 // ---------------------------------------------------------------------------

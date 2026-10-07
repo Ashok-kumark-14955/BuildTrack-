@@ -180,16 +180,19 @@ export async function syncTaskUpsert(req: Request, task: any): Promise<void> {
       Progress: task.progress ?? 0,
       Assignee_Name: task.assignedTo || '',
     };
+    // Resolve Project independently of milestone — drawing grid tasks are
+    // usually milestone-less, so the Project link must come from the task's
+    // drawing rather than being gated behind a milestone lookup.
+    const drawing = task.drawingId
+      ? await db.get(req, 'SELECT projectId FROM drawings WHERE id = ?', [task.drawingId])
+      : null;
+    const projectCrmId = drawing?.projectId ? await getCrmId(req, 'project', drawing.projectId) : null;
+    if (projectCrmId) data.Project = { id: projectCrmId };
     if (task.milestoneId) {
       const milestoneCrmId = await getCrmId(req, 'milestone', task.milestoneId);
-      if (milestoneCrmId) {
-        // NOTE: the Task_list module's lookup field to Milestones is "MIleStone"
-        // (unusual casing baked into the CRM schema) — do NOT rename to "Milestone".
-        data.MIleStone = { id: milestoneCrmId };
-        const milestone = await db.get(req, 'SELECT projectId FROM milestones WHERE id = ?', [task.milestoneId]);
-        const projectCrmId = milestone?.projectId ? await getCrmId(req, 'project', milestone.projectId) : null;
-        if (projectCrmId) data.Project = { id: projectCrmId };
-      }
+      // NOTE: the Task_list module's lookup field to Milestones is "MIleStone"
+      // (unusual casing baked into the CRM schema) — do NOT rename to "Milestone".
+      if (milestoneCrmId) data.MIleStone = { id: milestoneCrmId };
     }
     if (crmId) {
       await crmUpdate(req, 'task', crmId, data);

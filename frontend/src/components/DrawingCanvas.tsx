@@ -23,10 +23,12 @@ function useImage(url: string | undefined, fallbackUrl?: string | undefined) {
      * Try to load `src` as an HTMLImageElement. Resolves with `true` on success,
      * `false` on error. Never rejects.
      *
-     * ⚠️  Do NOT set crossOrigin for pre-signed S3/Stratus URLs or data: URLs.
-     *    Adding crossOrigin sends an Origin header which most S3 presigned-URL
-     *    policies reject (CORS preflight fails → image.onerror fires → blank canvas).
-     *    For same-origin URLs (e.g. /uploads/…) CORS is not needed either.
+     * ⚠️  Do NOT set crossOrigin — the backend proxy's response carries a
+     *    duplicate Access-Control-Allow-Origin header (gateway-injected +
+     *    explicit in code), which is invalid per spec and makes any CORS-mode
+     *    request fail outright. Pre-signed S3/Stratus URLs reject it too.
+     *    Images stay loadable in no-cors mode; canvas pixel sampling (e.g.
+     *    brightness detection) just isn't available on them.
      */
     const loadSrc = (src: string): Promise<boolean> =>
       new Promise((resolve) => {
@@ -674,6 +676,33 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
     currentDrawing ? drawingFileProxyUrl(currentDrawing.id) : undefined,
     currentDrawing?.fileUrl || undefined,
   );
+
+  // Drawings vary in native color scheme (some exported dark/blueprint-style,
+  // some light CAD scans). `highContrast` always means "user wants a dark
+  // view" — whether that requires inverting the image depends on which kind
+  // of source asset this drawing is, tracked here per known-light-native ids.
+  // (Auto-detecting this by sampling pixels would need `crossOrigin` on the
+  // <img>, which breaks loading entirely against this backend: the proxy's
+  // response carries a duplicate Access-Control-Allow-Origin header once a
+  // CORS-mode request is made — see useImage's loadSrc comment.)
+  const LIGHT_NATIVE_DRAWING_IDS = new Set([
+    '001e7303-315e-497f-817b-477f9b308d8b', // PEB Structural Framing Plan
+    '65bc9338-3ddc-4e93-bc14-dc22d093f799', // PEB Column Erection Plan
+    '7fd0a729-7375-4ad7-b5a7-188ec13e4fb3', // PEB Beam Erection Plan
+    '13da5c8c-be02-49bf-97bd-279613ad6f46', // PEB Roof Erection Plan
+  ]);
+  const nativeIsDark = !currentDrawing || !LIGHT_NATIVE_DRAWING_IDS.has(currentDrawing.id);
+  // Only invert when the desired appearance disagrees with the asset's native one.
+  const shouldInvert = highContrast !== nativeIsDark;
+
+  // Remember the mode the user picked per drawing so re-opening a project
+  // keeps what they chose; otherwise default every drawing to dark.
+  const highContrastStorageKey = currentDrawing ? `buildtrack:highContrast:${currentDrawing.id}` : null;
+  useEffect(() => {
+    if (!highContrastStorageKey) return;
+    const stored = localStorage.getItem(highContrastStorageKey);
+    setHighContrast(stored === null ? true : stored === '1');
+  }, [highContrastStorageKey]);
 
   // ── Resize observer ──
   useEffect(() => {
@@ -1432,6 +1461,7 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
               backgroundSize: '20px 20px, 20px 20px, 100px 100px, 100px 100px',
             }
           : {
+              // highContrast reflects the user's intent (dark vs light), always paired with the frame color below.
               backgroundColor: highContrast ? '#000000' : '#f8fafc',
             }
       }
@@ -1446,7 +1476,8 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
         style={{
           position: 'absolute',
           inset: 0,
-          filter: highContrast ? 'invert(1) hue-rotate(180deg)' : undefined,
+          // Only invert when the asset's native colors disagree with the desired mode.
+          filter: shouldInvert ? 'invert(1) hue-rotate(180deg)' : undefined,
           transition: 'filter 0.25s ease',
         }}
       >
@@ -2047,7 +2078,11 @@ export default function DrawingCanvas({ showGrid, showBeams, fullscreen, calibra
           {showLabels ? 'Labels On' : 'Labels Off'}
         </button>
         <button
-          onClick={() => setHighContrast((v) => !v)}
+          onClick={() => setHighContrast((v) => {
+            const next = !v;
+            if (highContrastStorageKey) localStorage.setItem(highContrastStorageKey, next ? '1' : '0');
+            return next;
+          })}
           className="px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-colors"
           style={{
             background: highContrast ? 'rgba(56,189,248,0.18)' : 'rgba(51,65,85,0.65)',
